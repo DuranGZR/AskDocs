@@ -1,0 +1,33 @@
+# --- Gizli Ortam Değişkenleri (Secrets) ---
+.env
+.env.*
+!.env.example
+
+# --- Python & Sanal Ortam ---
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Rust Derleme Çıktıları (Hafta 5 Hazırlığı) ---
+target/
+*.whl
+
+# --- Çalışma Zamanı Geçici Verileri & Loglar ---
+data/
+logs/
+*.log
+
+# --- Editör ve İşletim Sistemi Dosyaları ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Yerel Planlama Notları ---
+oku.txt
