@@ -40,7 +40,12 @@ def setup_logging(
     normalized_level = log_level.upper()
     root_logger = logging.getLogger()
     root_logger.setLevel(normalized_level)
-    root_logger.handlers.clear()
+    # Testlerde pytest caplog handler'ını korurken diğer tüm handler'ları sıfırla
+    root_logger.handlers = [
+        existing
+        for existing in root_logger.handlers
+        if type(existing).__module__.startswith("_pytest.logging")
+    ]
 
     handler = logging.StreamHandler(sys.stdout)
     handler.addFilter(RequestIdFilter())

@@ -1,4 +1,28 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: corerag-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - corerag-net
+
   api:
     build:
       context: .
@@ -11,6 +35,9 @@ services:
       - .env
     environment:
       UPLOAD_DIR: /app/data/uploads
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
       WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
@@ -28,6 +55,9 @@ services:
       - --reload-dir
       - /app/src
       - --no-access-log
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -43,8 +73,53 @@ services:
     networks:
       - corerag-net
 
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: corerag-api:dev
+    container_name: corerag-worker
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    env_file:
+      - .env
+    environment:
+      UPLOAD_DIR: /app/data/uploads
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./src:/app/src:ro
+      - uploads_data:/app/data/uploads
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - --sigint-timeout
+      - "30"
+      - celery -A src.tasks.celery_app:celery_app worker --loglevel=INFO --concurrency=2
+      - /app/src
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'celery -A src.tasks.celery_app:celery_app inspect ping -d "celery@$$HOSTNAME" --timeout=5',
+        ]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - corerag-net
+
 volumes:
   uploads_data:
+  redis_data:
 
 networks:
   corerag-net:

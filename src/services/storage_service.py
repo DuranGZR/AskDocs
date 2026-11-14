@@ -40,13 +40,22 @@ class LocalStorageService(BaseStorage):
                 f"Unsupported file type '{extension or 'none'}'. Allowed types: .pdf, .txt"
             )
 
+        first_chunk = await file.read(self._chunk_size)
+        if not first_chunk:
+            raise BadRequestError("Uploaded file is empty")
+        if len(first_chunk) > self._max_size_bytes:
+            raise PayloadTooLargeError(
+                f"File exceeds maximum allowed size of {self._max_size_bytes} bytes"
+            )
+
         await asyncio.to_thread(self._base_dir.mkdir, parents=True, exist_ok=True)
         document_id = str(uuid4())
         target_path = self._base_dir / f"{document_id}{extension}"
 
-        size_bytes = 0
+        size_bytes = len(first_chunk)
         try:
             async with aiofiles.open(target_path, mode="wb") as out_file:
+                await out_file.write(first_chunk)
                 while chunk := await file.read(self._chunk_size):
                     size_bytes += len(chunk)
                     if size_bytes > self._max_size_bytes:
@@ -57,10 +66,6 @@ class LocalStorageService(BaseStorage):
         except Exception:
             await self.delete(target_path)
             raise
-
-        if size_bytes == 0:
-            await self.delete(target_path)
-            raise BadRequestError("Uploaded file is empty")
 
         return StoredFile(
             document_id=document_id,

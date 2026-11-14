@@ -50,6 +50,7 @@ def test_settings_normalizes_case_and_computes_bytes() -> None:
         {"APP_ENV": "production", "API_KEY": "change-me-in-local-env", "DEBUG": False},
         {"APP_ENV": "production", "API_KEY": "strong-prod-key-123", "DEBUG": True},
         {"APP_ENV": "development", "API_KEY": "short"},
+        {"APP_ENV": "development", "API_KEY": "        "},
     ],
 )
 def test_settings_rejects_unsafe_or_invalid_values(overrides: dict[str, Any]) -> None:
@@ -80,6 +81,18 @@ async def test_local_storage_rejects_missing_filename(
 
     with pytest.raises(BadRequestError, match="Filename is required"):
         await storage.save(file=stream, filename=bad_name)
+
+
+async def test_local_storage_rejects_empty_stream_before_creating_dir(tmp_path: Path) -> None:
+    """Boş akış reddedildiğinde hedef klasör veya 0-baytlık dosya oluşturulmamalıdır."""
+    target_dir = tmp_path / "never_created"
+    storage = LocalStorageService(base_dir=target_dir, max_size_bytes=1024)
+    empty_stream = _FakeReadableStream([])
+
+    with pytest.raises(BadRequestError, match="Uploaded file is empty"):
+        await storage.save(file=empty_stream, filename="empty.pdf")
+
+    assert not target_dir.exists()
 
 
 async def test_local_storage_delete_missing_file_is_safe(tmp_path: Path) -> None:

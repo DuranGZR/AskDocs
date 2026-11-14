@@ -60,9 +60,9 @@ class RequestIdMiddleware:
     @staticmethod
     def _extract_or_generate_request_id(scope: Scope) -> str:
         """Gelen istekten güvenli X-Request-ID başlığını alır veya yeni bir UUID üretir."""
-        for name, value in scope.get("headers", []):
-            if name.lower() == b"x-request-id":
-                candidate = value.decode("latin-1").strip()
+        for name, value in scope.get("headers") or ():
+            if bytes(name).lower() == b"x-request-id":
+                candidate = bytes(value).decode("latin-1").strip()
                 if _REQUEST_ID_PATTERN.fullmatch(candidate):
                     return candidate
                 break
