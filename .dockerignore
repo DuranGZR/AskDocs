@@ -1,0 +1,35 @@
+# Git & Dokümantasyon
+.git
+.gitignore
+oku.txt
+README.md
+
+# Gizli Ortam Değişkenleri (İmaj katmanlarına asla gömülmez, runtime'da verilir)
+.env
+.env.*
+!.env.example
+
+# Yerel Python & Araç Çıktıları (Windows .venv Linux imajına sızmamalı)
+.venv
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# Çalışma Zamanı Verileri & Loglar (Docker volume üzerinden bağlanır)
+data
+logs
+*.log
+
+# Rust Derleme Çıktıları (Hafta 5)
+target
+*.whl
+
+# Editör & İşletim Sistemi
+.vscode
+.idea
+.DS_Store
+Thumbs.db
