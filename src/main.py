@@ -8,7 +8,11 @@ from src.api.v1.router import api_router
 from src.core.config import get_settings
 from src.core.exceptions import register_exception_handlers
 from src.core.logging import setup_logging
-from src.core.middleware import RequestIdMiddleware, UnhandledExceptionMiddleware
+from src.core.middleware import (
+    MaxBodySizeMiddleware,
+    RequestIdMiddleware,
+    UnhandledExceptionMiddleware,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +50,15 @@ def create_app() -> FastAPI:
         redoc_url=None if is_prod else "/redoc",
         openapi_url=None if is_prod else "/openapi.json",
     )
-    app.state.settings = settings
     register_exception_handlers(app)
     app.include_router(api_router)
 
     # Starlette middleware'leri ters sırada sarar (en son eklenen en dışta çalışır).
+    # Multipart başlık/sınır payı için upload limitine 1 MiB ek tampon eklenir.
+    app.add_middleware(
+        MaxBodySizeMiddleware,
+        max_body_bytes=settings.max_upload_size_bytes + 1024 * 1024,
+    )
     app.add_middleware(UnhandledExceptionMiddleware)
     app.add_middleware(RequestIdMiddleware)
 

@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, SecretStr, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -34,6 +34,22 @@ class Settings(BaseSettings):
     def max_upload_size_bytes(self) -> int:
         """Maksimum yükleme boyutunu bayt cinsinden döndürür."""
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+    @field_validator("APP_ENV", "LOG_FORMAT", mode="before")
+    @classmethod
+    def normalize_lowercase_enum(cls, value: object) -> object:
+        """Ortam ve log formatı alanlarındaki büyük/küçük harf farklarını normalize eder."""
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @field_validator("LOG_LEVEL", mode="before")
+    @classmethod
+    def normalize_log_level(cls, value: object) -> object:
+        """Log seviyesini büyük harfe normalize eder."""
+        if isinstance(value, str):
+            return value.strip().upper()
+        return value
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Self:

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import FastAPI, Request, status
@@ -11,12 +12,13 @@ from src.schemas.common import ErrorDetail, ErrorResponse
 
 logger = logging.getLogger(__name__)
 
+
 class AppError(Exception):
     """HTTP katmanından bağımsız tüm uygulama ve servis hatalarının temel sınıfı."""
-    
+
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal_error"
-    
+
     def __init__(
         self,
         message: str,
@@ -24,6 +26,7 @@ class AppError(Exception):
         status_code: int | None = None,
         code: str | None = None,
         details: list[dict[str, Any]] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.message = message
@@ -32,32 +35,43 @@ class AppError(Exception):
         if code is not None:
             self.code = code
         self.details = details
-        
+        self.headers = headers
+
+
 class BadRequestError(AppError):
     """İstemcinin geçersiz veya hatalı iş kuralı talebi gönderdiğini belirtir."""
+
     status_code = status.HTTP_400_BAD_REQUEST
     code = "bad_request"
-    
+
+
 class NotFoundError(AppError):
     """İstenen kaynağın (doküman, görev vb.) bulunamadığını belirtir."""
+
     status_code = status.HTTP_404_NOT_FOUND
     code = "not_found"
-    
+
+
 class PayloadTooLargeError(AppError):
     """Yüklenen dosyanın izin verilen maksimum boyutu aştığını belirtir."""
+
     status_code = status.HTTP_413_CONTENT_TOO_LARGE
     code = "payload_too_large"
-    
+
+
 class UnsupportedMediaTypeError(AppError):
     """Desteklenmeyen dosya türü veya geçersiz içerik imzası (Magic Bytes) hatası."""
+
     status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     code = "unsupported_media_type"
-    
+
+
 class ServiceUnavailableError(AppError):
     """Dış servis (Qdrant, Redis, Ollama/vLLM) veya Circuit Breaker erişilemez hatası."""
+
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     code = "service_unavailable"
-    
+
 
 def _build_error_response(
     *,
@@ -65,6 +79,7 @@ def _build_error_response(
     code: str,
     message: str,
     details: list[dict[str, Any]] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     """Tüm hata yakalayıcılar için tek ve standart JSON hata yanıtı üretir."""
     payload = ErrorResponse(
@@ -78,8 +93,10 @@ def _build_error_response(
     return JSONResponse(
         status_code=status_code,
         content=payload.model_dump(exclude_none=True),
+        headers=headers,
     )
-    
+
+
 async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Servis katmanından gelen AppError hatalarını standart HTTP JSON yanıtına çevirir."""
     if not isinstance(exc, AppError):
@@ -96,8 +113,10 @@ async def app_error_handler(request: Request, exc: Exception) -> JSONResponse:
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        headers=exc.headers,
     )
-    
+
+
 async def http_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """FastAPI ve Starlette kaynaklı HTTP hatalarını (404, 405 vb.) yakalar."""
     if not isinstance(exc, StarletteHTTPException):
@@ -113,8 +132,10 @@ async def http_exception_handler(request: Request, exc: Exception) -> JSONRespon
         status_code=exc.status_code,
         code=f"http_{exc.status_code}",
         message=str(exc.detail),
+        headers=exc.headers,
     )
-    
+
+
 async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Pydantic girdi doğrulama hatalarını (422) temiz alan listesiyle döndürür."""
     if not isinstance(exc, RequestValidationError):
@@ -139,7 +160,8 @@ async def validation_exception_handler(request: Request, exc: Exception) -> JSON
         message="Request validation failed",
         details=details,
     )
-    
+
+
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Beklenmeyen tüm Python hatalarını loglar ve istemciye güvenli 500 yanıtı döner."""
     logger.exception(
@@ -153,12 +175,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
         code="internal_server_error",
         message="An unexpected internal error occurred",
     )
-    
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Tüm global hata yakalayıcıları FastAPI uygulamasına kaydeder."""
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, unhandled_exception_handler)
-    
-    

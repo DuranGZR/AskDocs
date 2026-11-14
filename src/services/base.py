@@ -18,8 +18,7 @@ class StoredFile:
 class AsyncReadableFile(Protocol):
     """Parça parça (chunk) asenkron okuma yapılabilen dosya akışı sözleşmesi."""
 
-    async def read(self, size: int = -1) -> bytes:
-        ...
+    async def read(self, size: int = -1) -> bytes: ...
 
 
 class BaseStorage(ABC):

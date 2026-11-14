@@ -30,7 +30,7 @@ class LocalStorageService(BaseStorage):
 
     async def save(self, *, file: AsyncReadableFile, filename: str | None) -> StoredFile:
         """Dosya adını/uzantısını doğrular ve akış halinde diske yazar."""
-        safe_original_name = PurePath(filename).name if filename else ""
+        safe_original_name = PurePath(filename).name.strip() if filename else ""
         if not safe_original_name:
             raise BadRequestError("Filename is required")
 

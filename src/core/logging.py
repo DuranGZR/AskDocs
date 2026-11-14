@@ -37,8 +37,9 @@ def setup_logging(
     log_format: Literal["console", "json"] = "console",
 ) -> None:
     """Uygulama genelindeki kök logger ve kütüphane log seviyelerini yapılandırır."""
+    normalized_level = log_level.upper()
     root_logger = logging.getLogger()
-    root_logger.setLevel(log_level.upper())
+    root_logger.setLevel(normalized_level)
     root_logger.handlers.clear()
 
     handler = logging.StreamHandler(sys.stdout)
@@ -58,5 +59,15 @@ def setup_logging(
     # Dış kütüphanelerin aşırı gürültülü loglarını dengede tut
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.error").setLevel(log_level.upper())
-    logging.getLogger("uvicorn.access").setLevel(log_level.upper())
+
+    # Uvicorn loglarını da tek formata (request_id + JSON) bağla; access log'u middleware basar.
+    for uvicorn_logger_name in ("uvicorn", "uvicorn.error"):
+        uvicorn_logger = logging.getLogger(uvicorn_logger_name)
+        uvicorn_logger.handlers.clear()
+        uvicorn_logger.propagate = True
+        uvicorn_logger.setLevel(normalized_level)
+
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.handlers.clear()
+    access_logger.propagate = False
+    access_logger.disabled = True
