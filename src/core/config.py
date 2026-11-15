@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379/1"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
 
+    # --- Vector DB (Qdrant) ---
+    QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_COLLECTION_NAME: str = Field(
+        default="documents",
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-zA-Z0-9_-]+$",
+    )
+    QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
+
     @property
     def max_upload_size_bytes(self) -> int:
         """Maksimum yükleme boyutunu bayt cinsinden döndürür."""
@@ -77,6 +87,22 @@ class Settings(BaseSettings):
         if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
             raise ValueError(
                 "URL must use 'redis://' or 'rediss://' scheme and include a valid hostname"
+            )
+        try:
+            _ = parsed.port
+        except ValueError as exc:
+            raise ValueError("URL contains an invalid port number") from exc
+        return cleaned
+
+    @field_validator("QDRANT_URL")
+    @classmethod
+    def validate_http_url(cls, value: str) -> str:
+        """Qdrant bağlantı adresinin geçerli http/https şeması, host ve port yapısını doğrular."""
+        cleaned = value.strip()
+        parsed = urlsplit(cleaned)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError(
+                "URL must use 'http://' or 'https://' scheme and include a valid hostname"
             )
         try:
             _ = parsed.port

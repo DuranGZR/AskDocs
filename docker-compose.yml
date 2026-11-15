@@ -23,6 +23,28 @@ services:
     networks:
       - corerag-net
 
+  qdrant:
+    image: qdrant/qdrant:v1.13.4
+    container_name: corerag-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/6333 && echo -e \"GET /readyz HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q \"all shards are ready\" <&3'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - corerag-net
+
   api:
     build:
       context: .
@@ -38,6 +60,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
       WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
@@ -57,6 +80,8 @@ services:
       - --no-access-log
     depends_on:
       redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     healthcheck:
       test:
@@ -89,6 +114,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      QDRANT_URL: http://qdrant:6333
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./src:/app/src:ro
@@ -103,6 +129,8 @@ services:
       - /app/src
     depends_on:
       redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     healthcheck:
       test:
@@ -120,6 +148,7 @@ services:
 volumes:
   uploads_data:
   redis_data:
+  qdrant_data:
 
 networks:
   corerag-net:
