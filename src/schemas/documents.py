@@ -24,3 +24,11 @@ class DocumentTaskStatusResponse(BaseModel):
     status: TaskState
     result: dict[str, Any] | None = None
     error: str | None = None
+
+
+class DocumentDeleteResponse(BaseModel):
+    """Doküman silme isteğinin standart yanıt şeması."""
+
+    document_id: str
+    tenant_id: str
+    status: Literal["deleted"] = "deleted"

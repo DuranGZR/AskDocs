@@ -1,19 +1,24 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Path, UploadFile, status
+from fastapi import APIRouter, File, Form, Path, Query, UploadFile, status
 
-from src.api.dependencies import StorageDep, TaskDispatcherDep
-from src.core.exceptions import ServiceUnavailableError
+from src.api.dependencies import StorageDep, TaskDispatcherDep, VectorDBDep
+from src.core.exceptions import AppError, ServiceUnavailableError
 from src.core.logging import request_id_ctx
 from src.schemas.common import ErrorResponse
-from src.schemas.documents import DocumentTaskStatusResponse, DocumentUploadResponse
+from src.schemas.documents import (
+    DocumentDeleteResponse,
+    DocumentTaskStatusResponse,
+    DocumentUploadResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
 TASK_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
+DOCUMENT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
 
 
 @router.post(
@@ -124,4 +129,59 @@ async def get_document_task_status(
         status=snapshot.status,
         result=snapshot.result,
         error=snapshot.error,
+    )
+
+
+@router.delete(
+    "/{document_id}",
+    response_model=DocumentDeleteResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ErrorResponse,
+            "description": "Service Unavailable",
+        },
+    },
+    summary="Delete a document and its vectors for a tenant",
+)
+async def delete_document(
+    vector_db: VectorDBDep,
+    document_id: Annotated[
+        str,
+        Path(
+            min_length=1,
+            max_length=64,
+            pattern=DOCUMENT_ID_PATTERN,
+            description="Identifier of the document to delete",
+        ),
+    ],
+    tenant_id: Annotated[
+        str,
+        Query(
+            min_length=1,
+            max_length=64,
+            pattern=TENANT_ID_PATTERN,
+            description="Tenant identifier for strict multi-tenant deletion isolation",
+        ),
+    ],
+) -> DocumentDeleteResponse:
+    """Belirtilen tenant_id altındaki dokümana ait tüm vektör kayıtlarını Qdrant'tan siler."""
+    try:
+        await vector_db.delete_by_document(tenant_id=tenant_id, document_id=document_id)
+    except AppError:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to delete document_id=%s for tenant_id=%s: %s",
+            document_id,
+            tenant_id,
+            type(exc).__name__,
+        )
+        raise ServiceUnavailableError("Vector database is currently unavailable") from exc
+
+    logger.info("Deleted vectors for document_id=%s tenant_id=%s", document_id, tenant_id)
+    return DocumentDeleteResponse(
+        document_id=document_id,
+        tenant_id=tenant_id,
+        status="deleted",
     )

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 
-from src.api.v1 import documents, health
+from src.api.v1 import documents, health, query
 from src.schemas.common import ErrorResponse
 
 api_router = APIRouter(
@@ -18,3 +18,4 @@ api_router = APIRouter(
 )
 api_router.include_router(health.router)
 api_router.include_router(documents.router)
+api_router.include_router(query.router)

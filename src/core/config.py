@@ -47,6 +47,8 @@ class Settings(BaseSettings):
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
     QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
+    RAG_TOP_K: int = Field(default=5, ge=1, le=20)
+    RAG_SCORE_THRESHOLD: float = Field(default=0.5, ge=0.0, le=1.0)
 
     # --- AI / LLM & Embedding (Ollama / vLLM / OpenAI-Compatible) ---
     LLM_BASE_URL: str = "http://localhost:11434/v1"
