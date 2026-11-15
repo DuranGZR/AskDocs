@@ -6,9 +6,10 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from src.api.dependencies import get_task_dispatcher
-from src.core.config import Settings, get_settings
-from src.services.base import TaskStatusSnapshot
+os.environ.setdefault("API_KEY", "test-api-key-minimum-8-chars")
+
+from src.core.config import Settings, get_settings  # noqa: E402
+from src.services.base import TaskStatusSnapshot  # noqa: E402
 
 
 class RecordingTaskDispatcher:
@@ -81,6 +82,7 @@ def app(
     task_dispatcher: RecordingTaskDispatcher,
 ) -> Iterator[FastAPI]:
     """Her test fonksiyonuna bağımsız bir FastAPI uygulama örneği sağlar."""
+    from src.api.dependencies import get_task_dispatcher
     from src.main import create_app
 
     application = create_app()
