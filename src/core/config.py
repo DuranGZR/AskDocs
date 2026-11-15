@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     LLM_API_KEY: SecretStr = SecretStr("ollama")
     LLM_MODEL: str = Field(default="llama3.2:3b", min_length=1, max_length=128)
     EMBEDDING_MODEL: str = Field(default="nomic-embed-text", min_length=1, max_length=128)
+    EMBEDDING_BATCH_SIZE: int = Field(default=32, ge=1, le=512)
     LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
 
     @property

@@ -13,7 +13,7 @@ import os
 import sys
 import tempfile
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,7 +27,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 if TYPE_CHECKING:
-    from src.services.base import TaskStatusSnapshot
+    from src.services.base import TaskStatusSnapshot, VectorPoint
 
 
 @dataclass(frozen=True, slots=True)
@@ -292,8 +292,43 @@ async def _run_offline_suite(count: int) -> None:
         }
         with _temporary_env(env_overrides):
             from src.api.dependencies import get_task_dispatcher
-            from src.core.config import get_settings
+            from src.core.config import Settings, get_settings
             from src.main import create_app
+            from src.services.base import SyncBaseLLMClient, SyncBaseVectorDB
+            from src.tasks import document_tasks
+
+            class _OfflineSyncLLMClient(SyncBaseLLMClient):
+                def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+                    return [[0.1, 0.2, 0.3, 0.4] for _ in texts]
+
+                def close(self) -> None:
+                    return None
+
+            class _OfflineSyncVectorDB(SyncBaseVectorDB):
+                def ensure_collection(self) -> None:
+                    return None
+
+                def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+                    return len(points)
+
+                def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+                    return None
+
+                def close(self) -> None:
+                    return None
+
+            def _offline_llm_factory(settings: Settings) -> SyncBaseLLMClient:
+                del settings
+                return _OfflineSyncLLMClient()
+
+            def _offline_vdb_factory(settings: Settings) -> SyncBaseVectorDB:
+                del settings
+                return _OfflineSyncVectorDB()
+
+            orig_llm_factory = document_tasks.create_worker_llm_client
+            orig_vdb_factory = document_tasks.create_worker_vector_db
+            document_tasks.create_worker_llm_client = _offline_llm_factory
+            document_tasks.create_worker_vector_db = _offline_vdb_factory
 
             get_settings.cache_clear()
             app = create_app()
@@ -368,6 +403,8 @@ async def _run_offline_suite(count: int) -> None:
                 )
                 print(f"[PASS] Exponential backoff & cleanup: {backoff_summary}")
             finally:
+                document_tasks.create_worker_llm_client = orig_llm_factory
+                document_tasks.create_worker_vector_db = orig_vdb_factory
                 app.dependency_overrides.clear()
                 get_settings.cache_clear()
 

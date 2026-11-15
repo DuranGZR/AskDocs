@@ -102,6 +102,7 @@ def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) ->
         "size_bytes": expected_size,
         "page_count": 1,
         "chunk_count": 1,
+        "upserted_count": 1,
         "status": "processed",
     }
     assert not sample.exists()
@@ -120,6 +121,7 @@ def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) ->
         "size_bytes": 0,
         "page_count": 0,
         "chunk_count": 0,
+        "upserted_count": 0,
         "status": "missing_file",
     }
 

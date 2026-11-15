@@ -1,5 +1,5 @@
 import os
-from collections.abc import AsyncGenerator, Iterator
+from collections.abc import AsyncGenerator, Iterator, Sequence
 from pathlib import Path
 
 import httpx
@@ -9,7 +9,52 @@ from fastapi import FastAPI
 os.environ.setdefault("API_KEY", "test-api-key-minimum-8-chars")
 
 from src.core.config import Settings, get_settings  # noqa: E402
-from src.services.base import TaskStatusSnapshot  # noqa: E402
+from src.services.base import (  # noqa: E402
+    SyncBaseLLMClient,
+    SyncBaseVectorDB,
+    TaskStatusSnapshot,
+    VectorPoint,
+)
+
+
+class RecordingSyncLLMClient(SyncBaseLLMClient):
+    """Testlerde harici AI sunucusuna çıkmadan sabit embedding vektörü üretir."""
+
+    def __init__(self, vector_size: int = 4) -> None:
+        self._vector_size = vector_size
+
+    def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+        return [[0.1] * self._vector_size for _ in texts]
+
+    def close(self) -> None:
+        return None
+
+
+class RecordingSyncVectorDB(SyncBaseVectorDB):
+    """Testlerde harici Qdrant sunucusuna çıkmadan upsert çağrılarını bellek içi tutar."""
+
+    def __init__(self) -> None:
+        self.points: dict[str, VectorPoint] = {}
+
+    def ensure_collection(self) -> None:
+        return None
+
+    def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+        for point in points:
+            self.points[point.point_id] = point
+        return len(points)
+
+    def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+        to_delete = [
+            pid
+            for pid, pt in self.points.items()
+            if pt.chunk.tenant_id == tenant_id and pt.chunk.document_id == document_id
+        ]
+        for pid in to_delete:
+            del self.points[pid]
+
+    def close(self) -> None:
+        return None
 
 
 class RecordingTaskDispatcher:
@@ -48,6 +93,19 @@ class RecordingTaskDispatcher:
 def pytest_configure(config: pytest.Config) -> None:
     """CI gibi .env dosyası olmayan ortamlarda varsayılan test anahtarı sağlar."""
     os.environ.setdefault("API_KEY", "test-api-key-minimum-8-chars")
+
+
+@pytest.fixture(autouse=True)
+def stub_worker_services(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Birim testlerinin canlı Ollama/Qdrant soketlerine çıkmamasını sağlar."""
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_llm_client",
+        lambda _settings: RecordingSyncLLMClient(),
+    )
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_vector_db",
+        lambda _settings: RecordingSyncVectorDB(),
+    )
 
 
 @pytest.fixture
