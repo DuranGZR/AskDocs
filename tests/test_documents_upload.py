@@ -10,11 +10,13 @@ from src.api.dependencies import get_storage_service, get_task_dispatcher
 from src.core.config import Settings
 from src.core.exceptions import register_exception_handlers
 from src.core.middleware import MaxBodySizeMiddleware, RequestIdMiddleware
+from src.services.base import TaskStatusSnapshot
 from src.services.storage_service import LocalStorageService
 
 
 class _RecordedDispatcher(Protocol):
     calls: list[dict[str, object]]
+    snapshots: dict[str, TaskStatusSnapshot]
 
 
 async def test_upload_valid_txt_writes_uuid_file_without_path_traversal(
@@ -131,6 +133,9 @@ async def test_upload_cleans_up_stored_file_and_returns_503_when_queue_fails(
         ) -> str:
             raise RuntimeError("broker unreachable")
 
+        async def get_task_status(self, *, task_id: str) -> TaskStatusSnapshot:
+            return TaskStatusSnapshot(task_id=task_id, status="PENDING")
+
     app.dependency_overrides[get_task_dispatcher] = lambda: _FailingDispatcher()
 
     response = await client.post(
@@ -142,6 +147,97 @@ async def test_upload_cleans_up_stored_file_and_returns_503_when_queue_fails(
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "service_unavailable"
     assert list(test_settings.UPLOAD_DIR.iterdir()) == []
+
+
+async def test_get_document_task_status_returns_lifecycle_states(
+    client: httpx.AsyncClient,
+    task_dispatcher: _RecordedDispatcher,
+) -> None:
+    """Görev durumu PENDING, STARTED, SUCCESS ve temizlenmiş FAILURE durumlarını dönmelidir."""
+    pending_resp = await client.get("/api/v1/documents/status/task-pending-1")
+    assert pending_resp.status_code == 200
+    assert pending_resp.json() == {
+        "task_id": "task-pending-1",
+        "status": "PENDING",
+        "result": None,
+        "error": None,
+    }
+
+    task_dispatcher.snapshots["task-started-1"] = TaskStatusSnapshot(
+        task_id="task-started-1",
+        status="STARTED",
+    )
+    started_resp = await client.get("/api/v1/documents/status/task-started-1")
+    assert started_resp.status_code == 200
+    assert started_resp.json()["status"] == "STARTED"
+
+    task_dispatcher.snapshots["task-ok-1"] = TaskStatusSnapshot(
+        task_id="task-ok-1",
+        status="SUCCESS",
+        result={"document_id": "doc-1", "status": "processed_stub"},
+    )
+    ok_resp = await client.get("/api/v1/documents/status/task-ok-1")
+    assert ok_resp.status_code == 200
+    assert ok_resp.json() == {
+        "task_id": "task-ok-1",
+        "status": "SUCCESS",
+        "result": {"document_id": "doc-1", "status": "processed_stub"},
+        "error": None,
+    }
+
+    task_dispatcher.snapshots["task-fail-1"] = TaskStatusSnapshot(
+        task_id="task-fail-1",
+        status="FAILURE",
+        result=None,
+        error="Document processing failed",
+    )
+    fail_resp = await client.get("/api/v1/documents/status/task-fail-1")
+    assert fail_resp.status_code == 200
+    assert fail_resp.json() == {
+        "task_id": "task-fail-1",
+        "status": "FAILURE",
+        "result": None,
+        "error": "Document processing failed",
+    }
+
+
+async def test_get_document_task_status_rejects_invalid_task_id(
+    client: httpx.AsyncClient,
+) -> None:
+    """Geçersiz karakter içeren task_id yolu 422 validation_error döndürmelidir."""
+    response = await client.get("/api/v1/documents/status/invalid!id")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+
+async def test_get_document_task_status_returns_503_when_backend_fails(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """Sonuç arka ucu erişilemezse 503 service_unavailable döndürmelidir."""
+
+    class _UnavailableBackendDispatcher:
+        async def enqueue_document(
+            self,
+            *,
+            document_id: str,
+            file_path: Path,
+            tenant_id: str,
+            file_type: str,
+            request_id: str,
+        ) -> str:
+            return f"task-{document_id}"
+
+        async def get_task_status(self, *, task_id: str) -> TaskStatusSnapshot:
+            raise RuntimeError("redis result backend timeout")
+
+    app.dependency_overrides[get_task_dispatcher] = lambda: _UnavailableBackendDispatcher()
+
+    response = await client.get("/api/v1/documents/status/task-123")
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "service_unavailable"
 
 
 @pytest.mark.parametrize("filename", ["malware.exe", "   .pdf", "archive.zip"])

@@ -1,9 +1,10 @@
 import asyncio
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 
 from src.core.logging import request_id_ctx
-from src.services.base import DocumentTaskDispatcher
+from src.services.base import DocumentTaskDispatcher, TaskStatusSnapshot
 from src.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -65,3 +66,45 @@ class CeleryDocumentTaskDispatcher(DocumentTaskDispatcher):
             request_id=request_id,
         )
         return str(async_result.id)
+
+    async def get_task_status(self, *, task_id: str) -> TaskStatusSnapshot:
+        return await asyncio.to_thread(self._fetch_status_sync, task_id)
+
+    @staticmethod
+    def _fetch_status_sync(task_id: str) -> TaskStatusSnapshot:
+        async_result = celery_app.AsyncResult(task_id)
+        raw_state = str(async_result.state).upper()
+
+        if raw_state == "SUCCESS":
+            raw_payload = async_result.result
+            payload = (
+                dict(raw_payload) if isinstance(raw_payload, Mapping) else {"value": raw_payload}
+            )
+            return TaskStatusSnapshot(
+                task_id=task_id,
+                status="SUCCESS",
+                result=payload,
+                error=None,
+            )
+
+        if raw_state in {"FAILURE", "REVOKED"}:
+            logger.warning(
+                "Task %s finished with state=%s (%s)",
+                task_id,
+                raw_state,
+                type(async_result.result).__name__,
+            )
+            return TaskStatusSnapshot(
+                task_id=task_id,
+                status="FAILURE",
+                result=None,
+                error="Document processing failed",
+            )
+
+        if raw_state == "STARTED":
+            return TaskStatusSnapshot(task_id=task_id, status="STARTED")
+
+        if raw_state == "RETRY":
+            return TaskStatusSnapshot(task_id=task_id, status="RETRY")
+
+        return TaskStatusSnapshot(task_id=task_id, status="PENDING")

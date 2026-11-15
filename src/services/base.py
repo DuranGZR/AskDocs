@@ -1,7 +1,19 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
+
+TaskState = Literal["PENDING", "STARTED", "RETRY", "SUCCESS", "FAILURE"]
+
+
+@dataclass(frozen=True, slots=True)
+class TaskStatusSnapshot:
+    """Kuyruk arka ucundan okunan görev durumunun servis katmanı özeti."""
+
+    task_id: str
+    status: TaskState
+    result: dict[str, object] | None = None
+    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,4 +58,8 @@ class DocumentTaskDispatcher(Protocol):
         request_id: str,
     ) -> str:
         """Görevi kuyruğa ekler ve üretilen task_id değerini döner."""
+        ...
+
+    async def get_task_status(self, *, task_id: str) -> TaskStatusSnapshot:
+        """Verilen task_id için güncel görev durumunu arka uçtan sorgular."""
         ...

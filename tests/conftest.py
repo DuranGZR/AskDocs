@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from src.api.dependencies import get_task_dispatcher
 from src.core.config import Settings, get_settings
+from src.services.base import TaskStatusSnapshot
 
 
 class RecordingTaskDispatcher:
@@ -15,6 +16,7 @@ class RecordingTaskDispatcher:
 
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
+        self.snapshots: dict[str, TaskStatusSnapshot] = {}
 
     async def enqueue_document(
         self,
@@ -34,7 +36,12 @@ class RecordingTaskDispatcher:
                 "request_id": request_id,
             }
         )
-        return f"test-task-{document_id}"
+        task_id = f"test-task-{document_id}"
+        self.snapshots[task_id] = TaskStatusSnapshot(task_id=task_id, status="PENDING")
+        return task_id
+
+    async def get_task_status(self, *, task_id: str) -> TaskStatusSnapshot:
+        return self.snapshots.get(task_id, TaskStatusSnapshot(task_id=task_id, status="PENDING"))
 
 
 def pytest_configure(config: pytest.Config) -> None:

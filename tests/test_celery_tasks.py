@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from src.core.config import Settings, get_settings
 from src.core.logging import request_id_ctx
-from src.tasks.celery_app import create_celery_app
+from src.tasks.celery_app import celery_app, create_celery_app
 from src.tasks.document_tasks import CeleryDocumentTaskDispatcher, process_document_task
 
 
@@ -167,3 +167,48 @@ async def test_celery_document_task_dispatcher_calls_delay(
         "file_type": "pdf",
         "request_id": "req-999",
     }
+
+
+async def test_celery_document_task_dispatcher_get_task_status_maps_states_and_sanitizes_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """AsyncResult durumlarını normalize etmeli ve iç hata mesajlarını sızdırmamalıdır."""
+    fake_results: dict[str, SimpleNamespace] = {
+        "t-received": SimpleNamespace(state="RECEIVED", result=None),
+        "t-started": SimpleNamespace(state="STARTED", result=None),
+        "t-retry": SimpleNamespace(state="RETRY", result=None),
+        "t-dict": SimpleNamespace(
+            state="SUCCESS",
+            result={"document_id": "d-1", "status": "processed_stub"},
+        ),
+        "t-scalar": SimpleNamespace(state="SUCCESS", result="ok"),
+        "t-fail": SimpleNamespace(
+            state="FAILURE",
+            result=RuntimeError("secret-redis-password-leak"),
+        ),
+    }
+
+    monkeypatch.setattr(celery_app, "AsyncResult", lambda task_id: fake_results[task_id])
+
+    dispatcher = CeleryDocumentTaskDispatcher()
+
+    pending_snap = await dispatcher.get_task_status(task_id="t-received")
+    assert pending_snap.status == "PENDING"
+    assert pending_snap.result is None
+
+    assert (await dispatcher.get_task_status(task_id="t-started")).status == "STARTED"
+    assert (await dispatcher.get_task_status(task_id="t-retry")).status == "RETRY"
+
+    dict_snap = await dispatcher.get_task_status(task_id="t-dict")
+    assert dict_snap.status == "SUCCESS"
+    assert dict_snap.result == {"document_id": "d-1", "status": "processed_stub"}
+    assert dict_snap.error is None
+
+    scalar_snap = await dispatcher.get_task_status(task_id="t-scalar")
+    assert scalar_snap.status == "SUCCESS"
+    assert scalar_snap.result == {"value": "ok"}
+
+    fail_snap = await dispatcher.get_task_status(task_id="t-fail")
+    assert fail_snap.status == "FAILURE"
+    assert fail_snap.result is None
+    assert fail_snap.error == "Document processing failed"
