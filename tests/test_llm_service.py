@@ -190,6 +190,47 @@ def test_sync_embed_texts_works_for_celery_worker() -> None:
         sync_http_client.close()
 
 
+def test_sync_embed_texts_retries_on_429_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HTTP 429 hız sınırında embed_texts sunucu süresi kadar bekleyip yeniden denemelidir."""
+    attempts = 0
+    sleep_calls: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(
+                status_code=429,
+                json={
+                    "error": {
+                        "code": 429,
+                        "message": "Quota exceeded. Please retry in 2.5s.",
+                    }
+                },
+            )
+        return httpx.Response(
+            status_code=200,
+            json={"data": [{"embedding": [0.9, 1.0]}]},
+        )
+
+    monkeypatch.setattr("src.services.llm_service.time.sleep", sleep_calls.append)
+
+    sync_http_client = httpx.Client(transport=httpx.MockTransport(handler))
+    service = SyncOpenAICompatibleLLMClient(
+        base_url="http://test-ai:11434/v1",
+        embedding_model="gemini-embedding-001",
+        client=sync_http_client,
+    )
+
+    try:
+        vectors = service.embed_texts(texts=["retry chunk"])
+        assert attempts == 2
+        assert sleep_calls == [4.0]
+        assert vectors == [[0.9, 1.0]]
+    finally:
+        sync_http_client.close()
+
+
 async def test_llm_service_raises_service_unavailable_on_upstream_error() -> None:
     """AI sunucusu 5xx döndürdüğünde ServiceUnavailableError fırlatılmalıdır."""
 

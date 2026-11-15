@@ -1,5 +1,8 @@
+import asyncio
 import json
 import logging
+import re
+import time
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
@@ -9,6 +12,25 @@ from src.core.exceptions import ServiceUnavailableError
 from src.services.base import BaseLLMClient, ChatMessage, SyncBaseLLMClient
 
 logger = logging.getLogger(__name__)
+
+_MAX_RATE_LIMIT_RETRIES = 3
+_RETRY_IN_PATTERN = re.compile(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
+
+
+def _extract_retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
+    """HTTP 429 yanıtındaki Retry-After veya mesaj ipucundan bekleme süresini hesaplar."""
+    retry_after = response.headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            return min(65.0, max(1.0, float(retry_after.strip()) + 1.0))
+        except ValueError:
+            pass
+
+    match = _RETRY_IN_PATTERN.search(response.text)
+    if match:
+        return min(65.0, max(1.0, float(match.group(1)) + 1.5))
+
+    return float(min(60.0, 15.0 * (2**attempt)))
 
 
 def _build_headers(api_key: str) -> dict[str, str]:
@@ -30,7 +52,15 @@ def _parse_embeddings_payload(payload: Any, expected_count: int) -> list[list[fl
         raise ServiceUnavailableError("Invalid embedding response format from AI server.")
 
     try:
-        sorted_items = sorted(data, key=lambda item: int(item.get("index", 0)))
+        sorted_items = [
+            item
+            for _, item in sorted(
+                enumerate(data),
+                key=lambda pair: (
+                    int(pair[1]["index"]) if pair[1].get("index") is not None else pair[0]
+                ),
+            )
+        ]
         vectors: list[list[float]] = []
         for item in sorted_items:
             raw_embedding = item["embedding"]
@@ -138,17 +168,30 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         if not texts:
             return []
 
+        payload: Any = None
         try:
-            response = await self._client.post(
-                f"{self._base_url}/embeddings",
-                headers=self._headers,
-                json={
-                    "model": self._embedding_model,
-                    "input": list(texts),
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
+            for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+                response = await self._client.post(
+                    f"{self._base_url}/embeddings",
+                    headers=self._headers,
+                    json={
+                        "model": self._embedding_model,
+                        "input": list(texts),
+                    },
+                )
+                if response.status_code == 429 and attempt < _MAX_RATE_LIMIT_RETRIES:
+                    delay = _extract_retry_delay_seconds(response, attempt)
+                    logger.warning(
+                        "Embedding rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
+                        delay,
+                        attempt + 1,
+                        _MAX_RATE_LIMIT_RETRIES,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                break
         except httpx.HTTPError as exc:
             logger.error("Embedding request to AI server failed: %s", exc)
             raise ServiceUnavailableError("AI inference service is currently unavailable.") from exc
@@ -262,17 +305,30 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
         if not texts:
             return []
 
+        payload: Any = None
         try:
-            response = self._client.post(
-                f"{self._base_url}/embeddings",
-                headers=self._headers,
-                json={
-                    "model": self._embedding_model,
-                    "input": list(texts),
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
+            for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+                response = self._client.post(
+                    f"{self._base_url}/embeddings",
+                    headers=self._headers,
+                    json={
+                        "model": self._embedding_model,
+                        "input": list(texts),
+                    },
+                )
+                if response.status_code == 429 and attempt < _MAX_RATE_LIMIT_RETRIES:
+                    delay = _extract_retry_delay_seconds(response, attempt)
+                    logger.warning(
+                        "Sync embedding rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
+                        delay,
+                        attempt + 1,
+                        _MAX_RATE_LIMIT_RETRIES,
+                    )
+                    time.sleep(delay)
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                break
         except httpx.HTTPError as exc:
             logger.error("Sync embedding request to AI server failed: %s", exc)
             raise ServiceUnavailableError("AI inference service is currently unavailable.") from exc
