@@ -1,0 +1,960 @@
+{
+  "eval_run_id": "eval-20261115-195101",
+  "dataset_version": "1.0",
+  "tenant_id": "test-user",
+  "llm_model": "gemini-3.5-flash-lite",
+  "embedding_model": "gemini-embedding-001",
+  "top_k": 5,
+  "score_threshold": 0.5,
+  "judge_mode": "citation_grounded",
+  "total_questions": 22,
+  "answerable_questions": 20,
+  "unanswerable_questions": 2,
+  "mean_recall_at_k": 1.0,
+  "mean_mrr": 1.0,
+  "mean_faithfulness": 0.9659,
+  "mean_keyword_coverage": 0.9375,
+  "abstention_accuracy": 1.0,
+  "recommended_threshold": 0.7,
+  "threshold_sweep": [
+    {
+      "score_threshold": 0.3,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 1.0
+    },
+    {
+      "score_threshold": 0.4,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 1.0
+    },
+    {
+      "score_threshold": 0.45,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 1.0
+    },
+    {
+      "score_threshold": 0.5,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 1.0
+    },
+    {
+      "score_threshold": 0.6,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 4.95,
+      "negative_noise_rate": 1.0
+    },
+    {
+      "score_threshold": 0.7,
+      "top_k": 5,
+      "answerable_queries": 20,
+      "unanswerable_queries": 2,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "avg_retrieved_chunks": 3.3,
+      "negative_noise_rate": 0.0
+    }
+  ],
+  "results": [
+    {
+      "id": "q01",
+      "category": "hr_policy",
+      "question": "Şirkette standart haftalık çalışma süresi kaç saattir ve temel çalışma ile öğle arası saatleri nedir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        1
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        1,
+        1,
+        2,
+        2,
+        1
+      ],
+      "top_score": 0.8474,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Şirkette standart haftalık çalışma süresi 40 saattir [Source 1]. \n\nTemel çalışma saatleri ve öğle arası saatleri şu şekildedir:\n* **Temel çalışma saatleri:** Hafta içi 09:00 ile 18:00 arasındadır [Source 1].\n* **Öğle arası:** 12:30 ile 13:30 arasında 1 saat olarak uygulanır [Source 1].",
+      "latency_ms": 1169.84
+    },
+    {
+      "id": "q02",
+      "category": "hr_policy",
+      "question": "Esnek mesai kapsamında çalışanlar saat kaçlar arasında işe başlayıp çıkış yapabilir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        1
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        1,
+        1,
+        2,
+        2,
+        1
+      ],
+      "top_score": 0.7971,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Esnek mesai kapsamında çalışanlar, ekip toplantılarını aksatmamak koşuluyla **08:30 ile 10:00 arasında esnek başlangıç** ve buna bağlı olarak **17:30 ile 19:00 arasında esnek çıkış** yapabilir [Source 1].",
+      "latency_ms": 1253.61
+    },
+    {
+      "id": "q03",
+      "category": "hr_policy",
+      "question": "Şirket kıdemine göre yıllık ücretli izin hakları kaç iş günü olarak belirlenmiştir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        1
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        1,
+        1,
+        1,
+        2,
+        1
+      ],
+      "top_score": 0.8621,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Şirket kıdemine göre yıllık ücretli izin hakları şu şekildedir:\n\n* **1 yıldan 5 yıla kadar (5. yıl dahil):** Yılda 16 iş günü [Source 1]\n* **5 yıldan fazla 10 yıla kadar:** Yılda 22 iş günü [Source 1]\n* **10 yıl ve üzeri kıdeme sahip olanlar:** Yılda 26 iş günü [Source 1]",
+      "latency_ms": 1550.06
+    },
+    {
+      "id": "q04",
+      "category": "hr_policy",
+      "question": "Planlı yıllık izin talepleri en az kaç iş günü önce sunulmalıdır ve doğum günü izni kaç iş günüdür?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        1
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        1,
+        1,
+        1,
+        1,
+        2
+      ],
+      "top_score": 0.8105,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Sağlanan belgelere göre:\n\n* Planlı yıllık izin talepleri, başlangıç tarihinden **en az 10 iş günü önce** İK Portalı üzerinden doğrudan yönetici onayına sunulmalıdır [Source 1].\n* Doğum günü izni **1 iş günüdür** (çalışanın doğum gününün bulunduğu hafta içinde kullanılabilir) [Source 2].",
+      "latency_ms": 1228.88
+    },
+    {
+      "id": "q05",
+      "category": "hr_policy",
+      "question": "Hibrit çalışma düzeninde hangi günler merkez ofisten katılım zorunludur ve hangi günler uzaktan çalışılabilir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        2
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        1,
+        1,
+        2
+      ],
+      "top_score": 0.8519,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Verilen bilgilere göre hibrit çalışma düzenindeki kurallar şunlardır:\n\n* **Merkez ofisten katılımın zorunlu olduğu günler:** Salı ve Çarşamba günleri tüm ekiplerin merkez ofisten katılımı zorunludur [Source 1].\n* **Uzaktan çalışılabilecek günler:** Pazartesi, Perşembe ve Cuma günleri çalışanlar diledikleri takdirde uzaktan çalışabilir [Source 1].",
+      "latency_ms": 1000.5
+    },
+    {
+      "id": "q06",
+      "category": "hr_policy",
+      "question": "Work From Anywhere (İstediğin Yerden Çalış) hakkı yılda kaç iş günüdür ve çekirdek iletişim saatleri nedir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        2
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        1,
+        1,
+        1
+      ],
+      "top_score": 0.7868,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Verilen belgelere göre \"İstediğin Yerden Çalış\" hakkı takvim yılı içinde toplam **30 iş günüdür** [Source 1, Source 2]. Çekirdek iletişim saatleri ise **11:00-16:00 (TSİ)** arasındadır [Source 2].\n\nKaynaklar:\n- [Source 1]\n- [Source 2]",
+      "latency_ms": 1023.17
+    },
+    {
+      "id": "q07",
+      "category": "hr_policy",
+      "question": "Ev ofisi kurulum desteği ve aylık internet/enerji faturası katkısı tutarları nedir, şirket dizüstü bilgisayarları kaç yılda bir yenilenir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        2
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "top_score": 0.8381,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Verilen belgelere göre bu soruların yanıtları şunlardır:\n\n* **Ev Ofisi Kurulum Desteği:** İşe yeni başlayan her çalışana, ergonomik çalışma masası ve koltuk temini için tek seferlik 15.000 TL tutarında verilir [Source 1, Source 2].\n* **Aylık İnternet ve Enerji Faturası Katkısı:** Tüm çalışanlara aylık net 1.250 TL olarak maaşla birlikte ödenir [Source 1].\n* **Şirket Dizüstü Bilgisayarlarının Yenilenme Süresi:** Dizüstü bilgisayarlar 3 yılda bir yenilenir [Source 1].",
+      "latency_ms": 1103.9
+    },
+    {
+      "id": "q08",
+      "category": "hr_security",
+      "question": "Veri saklama süreleri kapsamında müşteri sözleşmeleri ile sistem erişim logları ne kadar süre tutulur ve olası veri ihlali kaç saat içinde hangi adrese bildirilmelidir?",
+      "answerable": true,
+      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+      "expected_pages": [
+        3
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        3,
+        3,
+        3,
+        3,
+        1
+      ],
+      "top_score": 0.7697,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Veri saklama süreleri ve olay bildirim kurallarına göre:\n\n* **Müşteri sözleşmeleri** (ve finansal fatura kayıtları) yasal mevzuat gereğince **10 yıl** boyunca şifreli arşivlerde muhafaza edilir [Source 1, Source 2].\n* **Sistem erişim logları** (ve geçici işlem kayıtları) **90 gün** sonra otomatik olarak imha edilir [Source 1].\n* Olası bir veri ihlali veya siber güvenlik şüphesi tespit edildiğinde durum en geç **2 saat içinde** **guvenlik@sirket.example** adresine raporlanmalıdır [Source 1].",
+      "latency_ms": 1443.45
+    },
+    {
+      "id": "q09",
+      "category": "bitcoin",
+      "question": "Bitcoin whitepaper'a göre güvenilir bir merkezi otorite olmadan çift harcama (double-spending) problemi nasıl çözülür?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        1,
+        2
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        2,
+        8,
+        1,
+        2,
+        2
+      ],
+      "top_score": 0.7485,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        2,
+        3
+      ],
+      "keyword_coverage": 0.6667,
+      "abstained": false,
+      "faithfulness": 0.8,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Keyword coverage=0.67"
+      ],
+      "answer": "Sağlanan belgelere göre, güvenilir bir merkezi otorite olmadan çift harcama (double-spending) problemini çözmek için şu yöntem önerilmektedir:\n\n* İşlemleri kaydeden bir **eşler arası (peer-to-peer) ağ** kullanılır [Source 2, Source 3].\n* Ağ, işlemleri hash tabanlı bir iş kanıtı (proof-of-work) zincirine dahil ederek zaman damgası basar; bu da iş kanıtı yeniden yapılmadan değiştirilemeyecek bir kayıt oluşturur [Source 3].\n* Dürüst düğümler CPU gücünün çoğunluğunu kontrol ettiğinde, bir saldırancının değiştirmesinin hesaplamalı olarak imkansız hale geldiği halka açık bir işlem geçmişi kaydetmek için iş kanıtı (proof-of-work) kullanılır [Source 2].",
+      "latency_ms": 1277.05
+    },
+    {
+      "id": "q10",
+      "category": "bitcoin",
+      "question": "How does Bitcoin's Proof-of-Work mechanism operate and which existing system is it similar to?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        3
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        3,
+        8,
+        3,
+        1,
+        3
+      ],
+      "top_score": 0.7261,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        3,
+        5,
+        2,
+        4
+      ],
+      "keyword_coverage": 0.75,
+      "abstained": false,
+      "faithfulness": 0.85,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Keyword coverage=0.75"
+      ],
+      "answer": "Based on the provided context, the proof-of-work mechanism operates by:\n\n* Scanning for a value that, when hashed (such as with SHA-256), results in a hash that begins with a number of zero bits [Source 1].\n* Acting essentially as a \"one-CPU-one-vote\" system to determine representation in majority decision-making, avoiding the vulnerabilities of a one-IP-address-one-vote scheme [Source 3, Source 5].\n* Requiring work to be redone if a block is changed; as later blocks are chained after it, changing a block requires redoing all the work for that block and every block after it [Source 3, Source 5].\n* Allowing nodes to vote with their CPU power by working to extend valid blocks and refusing to work on invalid ones [Source 2]. The majority decision is represented by the longest chain, which has the greatest proof-of-work effort invested in it and comes from the largest pool of CPU power [Source 4, Source 5].\n\nIt is similar to **Adam Back's Hashcash** [Source 1].",
+      "latency_ms": 1458.68
+    },
+    {
+      "id": "q11",
+      "category": "bitcoin",
+      "question": "What is the size of a Bitcoin block header without transactions and how much annual storage is estimated for headers when blocks are generated every 10 minutes?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        4
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        4,
+        4,
+        4,
+        5,
+        3
+      ],
+      "top_score": 0.8015,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "A block header with no transactions is about 80 bytes [Source 1, Source 2]. Assuming blocks are generated every 10 minutes, the estimated annual storage for headers is 4.2MB per year (calculated as 80 bytes * 6 * 24 * 365 = 4.2MB per year) [Source 1, Source 2].",
+      "latency_ms": 955.85
+    },
+    {
+      "id": "q12",
+      "category": "bitcoin",
+      "question": "How does Bitcoin's incentive mechanism reward block creators initially and once a predetermined number of coins enter circulation?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        4
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        4,
+        4,
+        4,
+        4,
+        3
+      ],
+      "top_score": 0.7269,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        4,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided context, the incentive mechanism rewards block creators in the following ways:\n\n* **Initially:** The first transaction in a block is a special transaction that starts a new coin owned by the creator of the block, providing a steady addition of a constant amount of new coins to initially distribute them into circulation [Source 1, Source 4]. This incentive can also be funded with transaction fees [Source 1, Source 2].\n* **Once a predetermined number of coins enter circulation:** The incentive can transition entirely to transaction fees, making it completely inflation-free [Source 2].",
+      "latency_ms": 1116.29
+    },
+    {
+      "id": "q13",
+      "category": "bitcoin",
+      "question": "What is Simplified Payment Verification (SPV) in Bitcoin and what does a user need to verify a payment without running a full network node?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        5
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        5,
+        5,
+        5,
+        5,
+        4
+      ],
+      "top_score": 0.8258,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided documents, Simplified Payment Verification allows a user to verify payments without running a full network node [Source 1]. \n\nTo do this, a user needs to:\n1. Keep a copy of the block headers of the longest proof-of-work chain (which they can obtain by querying network nodes until convinced they have the longest chain) [Source 1].\n2. Obtain the Merkle branch linking the transaction to the block it is timestamped in [Source 1].",
+      "latency_ms": 1091.96
+    },
+    {
+      "id": "q14",
+      "category": "bitcoin",
+      "question": "How do Bitcoin transactions combine and split value instead of sending individual coins?",
+      "answerable": true,
+      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
+      "expected_pages": [
+        5
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86",
+        "b39f1205-31b8-470e-a439-775be3849b86"
+      ],
+      "retrieved_pages": [
+        5,
+        5,
+        2,
+        4,
+        6
+      ],
+      "top_score": 0.7553,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "To allow value to be split and combined rather than handling coins individually, transactions contain multiple inputs and outputs [Source 1, Source 2]. Normally, a transaction will contain either a single input from a larger previous transaction or multiple inputs combining smaller amounts, along with at most two outputs: one for the payment and another returning any change back to the sender [Source 1].",
+      "latency_ms": 880.68
+    },
+    {
+      "id": "q15",
+      "category": "rag_paper",
+      "question": "In the RAG paper by Lewis et al., what are the parametric memory and non-parametric memory components?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        1,
+        2
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        1,
+        19,
+        19
+      ],
+      "top_score": 0.7965,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        2,
+        3
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided documents, in the RAG models:\n* **Parametric memory:** A pre-trained seq2seq model (specifically, a pre-trained seq2seq transformer such as BART) [Source 2, Source 3].\n* **Non-parametric memory:** A dense vector index of Wikipedia, accessed with a pre-trained neural retriever [Source 2, Source 3].",
+      "latency_ms": 1132.65
+    },
+    {
+      "id": "q16",
+      "category": "rag_paper",
+      "question": "What is the key architectural difference between the RAG-Sequence and RAG-Token models?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        1,
+        2,
+        3
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        3,
+        3,
+        3,
+        2,
+        2
+      ],
+      "top_score": 0.7789,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        3,
+        5
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided context, the key architectural difference between the two models is:\n\n* **RAG-Sequence Model:** Uses the same retrieved document to generate the complete target sequence, treating the retrieved document as a single latent variable that is marginalized to get the sequence-to-sequence probability [Source 1, Source 3].\n* **RAG-Token Model:** Can predict each target token based on a different (or separate) latent document, allowing the generator to choose content from several different documents when producing an answer by marginalizing on a per-token basis [Source 3, Source 5].",
+      "latency_ms": 1165.88
+    },
+    {
+      "id": "q17",
+      "category": "rag_paper",
+      "question": "Which retriever and generator models are used in the RAG paper, and how many parameters does the generator have?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        2,
+        3
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        1,
+        18,
+        3
+      ],
+      "top_score": 0.8191,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        2,
+        5,
+        4
+      ],
+      "keyword_coverage": 0.6667,
+      "abstained": false,
+      "faithfulness": 0.8,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Keyword coverage=0.67"
+      ],
+      "answer": "Based on the provided documents:\n\n* **Retriever:** The retrieval component is based on the Dense Passage Retriever (DPR), which uses a bi-encoder architecture with a BERT-base document encoder (`BERTd(z)`) and a query encoder (`BERTq(x)`) also based on `BERTBASE` [Source 2, Source 5].\n* **Generator:** The generator is a pre-trained sequence-to-sequence (seq2seq) model, specifically BART (specifically BART-large) [Source 2, Source 4]. \n* **Generator Parameters:** The generator (BART-large) has **406M parameters** [Source 4].",
+      "latency_ms": 1280.14
+    },
+    {
+      "id": "q18",
+      "category": "rag_paper",
+      "question": "During RAG fine-tuning, why do the authors keep the document encoder BERT_d fixed instead of updating it?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        4
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        4,
+        7,
+        5,
+        8,
+        4
+      ],
+      "top_score": 0.7883,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided documents, the authors keep the document encoder $\\text{BERT}_d$ fixed during training because updating it is costly—it requires the document index to be periodically updated, as done in REALM during pre-training. The authors do not find this step necessary for strong performance, so they only fine-tune the query encoder $\\text{BERT}_q$ and the BART generator [Source 1].\n\n**Sources:**\n- [Source 1] (document_id=5b062820-d5e1-4e11-8406-20074e0e17e0, page_number=4)",
+      "latency_ms": 1133.09
+    },
+    {
+      "id": "q19",
+      "category": "rag_paper",
+      "question": "Which Wikipedia dump and passage splitting setup does the RAG paper use to build its FAISS index?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        4
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        4,
+        17,
+        8,
+        8,
+        4
+      ],
+      "top_score": 0.7997,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        5
+      ],
+      "keyword_coverage": 0.6667,
+      "abstained": false,
+      "faithfulness": 0.8,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Keyword coverage=0.67"
+      ],
+      "answer": "Based on the provided documents, the RAG paper uses the December 2018 Wikipedia dump. Each Wikipedia article is split into disjoint 100-word chunks, creating a total of 21 million documents used to build the FAISS index [Source 1, Source 5].",
+      "latency_ms": 882.37
+    },
+    {
+      "id": "q20",
+      "category": "rag_paper",
+      "question": "For RAG-Sequence decoding at test time, how does Thorough Decoding differ from Fast Decoding?",
+      "answerable": true,
+      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
+      "expected_pages": [
+        4
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0",
+        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+      ],
+      "retrieved_pages": [
+        4,
+        4,
+        3,
+        3,
+        2
+      ],
+      "top_score": 0.7824,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Based on the provided documents, Thorough Decoding and Fast Decoding differ in how they estimate probabilities and handle forward passes for hypotheses:\n\n* **Thorough Decoding:** To estimate the probability of a hypothesis $y$ that does not appear in the beam of a particular document $z$, an additional forward pass is run for each such document $z$. The generator probability is then multiplied with $p_\\eta(z|x)$, and the probabilities are summed across beams for the marginals. While thorough, this can require many forward passes for longer output sequences where the set of hypotheses ($Y$) becomes large [Source 1].\n* **Fast Decoding:** This method makes a further approximation that $p_\\theta(y|x, z_i) \\approx 0$ for any $y$ that was not generated during beam search from $x, z_i$. This approximation avoids the need to run additional forward passes once the candidate set $Y$ has been generated [Source 1].\n\n**Sources:**\n- [Source 1]",
+      "latency_ms": 1333.54
+    },
+    {
+      "id": "q21",
+      "category": "negative_control",
+      "question": "Şirkette yemek kartı olarak aylık kaç TL veriliyor?",
+      "answerable": false,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        1,
+        1,
+        2
+      ],
+      "top_score": 0.6921,
+      "recall_at_k": null,
+      "mrr": null,
+      "cited_indices": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "keyword_coverage": null,
+      "abstained": true,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Correctly abstained on unanswerable query"
+      ],
+      "answer": "Sağlanan belgelerde şirkette yemek kartı olarak aylık kaç TL verildiğine dair herhangi bir bilgi bulunmamaktadır [Source 1, Source 2, Source 3, Source 4, Source 5]. Bu nedenle, sağlanan bilgilere dayanarak bu konuda bir şey bilmiyorum.",
+      "latency_ms": 1358.56
+    },
+    {
+      "id": "q22",
+      "category": "negative_control",
+      "question": "Şirketin yıllık kişi başı eğitim ve konferans bütçesi kaç dolardır?",
+      "answerable": false,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
+        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
+      ],
+      "retrieved_pages": [
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "top_score": 0.6532,
+      "recall_at_k": null,
+      "mrr": null,
+      "cited_indices": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "keyword_coverage": null,
+      "abstained": true,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Correctly abstained on unanswerable query"
+      ],
+      "answer": "Sağlanan belgelerde şirketin yıllık kişi başı eğitim ve konferans bütçesine dair herhangi bir bilgi bulunmamaktadır. Bu nedenle bu sorunun yanıtını bilmiyorum [Source 1, Source 2, Source 3, Source 4, Source 5].",
+      "latency_ms": 1011.29
+    }
+  ],
+  "evaluated_at": "2026-11-15T19:53:33.797746+00:00"
+}

@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     # --- Storage (Shared Volume) ---
     UPLOAD_DIR: Path = Path("./data/uploads")
     MAX_UPLOAD_SIZE_MB: int = Field(default=100, ge=1, le=2048)
-    CHUNK_SIZE: int = Field(default=500, ge=100, le=4000)
-    CHUNK_OVERLAP: int = Field(default=75, ge=0, le=1000)
+    CHUNK_SIZE: int = Field(default=1200, ge=100, le=4000)
+    CHUNK_OVERLAP: int = Field(default=150, ge=0, le=1000)
 
     # --- Redis & Celery ---
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     )
     QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
     RAG_TOP_K: int = Field(default=5, ge=1, le=20)
-    RAG_SCORE_THRESHOLD: float = Field(default=0.5, ge=0.0, le=1.0)
+    RAG_SCORE_THRESHOLD: float = Field(default=0.7, ge=0.0, le=1.0)
 
     # --- AI / LLM & Embedding (Ollama / vLLM / OpenAI-Compatible) ---
     LLM_BASE_URL: str = "http://localhost:11434/v1"
