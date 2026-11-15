@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     )
     QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
 
+    # --- AI / LLM & Embedding (Ollama / vLLM / OpenAI-Compatible) ---
+    LLM_BASE_URL: str = "http://localhost:11434/v1"
+    LLM_API_KEY: SecretStr = SecretStr("ollama")
+    LLM_MODEL: str = Field(default="llama3.2:3b", min_length=1, max_length=128)
+    EMBEDDING_MODEL: str = Field(default="nomic-embed-text", min_length=1, max_length=128)
+    LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
+
     @property
     def max_upload_size_bytes(self) -> int:
         """Maksimum yükleme boyutunu bayt cinsinden döndürür."""
@@ -94,11 +101,11 @@ class Settings(BaseSettings):
             raise ValueError("URL contains an invalid port number") from exc
         return cleaned
 
-    @field_validator("QDRANT_URL")
+    @field_validator("QDRANT_URL", "LLM_BASE_URL")
     @classmethod
     def validate_http_url(cls, value: str) -> str:
-        """Qdrant bağlantı adresinin geçerli http/https şeması, host ve port yapısını doğrular."""
-        cleaned = value.strip()
+        """HTTP/HTTPS servis adreslerinin geçerli şema, host ve port yapısını doğrular."""
+        cleaned = value.strip().rstrip("/")
         parsed = urlsplit(cleaned)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError(

@@ -3,7 +3,8 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from src.core.config import Settings, get_settings
-from src.services.base import BaseStorage, BaseVectorDB, DocumentTaskDispatcher
+from src.services.base import BaseLLMClient, BaseStorage, BaseVectorDB, DocumentTaskDispatcher
+from src.services.llm_service import AsyncOpenAICompatibleLLMClient
 from src.services.qdrant_service import AsyncQdrantService
 from src.services.storage_service import LocalStorageService
 from src.tasks.document_tasks import CeleryDocumentTaskDispatcher
@@ -43,3 +44,20 @@ def get_vector_db(request: Request, settings: SettingsDep) -> BaseVectorDB:
 
 
 VectorDBDep = Annotated[BaseVectorDB, Depends(get_vector_db)]
+
+
+def get_llm_client(request: Request, settings: SettingsDep) -> BaseLLMClient:
+    """Lifespan'de hazırlanan paylaşımlı asenkron LLM/Embedding istemcisini döndürür."""
+    llm_client: BaseLLMClient | None = getattr(request.app.state, "llm_client", None)
+    if llm_client is not None:
+        return llm_client
+    return AsyncOpenAICompatibleLLMClient(
+        base_url=settings.LLM_BASE_URL,
+        api_key=settings.LLM_API_KEY.get_secret_value(),
+        llm_model=settings.LLM_MODEL,
+        embedding_model=settings.EMBEDDING_MODEL,
+        timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
+    )
+
+
+LLMClientDep = Annotated[BaseLLMClient, Depends(get_llm_client)]

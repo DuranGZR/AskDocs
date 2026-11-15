@@ -45,6 +45,23 @@ services:
     networks:
       - corerag-net
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: corerag-ollama
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - corerag-net
+
   api:
     build:
       context: .
@@ -61,6 +78,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
+      LLM_BASE_URL: http://ollama:11434/v1
       WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
@@ -115,6 +133,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
+      LLM_BASE_URL: http://ollama:11434/v1
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./src:/app/src:ro
@@ -149,6 +168,7 @@ volumes:
   uploads_data:
   redis_data:
   qdrant_data:
+  ollama_data:
 
 networks:
   corerag-net:

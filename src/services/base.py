@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -75,6 +75,14 @@ class ScoredChunk:
     point_id: str
     score: float
     chunk: DocumentChunk
+
+
+@dataclass(frozen=True, slots=True)
+class ChatMessage:
+    """LLM sohbet istekleri için standart (OpenAI-uyumlu) mesaj birimi."""
+
+    role: Literal["system", "user", "assistant"]
+    content: str
 
 
 class AsyncReadableFile(Protocol):
@@ -164,3 +172,47 @@ class SyncBaseVectorDB(ABC):
     @abstractmethod
     def close(self) -> None:
         """Açık ağ bağlantılarını güvenli şekilde kapatır."""
+
+
+class BaseLLMClient(ABC):
+    """Asenkron LLM ve Embedding istemcisi soyut arayüzü (FastAPI katmanı için)."""
+
+    @abstractmethod
+    async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+        """Verilen metin listesini toplu halde embedding vektörlerine çevirir."""
+
+    @abstractmethod
+    async def generate(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Mesaj geçmişine göre modelden tam metin yanıt üretir."""
+
+    @abstractmethod
+    def stream_generate(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
+        """Mesaj geçmişine göre model yanıtını token bazlı akış (stream) olarak üretir."""
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Açık HTTP bağlantı havuzunu güvenli şekilde kapatır."""
+
+
+class SyncBaseLLMClient(ABC):
+    """Senkron Embedding istemcisi soyut arayüzü (Celery worker katmanı için)."""
+
+    @abstractmethod
+    def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+        """Verilen metin listesini toplu halde embedding vektörlerine çevirir."""
+
+    @abstractmethod
+    def close(self) -> None:
+        """Açık HTTP bağlantılarını güvenli şekilde kapatır."""
