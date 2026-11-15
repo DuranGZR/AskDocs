@@ -6,7 +6,35 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from src.api.dependencies import get_task_dispatcher
 from src.core.config import Settings, get_settings
+
+
+class RecordingTaskDispatcher:
+    """Testlerde Redis bağlantısı kurmadan kuyruk çağrılarını kaydeder."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    async def enqueue_document(
+        self,
+        *,
+        document_id: str,
+        file_path: Path,
+        tenant_id: str,
+        file_type: str,
+        request_id: str,
+    ) -> str:
+        self.calls.append(
+            {
+                "document_id": document_id,
+                "file_path": file_path,
+                "tenant_id": tenant_id,
+                "file_type": file_type,
+                "request_id": request_id,
+            }
+        )
+        return f"test-task-{document_id}"
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -35,12 +63,22 @@ def test_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[S
 
 
 @pytest.fixture
-def app(test_settings: Settings) -> Iterator[FastAPI]:
+def task_dispatcher() -> RecordingTaskDispatcher:
+    """Her test için kuyruğa atılan görev argümanlarını kaydeden sahte dispatcher döner."""
+    return RecordingTaskDispatcher()
+
+
+@pytest.fixture
+def app(
+    test_settings: Settings,
+    task_dispatcher: RecordingTaskDispatcher,
+) -> Iterator[FastAPI]:
     """Her test fonksiyonuna bağımsız bir FastAPI uygulama örneği sağlar."""
     from src.main import create_app
 
     application = create_app()
     application.dependency_overrides[get_settings] = lambda: test_settings
+    application.dependency_overrides[get_task_dispatcher] = lambda: task_dispatcher
     try:
         yield application
     finally:

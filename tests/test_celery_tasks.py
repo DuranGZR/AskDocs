@@ -1,11 +1,14 @@
+import logging
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
 
 from src.core.config import Settings, get_settings
+from src.core.logging import request_id_ctx
 from src.tasks.celery_app import create_celery_app
-from src.tasks.document_tasks import process_document_task
+from src.tasks.document_tasks import CeleryDocumentTaskDispatcher, process_document_task
 
 
 def test_settings_validates_redis_and_celery_urls() -> None:
@@ -100,3 +103,67 @@ def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) ->
     assert missing_result["file_exists"] is False
     assert missing_result["size_bytes"] == 0
     assert missing_result["status"] == "processed_stub"
+
+
+def test_process_document_task_propagates_and_resets_request_id(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Worker task verilen request_id değerini bağlamına alıp iş bitiminde sıfırlamalıdır."""
+    seen_request_ids: list[str] = []
+
+    class _ContextCapturer(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            seen_request_ids.append(request_id_ctx.get())
+
+    task_logger = logging.getLogger("src.tasks.document_tasks")
+    capturer = _ContextCapturer()
+    task_logger.addHandler(capturer)
+    try:
+        with caplog.at_level(logging.INFO, logger="src.tasks.document_tasks"):
+            process_document_task(
+                document_id="doc-trace",
+                file_path=str(tmp_path / "missing.pdf"),
+                tenant_id="tenant-a",
+                file_type="pdf",
+                request_id="worker-req-77",
+            )
+    finally:
+        task_logger.removeHandler(capturer)
+
+    assert seen_request_ids == ["worker-req-77"]
+    assert request_id_ctx.get() == "-"
+    assert any("document_id=doc-trace" in record.message for record in caplog.records)
+
+
+async def test_celery_document_task_dispatcher_calls_delay(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """CeleryDocumentTaskDispatcher tüm alanları delay() metoduna aktarıp task_id dönmelidir."""
+    recorded_kwargs: dict[str, object] = {}
+
+    def _fake_delay(**kwargs: object) -> SimpleNamespace:
+        recorded_kwargs.update(kwargs)
+        return SimpleNamespace(id="celery-task-999")
+
+    monkeypatch.setattr(process_document_task, "delay", _fake_delay)
+
+    dispatcher = CeleryDocumentTaskDispatcher()
+    target = tmp_path / "doc.pdf"
+    task_id = await dispatcher.enqueue_document(
+        document_id="doc-9",
+        file_path=target,
+        tenant_id="tenant-z",
+        file_type="pdf",
+        request_id="req-999",
+    )
+
+    assert task_id == "celery-task-999"
+    assert recorded_kwargs == {
+        "document_id": "doc-9",
+        "file_path": str(target),
+        "tenant_id": "tenant-z",
+        "file_type": "pdf",
+        "request_id": "req-999",
+    }

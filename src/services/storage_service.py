@@ -13,6 +13,7 @@ from src.services.base import AsyncReadableFile, BaseStorage, StoredFile
 
 ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".pdf", ".txt"})
 DEFAULT_CHUNK_SIZE = 1024 * 1024  # 1 MiB
+PDF_MAGIC_BYTES = b"%PDF-"
 
 
 class LocalStorageService(BaseStorage):
@@ -43,10 +44,18 @@ class LocalStorageService(BaseStorage):
         first_chunk = await file.read(self._chunk_size)
         if not first_chunk:
             raise BadRequestError("Uploaded file is empty")
+
+        while extension == ".pdf" and len(first_chunk) < len(PDF_MAGIC_BYTES):
+            more = await file.read(len(PDF_MAGIC_BYTES) - len(first_chunk))
+            if not more:
+                break
+            first_chunk += more
+
         if len(first_chunk) > self._max_size_bytes:
             raise PayloadTooLargeError(
                 f"File exceeds maximum allowed size of {self._max_size_bytes} bytes"
             )
+        self._validate_content_signature(extension=extension, first_chunk=first_chunk)
 
         await asyncio.to_thread(self._base_dir.mkdir, parents=True, exist_ok=True)
         document_id = str(uuid4())
@@ -78,3 +87,13 @@ class LocalStorageService(BaseStorage):
     async def delete(self, file_path: Path) -> None:
         """Diskten dosyayı event loop'u bloklamadan güvenli şekilde siler."""
         await asyncio.to_thread(file_path.unlink, missing_ok=True)
+
+    @staticmethod
+    def _validate_content_signature(extension: str, first_chunk: bytes) -> None:
+        """Dosya uzantısı ile içerik imzasının (Magic Bytes) uyumlu olduğunu doğrular."""
+        if extension == ".pdf" and not first_chunk.startswith(PDF_MAGIC_BYTES):
+            raise UnsupportedMediaTypeError(
+                "Invalid PDF file content: missing '%PDF-' magic bytes signature"
+            )
+        if extension == ".txt" and b"\x00" in first_chunk:
+            raise UnsupportedMediaTypeError("Invalid text file content: binary null bytes detected")

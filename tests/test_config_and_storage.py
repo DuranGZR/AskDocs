@@ -95,6 +95,19 @@ async def test_local_storage_rejects_empty_stream_before_creating_dir(tmp_path: 
     assert not target_dir.exists()
 
 
+async def test_local_storage_assemble_pdf_magic_bytes_across_small_chunks(
+    tmp_path: Path,
+) -> None:
+    """Küçük chunk okumalarında dahi %PDF- imzası birleştirilip eksiksiz diske yazılmalıdır."""
+    storage = LocalStorageService(base_dir=tmp_path, max_size_bytes=1024, chunk_size=2)
+    stream = _FakeReadableStream([b"%P", b"DF", b"-1.4 body"])
+
+    stored = await storage.save(file=stream, filename="chunked.pdf")
+
+    assert stored.size_bytes == 13
+    assert stored.file_path.read_bytes() == b"%PDF-1.4 body"
+
+
 async def test_local_storage_delete_missing_file_is_safe(tmp_path: Path) -> None:
     """Mevcut olmayan dosya silinmeye çalışıldığında hata fırlatılmamalıdır."""
     storage = LocalStorageService(base_dir=tmp_path, max_size_bytes=1024)

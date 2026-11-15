@@ -31,3 +31,19 @@ class BaseStorage(ABC):
     @abstractmethod
     async def delete(self, file_path: Path) -> None:
         """Verilen yoldaki dosyayı depolamadan güvenli şekilde siler."""
+
+
+class DocumentTaskDispatcher(Protocol):
+    """Doküman işleme görevini arka plan kuyruğuna ileten sözleşme."""
+
+    async def enqueue_document(
+        self,
+        *,
+        document_id: str,
+        file_path: Path,
+        tenant_id: str,
+        file_type: str,
+        request_id: str,
+    ) -> str:
+        """Görevi kuyruğa ekler ve üretilen task_id değerini döner."""
+        ...

@@ -1,21 +1,28 @@
 from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Protocol
 
 import httpx
 import pytest
 from fastapi import FastAPI, Request
 
-from src.api.dependencies import get_storage_service
+from src.api.dependencies import get_storage_service, get_task_dispatcher
 from src.core.config import Settings
 from src.core.exceptions import register_exception_handlers
 from src.core.middleware import MaxBodySizeMiddleware, RequestIdMiddleware
 from src.services.storage_service import LocalStorageService
 
 
+class _RecordedDispatcher(Protocol):
+    calls: list[dict[str, object]]
+
+
 async def test_upload_valid_txt_writes_uuid_file_without_path_traversal(
     client: httpx.AsyncClient,
     test_settings: Settings,
+    task_dispatcher: _RecordedDispatcher,
 ) -> None:
-    """Geçerli yükleme UUID dosya adıyla yazılmalı ve dizin kaçışını engellemelidir."""
+    """Geçerli yükleme UUID dosya adıyla yazılmalı, kuyruğa atılmalı ve kaçışı önlemelidir."""
     payload = b"CoreRAG-Engine integration stream test"
     response = await client.post(
         "/api/v1/documents/upload",
@@ -25,18 +32,116 @@ async def test_upload_valid_txt_writes_uuid_file_without_path_traversal(
 
     assert response.status_code == 202
     body = response.json()
-    assert body["task_id"] is None
+    assert body["task_id"] == f"test-task-{body['document_id']}"
     assert body["tenant_id"] == "acme_corp"
     assert body["filename"] == "notes.txt"
     assert body["file_type"] == "txt"
     assert body["size_bytes"] == len(payload)
-    assert body["status"] == "stored"
+    assert body["status"] == "queued"
 
     saved_files = list(test_settings.UPLOAD_DIR.iterdir())
     assert len(saved_files) == 1
     saved_file = saved_files[0]
     assert saved_file.name == f"{body['document_id']}.txt"
     assert saved_file.read_bytes() == payload
+
+    assert len(task_dispatcher.calls) == 1
+    assert task_dispatcher.calls[0]["document_id"] == body["document_id"]
+    assert task_dispatcher.calls[0]["tenant_id"] == "acme_corp"
+    assert task_dispatcher.calls[0]["file_type"] == "txt"
+    assert task_dispatcher.calls[0]["request_id"] == response.headers["x-request-id"]
+
+
+async def test_upload_valid_pdf_passes_magic_bytes_and_propagates_request_id(
+    client: httpx.AsyncClient,
+    test_settings: Settings,
+    task_dispatcher: _RecordedDispatcher,
+) -> None:
+    """Geçerli PDF %PDF- imzasını geçmeli, kaydedilmeli ve X-Request-ID taşımalıdır."""
+    payload = b"%PDF-1.7\nhello"
+    response = await client.post(
+        "/api/v1/documents/upload",
+        data={"tenant_id": "acme_corp"},
+        headers={"X-Request-ID": "upload-pdf-01"},
+        files={"file": ("report.pdf", payload, "application/pdf")},
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "queued"
+    assert body["file_type"] == "pdf"
+    assert body["task_id"] == f"test-task-{body['document_id']}"
+    assert len(list(test_settings.UPLOAD_DIR.iterdir())) == 1
+    assert len(task_dispatcher.calls) == 1
+    assert task_dispatcher.calls[0]["request_id"] == "upload-pdf-01"
+
+
+async def test_upload_rejects_spoofed_pdf_without_magic_bytes(
+    client: httpx.AsyncClient,
+    test_settings: Settings,
+    task_dispatcher: _RecordedDispatcher,
+) -> None:
+    """Uzantısı .pdf olup %PDF- imzası taşımayan dosya 415 ile reddedilmelidir."""
+    response = await client.post(
+        "/api/v1/documents/upload",
+        data={"tenant_id": "acme_corp"},
+        files={"file": ("fake.pdf", b"MZ\x90\x00not-a-pdf", "application/pdf")},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["error"]["code"] == "unsupported_media_type"
+    assert list(test_settings.UPLOAD_DIR.iterdir()) == []
+    assert task_dispatcher.calls == []
+
+
+async def test_upload_rejects_binary_file_disguised_as_txt(
+    client: httpx.AsyncClient,
+    test_settings: Settings,
+    task_dispatcher: _RecordedDispatcher,
+) -> None:
+    """Null bayt içeren sahte .txt binary dosyası 415 ile reddedilmelidir."""
+    response = await client.post(
+        "/api/v1/documents/upload",
+        data={"tenant_id": "acme_corp"},
+        files={"file": ("notes.txt", b"text\x00binary", "text/plain")},
+    )
+
+    assert response.status_code == 415
+    assert response.json()["error"]["code"] == "unsupported_media_type"
+    assert list(test_settings.UPLOAD_DIR.iterdir()) == []
+    assert task_dispatcher.calls == []
+
+
+async def test_upload_cleans_up_stored_file_and_returns_503_when_queue_fails(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+    test_settings: Settings,
+) -> None:
+    """Kuyruğa atma başarısız olursa kaydedilen dosya silinmeli ve 503 dönmelidir."""
+
+    class _FailingDispatcher:
+        async def enqueue_document(
+            self,
+            *,
+            document_id: str,
+            file_path: Path,
+            tenant_id: str,
+            file_type: str,
+            request_id: str,
+        ) -> str:
+            raise RuntimeError("broker unreachable")
+
+    app.dependency_overrides[get_task_dispatcher] = lambda: _FailingDispatcher()
+
+    response = await client.post(
+        "/api/v1/documents/upload",
+        data={"tenant_id": "acme_corp"},
+        files={"file": ("valid.pdf", b"%PDF-1.4 content", "application/pdf")},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "service_unavailable"
+    assert list(test_settings.UPLOAD_DIR.iterdir()) == []
 
 
 @pytest.mark.parametrize("filename", ["malware.exe", "   .pdf", "archive.zip"])

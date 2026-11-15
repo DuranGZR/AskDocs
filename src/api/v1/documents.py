@@ -1,11 +1,15 @@
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 
-from src.api.dependencies import StorageDep
+from src.api.dependencies import StorageDep, TaskDispatcherDep
+from src.core.exceptions import ServiceUnavailableError
+from src.core.logging import request_id_ctx
 from src.schemas.common import ErrorResponse
 from src.schemas.documents import DocumentUploadResponse
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
@@ -25,11 +29,16 @@ TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
             "model": ErrorResponse,
             "description": "Unsupported Media Type",
         },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ErrorResponse,
+            "description": "Service Unavailable",
+        },
     },
     summary="Upload a document for processing",
 )
 async def upload_document(
     storage: StorageDep,
+    task_dispatcher: TaskDispatcherDep,
     file: Annotated[UploadFile, File(description="PDF or TXT document to upload")],
     tenant_id: Annotated[
         str,
@@ -41,14 +50,32 @@ async def upload_document(
         ),
     ],
 ) -> DocumentUploadResponse:
-    """Dokümanı ortak depolama dizinine stream ederek kaydeder."""
+    """Dokümanı ortak depolama dizinine stream ederek kaydeder ve arka plan kuyruğuna atar."""
     stored = await storage.save(file=file, filename=file.filename)
+    try:
+        task_id = await task_dispatcher.enqueue_document(
+            document_id=stored.document_id,
+            file_path=stored.file_path,
+            tenant_id=tenant_id,
+            file_type=stored.file_type,
+            request_id=request_id_ctx.get(),
+        )
+    except Exception as exc:
+        await storage.delete(stored.file_path)
+        logger.error(
+            "Failed to enqueue document_id=%s for tenant_id=%s: %s",
+            stored.document_id,
+            tenant_id,
+            type(exc).__name__,
+        )
+        raise ServiceUnavailableError("Document processing queue is currently unavailable") from exc
+
     return DocumentUploadResponse(
         document_id=stored.document_id,
-        task_id=None,
+        task_id=task_id,
         tenant_id=tenant_id,
         filename=stored.original_filename,
         file_type=stored.file_type,
         size_bytes=stored.size_bytes,
-        status="stored",
+        status="queued",
     )
