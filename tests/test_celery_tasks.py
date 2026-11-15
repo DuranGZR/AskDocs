@@ -2,11 +2,15 @@ import logging
 from pathlib import Path
 from types import SimpleNamespace
 
+import pymupdf
 import pytest
+from celery.exceptions import Retry
 from pydantic import ValidationError
 
 from src.core.config import Settings, get_settings
 from src.core.logging import request_id_ctx
+from src.services.pdf_parser import TransientProcessingError
+from src.tasks import document_tasks
 from src.tasks.celery_app import celery_app, create_celery_app
 from src.tasks.document_tasks import CeleryDocumentTaskDispatcher, process_document_task
 
@@ -71,13 +75,18 @@ def test_celery_app_uses_safe_json_and_reliability_settings(
     assert app.conf.timezone == "UTC"
     assert app.conf.enable_utc is True
     assert "corerag.process_document" in app.tasks
+    assert process_document_task.max_retries == 3
+    assert process_document_task.retry_backoff is True
 
 
 def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) -> None:
-    """Task mevcut dosyada boyutu doğru raporlamalı, eksik dosyada çökmemelidir."""
+    """Task PDF'i sayfa sayfa okuyup chunk sayısını raporlamalı ve dosyayı temizlemelidir."""
     sample = tmp_path / "sample.pdf"
-    content = b"%PDF-1.4 demo content"
-    sample.write_bytes(content)
+    with pymupdf.open() as doc:
+        page = doc.new_page()
+        page.insert_text((72, 72), "CoreRAG page one sample content for testing.")
+        doc.save(sample)
+    expected_size = sample.stat().st_size
 
     existing_result = process_document_task(
         document_id="doc-1",
@@ -90,9 +99,12 @@ def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) ->
         "tenant_id": "tenant-a",
         "file_type": "pdf",
         "file_exists": True,
-        "size_bytes": len(content),
-        "status": "processed_stub",
+        "size_bytes": expected_size,
+        "page_count": 1,
+        "chunk_count": 1,
+        "status": "processed",
     }
+    assert not sample.exists()
 
     missing_result = process_document_task(
         document_id="doc-2",
@@ -100,9 +112,58 @@ def test_process_document_task_reports_file_presence_and_size(tmp_path: Path) ->
         tenant_id="tenant-a",
         file_type="pdf",
     )
-    assert missing_result["file_exists"] is False
-    assert missing_result["size_bytes"] == 0
-    assert missing_result["status"] == "processed_stub"
+    assert missing_result == {
+        "document_id": "doc-2",
+        "tenant_id": "tenant-a",
+        "file_type": "pdf",
+        "file_exists": False,
+        "size_bytes": 0,
+        "page_count": 0,
+        "chunk_count": 0,
+        "status": "missing_file",
+    }
+
+
+def test_process_document_task_preserves_file_on_retry_and_cleans_up_on_final_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Geçici hatada retry öncesi dosya korunmalı, son denemede diskten silinmelidir."""
+    sample = tmp_path / "retry.txt"
+    sample.write_text("temporary content", encoding="utf-8")
+
+    def _always_fail(**kwargs: object) -> object:
+        raise TransientProcessingError("temporary glitch")
+
+    monkeypatch.setattr(document_tasks, "parse_and_chunk_document", _always_fail)
+
+    process_document_task.push_request(retries=0)
+    try:
+        with pytest.raises((Retry, TransientProcessingError)):
+            process_document_task(
+                document_id="doc-retry",
+                file_path=str(sample),
+                tenant_id="tenant-a",
+                file_type="txt",
+            )
+    finally:
+        process_document_task.pop_request()
+
+    assert sample.exists()
+
+    process_document_task.push_request(retries=3)
+    try:
+        with pytest.raises(TransientProcessingError):
+            process_document_task(
+                document_id="doc-retry",
+                file_path=str(sample),
+                tenant_id="tenant-a",
+                file_type="txt",
+            )
+    finally:
+        process_document_task.pop_request()
+
+    assert not sample.exists()
 
 
 def test_process_document_task_propagates_and_resets_request_id(

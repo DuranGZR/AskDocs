@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     # --- Storage (Shared Volume) ---
     UPLOAD_DIR: Path = Path("./data/uploads")
     MAX_UPLOAD_SIZE_MB: int = Field(default=100, ge=1, le=2048)
+    CHUNK_SIZE: int = Field(default=500, ge=100, le=4000)
+    CHUNK_OVERLAP: int = Field(default=75, ge=0, le=1000)
 
     # --- Redis & Celery ---
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -92,6 +94,8 @@ class Settings(BaseSettings):
             raise ValueError("API_KEY must be changed from the example value in production")
         if self.APP_ENV == "production" and self.DEBUG:
             raise ValueError("DEBUG must be False in production")
+        if self.CHUNK_OVERLAP >= self.CHUNK_SIZE:
+            raise ValueError("CHUNK_OVERLAP must be smaller than CHUNK_SIZE")
         return self
 
 

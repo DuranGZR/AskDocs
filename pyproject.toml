@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.162.6",
     "httpx>=0.28.1",
     "pydantic-settings>=2.16.3",
+    "pymupdf>=2.1",
     "python-multipart>=0.0.33",
     "redis>=8.1.0",
     "uvicorn[standard]>=0.54.0",

@@ -51,6 +51,12 @@ def test_settings_normalizes_case_and_computes_bytes() -> None:
         {"APP_ENV": "production", "API_KEY": "strong-prod-key-123", "DEBUG": True},
         {"APP_ENV": "development", "API_KEY": "short"},
         {"APP_ENV": "development", "API_KEY": "        "},
+        {
+            "APP_ENV": "development",
+            "API_KEY": "test-api-key-minimum-8-chars",
+            "CHUNK_SIZE": 200,
+            "CHUNK_OVERLAP": 200,
+        },
     ],
 )
 def test_settings_rejects_unsafe_or_invalid_values(overrides: dict[str, Any]) -> None:

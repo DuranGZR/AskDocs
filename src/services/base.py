@@ -27,6 +27,37 @@ class StoredFile:
     size_bytes: int
 
 
+@dataclass(frozen=True, slots=True)
+class PageContent:
+    """Dokümanın tek bir sayfasından çıkarılan ham metin."""
+
+    page_number: int
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class DocumentChunk:
+    """Temizlenmiş ve örtüşmeli (overlapping) olarak parçalanmış metin birimi."""
+
+    document_id: str
+    tenant_id: str
+    page_number: int
+    chunk_index: int
+    text: str
+    file_type: str
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedDocument:
+    """Sayfa sayfa okunup parçalanmış dokümanın servis çıktısı."""
+
+    document_id: str
+    tenant_id: str
+    file_type: str
+    page_count: int
+    chunks: list[DocumentChunk]
+
+
 class AsyncReadableFile(Protocol):
     """Parça parça (chunk) asenkron okuma yapılabilen dosya akışı sözleşmesi."""
 
