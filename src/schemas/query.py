@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
@@ -25,6 +27,10 @@ class QueryRequest(BaseModel):
         ge=0.0,
         le=1.0,
         description="Minimum similarity score threshold for retrieved chunks",
+    )
+    stream: bool = Field(
+        default=False,
+        description="Enable Server-Sent Events (SSE) token-by-token streaming",
     )
 
     @field_validator("query")
@@ -55,3 +61,28 @@ class QueryResponse(BaseModel):
     tenant_id: str
     answer: str
     citations: list[CitationItem]
+
+
+class SSETokenEvent(BaseModel):
+    """SSE akışı sırasında üretilen tekil kelime/token parçacığı paketi."""
+
+    event: Literal["token"] = "token"
+    delta: str
+
+
+class SSECitationsEvent(BaseModel):
+    """SSE akışı sonunda kullanılan doküman/sayfa referanslarını taşıyan paket."""
+
+    event: Literal["citations"] = "citations"
+    query: str
+    tenant_id: str
+    citations: list[CitationItem]
+
+
+class SSEErrorEvent(BaseModel):
+    """SSE akışı başladıktan sonra oluşan beklenmedik kesintileri bildiren paket."""
+
+    event: Literal["error"] = "error"
+    code: str
+    message: str
+    request_id: str = "-"
