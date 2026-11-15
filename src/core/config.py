@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = Field(default=32, ge=1, le=512)
     LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
 
+    # --- Observability (Langfuse) ---
+    LANGFUSE_ENABLED: bool = True
+    LANGFUSE_HOST: str = "http://localhost:3000"
+    LANGFUSE_PUBLIC_KEY: str = Field(default="pk-lf-corerag-local", min_length=1, max_length=128)
+    LANGFUSE_SECRET_KEY: SecretStr = SecretStr("sk-lf-corerag-local")
+
     @property
     def max_upload_size_bytes(self) -> int:
         """Maksimum yükleme boyutunu bayt cinsinden döndürür."""
@@ -104,7 +110,7 @@ class Settings(BaseSettings):
             raise ValueError("URL contains an invalid port number") from exc
         return cleaned
 
-    @field_validator("QDRANT_URL", "LLM_BASE_URL")
+    @field_validator("QDRANT_URL", "LLM_BASE_URL", "LANGFUSE_HOST")
     @classmethod
     def validate_http_url(cls, value: str) -> str:
         """HTTP/HTTPS servis adreslerinin geçerli şema, host ve port yapısını doğrular."""

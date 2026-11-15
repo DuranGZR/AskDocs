@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -7,6 +8,14 @@ from typing import Any
 from src.core.config import Settings, get_settings
 from src.core.exceptions import ServiceUnavailableError
 from src.core.logging import request_id_ctx
+from src.core.observability import (
+    configure_observability,
+    estimate_tokens,
+    get_langfuse_client,
+    observe,
+    record_worker_indexing_trace,
+    utc_now,
+)
 from src.services.base import (
     DocumentChunk,
     DocumentTaskDispatcher,
@@ -48,6 +57,7 @@ def create_worker_vector_db(settings: Settings) -> SyncBaseVectorDB:
     )
 
 
+@observe(name="worker.index_document_chunks", capture_input=False, capture_output=False)
 def index_document_chunks(
     *,
     chunks: Sequence[DocumentChunk],
@@ -106,6 +116,14 @@ def process_document_task(
     token = request_id_ctx.set(request_id)
     target = Path(file_path)
     should_cleanup_file = True
+    task_start = utc_now()
+    t_task = time.perf_counter()
+    size_bytes = 0
+    page_count = 0
+    chunk_count = 0
+    upserted_count = 0
+    estimated_tokens = 0
+    embedding_model = ""
 
     try:
         if not target.is_file():
@@ -129,6 +147,10 @@ def process_document_task(
 
         size_bytes = target.stat().st_size
         settings = get_settings()
+        embedding_model = settings.EMBEDDING_MODEL
+        if settings.LANGFUSE_ENABLED and get_langfuse_client() is None:
+            configure_observability(settings)
+
         parsed = parse_and_chunk_document(
             file_path=target,
             document_id=document_id,
@@ -137,8 +159,10 @@ def process_document_task(
             chunk_size=settings.CHUNK_SIZE,
             chunk_overlap=settings.CHUNK_OVERLAP,
         )
+        page_count = parsed.page_count
+        chunk_count = len(parsed.chunks)
+        estimated_tokens = sum(estimate_tokens(chunk.text) for chunk in parsed.chunks)
 
-        upserted_count = 0
         if parsed.chunks:
             llm_client = create_worker_llm_client(settings)
             try:
@@ -155,13 +179,29 @@ def process_document_task(
             finally:
                 llm_client.close()
 
+        record_worker_indexing_trace(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            file_type=file_type,
+            size_bytes=size_bytes,
+            page_count=page_count,
+            chunk_count=chunk_count,
+            upserted_count=upserted_count,
+            embedding_model=embedding_model,
+            estimated_tokens=estimated_tokens,
+            duration_ms=(time.perf_counter() - t_task) * 1000.0,
+            start_time=task_start,
+            end_time=utc_now(),
+            status="processed",
+        )
         logger.info(
             "Processed document_id=%s tenant_id=%s type=%s pages=%d chunks=%d upserted=%d size=%d",
             document_id,
             tenant_id,
             file_type,
-            parsed.page_count,
-            len(parsed.chunks),
+            page_count,
+            chunk_count,
             upserted_count,
             size_bytes,
         )
@@ -171,8 +211,8 @@ def process_document_task(
             "file_type": file_type,
             "file_exists": True,
             "size_bytes": size_bytes,
-            "page_count": parsed.page_count,
-            "chunk_count": len(parsed.chunks),
+            "page_count": page_count,
+            "chunk_count": chunk_count,
             "upserted_count": upserted_count,
             "status": "processed",
         }
@@ -182,6 +222,23 @@ def process_document_task(
         if current_retries < max_retries:
             # Sonraki retry denemesinin dosyayı tekrar okuyabilmesi için geçici silmeyi ertele
             should_cleanup_file = False
+        record_worker_indexing_trace(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            file_type=file_type,
+            size_bytes=size_bytes,
+            page_count=page_count,
+            chunk_count=chunk_count,
+            upserted_count=upserted_count,
+            embedding_model=embedding_model,
+            estimated_tokens=estimated_tokens,
+            duration_ms=(time.perf_counter() - t_task) * 1000.0,
+            start_time=task_start,
+            end_time=utc_now(),
+            status="retrying" if current_retries < max_retries else "failed",
+            error=f"{type(exc).__name__}: {exc}",
+        )
         logger.warning(
             "Transient error on document_id=%s (retry %d/%d): %s",
             document_id,

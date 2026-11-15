@@ -13,6 +13,7 @@ from src.core.middleware import (
     RequestIdMiddleware,
     UnhandledExceptionMiddleware,
 )
+from src.core.observability import configure_observability, shutdown_observability
 from src.services.llm_service import AsyncOpenAICompatibleLLMClient
 from src.services.qdrant_service import AsyncQdrantService
 
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
     )
     app.state.llm_client = llm_client
+    configure_observability(settings)
     logger.info(
         "Starting %s (env=%s, upload_dir=%s, qdrant_collection=%s, llm_model=%s)",
         settings.APP_NAME,
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         yield
     finally:
+        shutdown_observability()
         await llm_client.close()
         await vector_db.close()
         logger.info("Shutting down %s gracefully", settings.APP_NAME)

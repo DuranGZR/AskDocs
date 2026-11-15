@@ -65,6 +65,65 @@ services:
     networks:
       - corerag-net
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: corerag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${LANGFUSE_PG_USER:-langfuse}
+      POSTGRES_PASSWORD: ${LANGFUSE_PG_PASSWORD:-langfuse}
+      POSTGRES_DB: ${LANGFUSE_PG_DB:-langfuse}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U langfuse -d langfuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - corerag-net
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: corerag-langfuse
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${LANGFUSE_PG_USER:-langfuse}:${LANGFUSE_PG_PASSWORD:-langfuse}@postgres:5432/${LANGFUSE_PG_DB:-langfuse}
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-corerag-local-dev-nextauth-secret}
+      SALT: ${LANGFUSE_SALT:-corerag-local-dev-salt}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      TELEMETRY_ENABLED: "false"
+      LANGFUSE_INIT_ORG_ID: corerag-org
+      LANGFUSE_INIT_ORG_NAME: CoreRAG Local Org
+      LANGFUSE_INIT_PROJECT_ID: corerag-engine
+      LANGFUSE_INIT_PROJECT_NAME: CoreRAG-Engine
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-corerag-local}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-corerag-local}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@corerag.local}
+      LANGFUSE_INIT_USER_NAME: CoreRAG Admin
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-CoreRAG123!}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/public/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - corerag-net
+
   api:
     build:
       context: .
@@ -82,6 +141,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     ports:
       - "8000:8000"
@@ -137,6 +197,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ./src:/app/src:ro
@@ -172,6 +233,7 @@ volumes:
   redis_data:
   qdrant_data:
   ollama_data:
+  postgres_data:
 
 networks:
   corerag-net:

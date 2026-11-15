@@ -9,6 +9,7 @@ from fastapi import FastAPI
 os.environ.setdefault("API_KEY", "test-api-key-minimum-8-chars")
 
 from src.core.config import Settings, get_settings  # noqa: E402
+from src.core.observability import set_langfuse_client  # noqa: E402
 from src.services.base import (  # noqa: E402
     SyncBaseLLMClient,
     SyncBaseVectorDB,
@@ -108,6 +109,17 @@ def stub_worker_services(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+@pytest.fixture(autouse=True)
+def _disable_langfuse_in_tests(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Testlerin .env içindeki LANGFUSE_ENABLED=true ile dış ağa çıkmasını engeller."""
+    monkeypatch.setenv("LANGFUSE_ENABLED", "false")
+    get_settings.cache_clear()
+    set_langfuse_client(None)
+    yield
+    set_langfuse_client(None)
+    get_settings.cache_clear()
+
+
 @pytest.fixture
 def test_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Settings]:
     """Her test için izole geçici upload diziniyle deterministik ayarlar üretir."""
@@ -122,6 +134,7 @@ def test_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[S
     monkeypatch.setenv("API_KEY", "test-api-key-minimum-8-chars")
     monkeypatch.setenv("UPLOAD_DIR", str(upload_dir))
     monkeypatch.setenv("MAX_UPLOAD_SIZE_MB", "1")
+    monkeypatch.setenv("LANGFUSE_ENABLED", "false")
 
     get_settings.cache_clear()
     yield get_settings()
