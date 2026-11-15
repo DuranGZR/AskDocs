@@ -1,8 +1,11 @@
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from src.api.v1.router import api_router
 from src.core.config import get_settings
@@ -18,6 +21,7 @@ from src.services.llm_service import AsyncOpenAICompatibleLLMClient
 from src.services.qdrant_service import AsyncQdrantService
 
 logger = logging.getLogger(__name__)
+_UI_DIR = Path(__file__).resolve().parent / "ui"
 
 
 @asynccontextmanager
@@ -77,6 +81,14 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(app)
     app.include_router(api_router)
+
+    if _UI_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=_UI_DIR), name="ui-static")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_ui() -> FileResponse:
+        """Cupertino Light tek sayfa Web arayüzünü sunar."""
+        return FileResponse(_UI_DIR / "index.html")
 
     # Starlette middleware'leri ters sırada sarar (en son eklenen en dışta çalışır).
     # Multipart başlık/sınır payı için upload limitine 1 MiB ek tampon eklenir.

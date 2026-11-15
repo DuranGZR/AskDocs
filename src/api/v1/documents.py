@@ -1,3 +1,4 @@
+import inspect
 import logging
 from typing import Annotated
 
@@ -9,8 +10,11 @@ from src.core.logging import request_id_ctx
 from src.schemas.common import ErrorResponse
 from src.schemas.documents import (
     DocumentDeleteResponse,
+    DocumentListResponse,
+    DocumentSummaryItem,
     DocumentTaskStatusResponse,
     DocumentUploadResponse,
+    TenantListResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,13 +63,24 @@ async def upload_document(
     """Dokümanı ortak depolama dizinine stream ederek kaydeder ve arka plan kuyruğuna atar."""
     stored = await storage.save(file=file, filename=file.filename)
     try:
-        task_id = await task_dispatcher.enqueue_document(
-            document_id=stored.document_id,
-            file_path=stored.file_path,
-            tenant_id=tenant_id,
-            file_type=stored.file_type,
-            request_id=request_id_ctx.get(),
-        )
+        enqueue_params = inspect.signature(task_dispatcher.enqueue_document).parameters
+        if "filename" in enqueue_params:
+            task_id = await task_dispatcher.enqueue_document(
+                document_id=stored.document_id,
+                file_path=stored.file_path,
+                tenant_id=tenant_id,
+                file_type=stored.file_type,
+                request_id=request_id_ctx.get(),
+                filename=stored.original_filename,
+            )
+        else:
+            task_id = await task_dispatcher.enqueue_document(
+                document_id=stored.document_id,
+                file_path=stored.file_path,
+                tenant_id=tenant_id,
+                file_type=stored.file_type,
+                request_id=request_id_ctx.get(),
+            )
     except Exception as exc:
         await storage.delete(stored.file_path)
         logger.error(
@@ -84,6 +99,84 @@ async def upload_document(
         file_type=stored.file_type,
         size_bytes=stored.size_bytes,
         status="queued",
+    )
+
+
+@router.get(
+    "/tenants",
+    response_model=TenantListResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ErrorResponse,
+            "description": "Service Unavailable",
+        },
+    },
+    summary="List known tenant workspaces in vector database",
+)
+async def list_tenants(vector_db: VectorDBDep) -> TenantListResponse:
+    """Qdrant üzerinde kaydı bulunan çalışma alanlarını (tenant_id) alfabetik olarak döndürür."""
+    try:
+        tenants = await vector_db.list_tenants()
+    except AppError:
+        raise
+    except Exception as exc:
+        logger.error("Failed to list tenants: %s", type(exc).__name__)
+        raise ServiceUnavailableError("Vector database is currently unavailable") from exc
+
+    return TenantListResponse(tenants=tenants)
+
+
+@router.get(
+    "",
+    response_model=DocumentListResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "model": ErrorResponse,
+            "description": "Service Unavailable",
+        },
+    },
+    summary="List indexed documents for a tenant",
+)
+async def list_documents(
+    vector_db: VectorDBDep,
+    tenant_id: Annotated[
+        str,
+        Query(
+            min_length=1,
+            max_length=64,
+            pattern=TENANT_ID_PATTERN,
+            description="Tenant identifier for multi-tenant isolation",
+        ),
+    ],
+) -> DocumentListResponse:
+    """Belirtilen tenant_id altındaki indekslenmiş tüm dokümanları Qdrant üzerinden listeler."""
+    try:
+        summaries = await vector_db.list_documents(tenant_id=tenant_id)
+    except AppError:
+        raise
+    except Exception as exc:
+        logger.error(
+            "Failed to list documents for tenant_id=%s: %s",
+            tenant_id,
+            type(exc).__name__,
+        )
+        raise ServiceUnavailableError("Vector database is currently unavailable") from exc
+
+    return DocumentListResponse(
+        tenant_id=tenant_id,
+        documents=[
+            DocumentSummaryItem(
+                document_id=item.document_id,
+                tenant_id=item.tenant_id,
+                filename=item.filename,
+                file_type=item.file_type,
+                page_count=item.page_count,
+                chunk_count=item.chunk_count,
+            )
+            for item in summaries
+        ],
     )
 
 

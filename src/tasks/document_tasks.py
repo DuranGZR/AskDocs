@@ -111,6 +111,7 @@ def process_document_task(
     tenant_id: str,
     file_type: str,
     request_id: str = "-",
+    filename: str = "",
 ) -> dict[str, object]:
     """Dokümanı okur, batch vektörleştirip Qdrant'a yazar, hatada retry eder ve temizler."""
     token = request_id_ctx.set(request_id)
@@ -158,6 +159,7 @@ def process_document_task(
             file_type=file_type,
             chunk_size=settings.CHUNK_SIZE,
             chunk_overlap=settings.CHUNK_OVERLAP,
+            filename=filename,
         )
         page_count = parsed.page_count
         chunk_count = len(parsed.chunks)
@@ -264,14 +266,21 @@ class CeleryDocumentTaskDispatcher(DocumentTaskDispatcher):
         tenant_id: str,
         file_type: str,
         request_id: str,
+        filename: str = "",
     ) -> str:
+        delay_kwargs: dict[str, str] = {
+            "document_id": document_id,
+            "file_path": str(file_path),
+            "tenant_id": tenant_id,
+            "file_type": file_type,
+            "request_id": request_id,
+        }
+        if filename:
+            delay_kwargs["filename"] = filename
+
         async_result = await asyncio.to_thread(
             process_document_task.delay,
-            document_id=document_id,
-            file_path=str(file_path),
-            tenant_id=tenant_id,
-            file_type=file_type,
-            request_id=request_id,
+            **delay_kwargs,
         )
         return str(async_result.id)
 

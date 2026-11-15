@@ -46,6 +46,19 @@ class DocumentChunk:
     chunk_index: int
     text: str
     file_type: str
+    filename: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class IndexedDocumentSummary:
+    """Vektör veritabanında indekslenmiş bir dokümanın özet meta verisi."""
+
+    document_id: str
+    tenant_id: str
+    filename: str
+    file_type: str
+    page_count: int
+    chunk_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +127,7 @@ class DocumentTaskDispatcher(Protocol):
         tenant_id: str,
         file_type: str,
         request_id: str,
+        filename: str = "",
     ) -> str:
         """Görevi kuyruğa ekler ve üretilen task_id değerini döner."""
         ...
@@ -148,6 +162,14 @@ class BaseVectorDB(ABC):
     @abstractmethod
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm vektör kayıtlarını siler."""
+
+    async def list_documents(self, *, tenant_id: str) -> list[IndexedDocumentSummary]:
+        """Belirtilen tenant_id altındaki indekslenmiş dokümanların özetini listeler."""
+        return []
+
+    async def list_tenants(self) -> list[str]:
+        """Vektör veritabanında dokümanı bulunan tüm çalışma alanlarını listeler."""
+        return ["test-user"]
 
     @abstractmethod
     async def close(self) -> None:

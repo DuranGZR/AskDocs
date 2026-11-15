@@ -52,6 +52,7 @@ class CitationItem(BaseModel):
     score: float
     text: str
     file_type: str
+    filename: str = ""
 
 
 class QueryResponse(BaseModel):

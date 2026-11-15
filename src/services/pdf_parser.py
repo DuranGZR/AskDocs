@@ -153,6 +153,7 @@ def parse_and_chunk_document(
     file_type: str,
     chunk_size: int = 500,
     chunk_overlap: int = 75,
+    filename: str = "",
 ) -> ParsedDocument:
     """Dokümanı sayfa sayfa okuyup temizleyerek metadata'lı chunk listesi üretir."""
     chunks: list[DocumentChunk] = []
@@ -174,6 +175,7 @@ def parse_and_chunk_document(
                     chunk_index=chunk_index,
                     text=piece,
                     file_type=file_type,
+                    filename=filename,
                 )
             )
             chunk_index += 1

@@ -32,3 +32,27 @@ class DocumentDeleteResponse(BaseModel):
     document_id: str
     tenant_id: str
     status: Literal["deleted"] = "deleted"
+
+
+class DocumentSummaryItem(BaseModel):
+    """Vektör deposunda indekslenmiş tekil doküman özeti."""
+
+    document_id: str
+    tenant_id: str
+    filename: str
+    file_type: str
+    page_count: int
+    chunk_count: int
+
+
+class DocumentListResponse(BaseModel):
+    """Bir tenant için yüklü tüm dokümanların listeleme yanıt şeması."""
+
+    tenant_id: str
+    documents: list[DocumentSummaryItem]
+
+
+class TenantListResponse(BaseModel):
+    """Vektör deposunda kayıtlı tüm çalışma alanı (tenant) adları."""
+
+    tenants: list[str]

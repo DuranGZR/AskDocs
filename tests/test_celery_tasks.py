@@ -231,6 +231,18 @@ async def test_celery_document_task_dispatcher_calls_delay(
         "request_id": "req-999",
     }
 
+    recorded_kwargs.clear()
+    named_task_id = await dispatcher.enqueue_document(
+        document_id="doc-10",
+        file_path=target,
+        tenant_id="tenant-z",
+        file_type="pdf",
+        request_id="req-1000",
+        filename="rapor.pdf",
+    )
+    assert named_task_id == "celery-task-999"
+    assert recorded_kwargs["filename"] == "rapor.pdf"
+
 
 async def test_celery_document_task_dispatcher_get_task_status_maps_states_and_sanitizes_errors(
     monkeypatch: pytest.MonkeyPatch,

@@ -230,6 +230,7 @@ async def _retrieve_and_prepare_rag(
             score=round(scored.score, 6),
             text=scored.chunk.text,
             file_type=scored.chunk.file_type,
+            filename=scored.chunk.filename,
         )
         for scored in scored_chunks
     ]

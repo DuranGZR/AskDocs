@@ -1,12 +1,15 @@
 import logging
 import uuid
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 
 from qdrant_client import AsyncQdrantClient, QdrantClient, models
+from qdrant_client.conversions.common_types import PointId
 
 from src.services.base import (
     BaseVectorDB,
     DocumentChunk,
+    IndexedDocumentSummary,
     ScoredChunk,
     SyncBaseVectorDB,
     VectorPoint,
@@ -15,6 +18,14 @@ from src.services.base import (
 logger = logging.getLogger(__name__)
 
 _INDEXED_PAYLOAD_FIELDS: tuple[str, ...] = ("tenant_id", "document_id")
+
+
+@dataclass(slots=True)
+class _DocumentAggregate:
+    file_type: str
+    filename: str = ""
+    pages: set[int] = field(default_factory=set)
+    chunk_count: int = 0
 
 
 def build_chunk_point_id(document_id: str, chunk_index: int) -> str:
@@ -34,6 +45,7 @@ def _to_point_struct(point: VectorPoint) -> models.PointStruct:
             "chunk_index": point.chunk.chunk_index,
             "text": point.chunk.text,
             "file_type": point.chunk.file_type,
+            "filename": point.chunk.filename,
         },
     )
 
@@ -48,6 +60,7 @@ def _to_scored_chunk(point: models.ScoredPoint) -> ScoredChunk:
         chunk_index=int(payload.get("chunk_index", 0)),
         text=str(payload.get("text", "")),
         file_type=str(payload.get("file_type", "pdf")),
+        filename=str(payload.get("filename") or ""),
     )
     return ScoredChunk(
         point_id=str(point.id),
@@ -155,6 +168,83 @@ class AsyncQdrantService(BaseVectorDB):
             ),
             wait=True,
         )
+
+    async def list_documents(self, *, tenant_id: str) -> list[IndexedDocumentSummary]:
+        """Belirtilen tenant_id altındaki dokümanları sayfalayarak tarar ve özetler."""
+        grouped: dict[str, _DocumentAggregate] = {}
+        offset: PointId | None = None
+        tenant_filter = _build_tenant_filter(tenant_id=tenant_id)
+
+        while True:
+            records, next_offset = await self._client.scroll(
+                collection_name=self._collection_name,
+                scroll_filter=tenant_filter,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            for record in records:
+                payload = record.payload or {}
+                doc_id = str(payload.get("document_id") or "")
+                if not doc_id:
+                    continue
+                file_type = str(payload.get("file_type") or "pdf")
+                filename = str(payload.get("filename") or "").strip()
+                page_number = int(payload.get("page_number") or 1)
+
+                entry = grouped.get(doc_id)
+                if entry is None:
+                    entry = _DocumentAggregate(file_type=file_type, filename=filename)
+                    grouped[doc_id] = entry
+                elif not entry.filename and filename:
+                    entry.filename = filename
+
+                entry.chunk_count += 1
+                entry.pages.add(page_number)
+
+            if next_offset is None:
+                break
+            offset = next_offset
+
+        summaries = [
+            IndexedDocumentSummary(
+                document_id=doc_id,
+                tenant_id=tenant_id,
+                filename=entry.filename or f"{doc_id[:8]}.{entry.file_type}",
+                file_type=entry.file_type,
+                page_count=len(entry.pages) or 1,
+                chunk_count=entry.chunk_count,
+            )
+            for doc_id, entry in grouped.items()
+        ]
+        summaries.sort(key=lambda item: (item.filename.lower(), item.document_id))
+        return summaries
+
+    async def list_tenants(self) -> list[str]:
+        """Vektör veritabanında dokümanı bulunan benzersiz tenant_id listesini döndürür."""
+        tenants: set[str] = set()
+        offset: PointId | None = None
+
+        while True:
+            records, next_offset = await self._client.scroll(
+                collection_name=self._collection_name,
+                limit=256,
+                offset=offset,
+                with_payload=["tenant_id"],
+                with_vectors=False,
+            )
+            for record in records:
+                payload = record.payload or {}
+                tenant_id = str(payload.get("tenant_id") or "").strip()
+                if tenant_id:
+                    tenants.add(tenant_id)
+
+            if next_offset is None:
+                break
+            offset = next_offset
+
+        return sorted(tenants)
 
     async def close(self) -> None:
         """Asenkron Qdrant istemci bağlantısını kapatır."""

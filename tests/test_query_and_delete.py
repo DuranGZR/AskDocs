@@ -14,6 +14,7 @@ from src.services.base import (
     BaseVectorDB,
     ChatMessage,
     DocumentChunk,
+    IndexedDocumentSummary,
     ScoredChunk,
     VectorPoint,
 )
@@ -460,3 +461,134 @@ async def test_query_and_delete_return_503_on_upstream_failures(
     assert del_resp.headers["X-Request-ID"] == "req-503-delete"
     assert del_resp.json()["error"]["code"] == "service_unavailable"
     assert "secret-qdrant" not in del_resp.text
+
+
+async def test_list_documents_endpoint_returns_tenant_docs_and_handles_errors(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """GET /api/v1/documents tenant izolasyonu sağlamalı ve Qdrant hatasında 503 dönmelidir."""
+    qdrant_client = AsyncQdrantClient(location=":memory:")
+    vector_db = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=qdrant_client,
+    )
+    await vector_db.ensure_collection()
+    await vector_db.upsert(
+        points=[
+            VectorPoint(
+                point_id=build_chunk_point_id("doc-alpha-1", 0),
+                vector=[1.0, 0.0, 0.0, 0.0],
+                chunk=DocumentChunk(
+                    document_id="doc-alpha-1",
+                    tenant_id="tenant_alpha",
+                    page_number=1,
+                    chunk_index=0,
+                    text="Alpha metni",
+                    file_type="pdf",
+                    filename="sozlesme.pdf",
+                ),
+            ),
+            VectorPoint(
+                point_id=build_chunk_point_id("doc-beta-1", 0),
+                vector=[1.0, 0.0, 0.0, 0.0],
+                chunk=DocumentChunk(
+                    document_id="doc-beta-1",
+                    tenant_id="tenant_beta",
+                    page_number=1,
+                    chunk_index=0,
+                    text="Beta metni",
+                    file_type="pdf",
+                    filename="beta.pdf",
+                ),
+            ),
+        ]
+    )
+
+    app.dependency_overrides[get_vector_db] = lambda: vector_db
+    try:
+        list_resp = await client.get("/api/v1/documents", params={"tenant_id": "tenant_alpha"})
+        assert list_resp.status_code == 200
+        assert list_resp.json() == {
+            "tenant_id": "tenant_alpha",
+            "documents": [
+                {
+                    "document_id": "doc-alpha-1",
+                    "tenant_id": "tenant_alpha",
+                    "filename": "sozlesme.pdf",
+                    "file_type": "pdf",
+                    "page_count": 1,
+                    "chunk_count": 1,
+                }
+            ],
+        }
+
+        invalid_resp = await client.get("/api/v1/documents", params={"tenant_id": "../bad"})
+        assert invalid_resp.status_code == 422
+        assert invalid_resp.json()["error"]["code"] == "validation_error"
+
+        tenants_resp = await client.get("/api/v1/documents/tenants")
+        assert tenants_resp.status_code == 200
+        assert tenants_resp.json() == {"tenants": ["tenant_alpha", "tenant_beta"]}
+    finally:
+        await vector_db.close()
+
+    class _UnavailableListDB(BaseVectorDB):
+        async def ensure_collection(self) -> None:
+            return None
+
+        async def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+            return 0
+
+        async def search(
+            self,
+            *,
+            query_vector: Sequence[float],
+            tenant_id: str,
+            top_k: int = 5,
+            score_threshold: float = 0.5,
+        ) -> list[ScoredChunk]:
+            return []
+
+        async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+            return None
+
+        async def list_documents(self, *, tenant_id: str) -> list[IndexedDocumentSummary]:
+            raise RuntimeError("qdrant down")
+
+        async def list_tenants(self) -> list[str]:
+            raise RuntimeError("qdrant down")
+
+        async def close(self) -> None:
+            return None
+
+    app.dependency_overrides[get_vector_db] = _UnavailableListDB
+    err_resp = await client.get("/api/v1/documents", params={"tenant_id": "tenant_alpha"})
+    assert err_resp.status_code == 503
+    assert err_resp.json()["error"]["code"] == "service_unavailable"
+
+    tenants_err_resp = await client.get("/api/v1/documents/tenants")
+    assert tenants_err_resp.status_code == 503
+    assert tenants_err_resp.json()["error"]["code"] == "service_unavailable"
+
+
+async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncClient) -> None:
+    """Ana sayfa '/' ve '/static/*' Cupertino arayüz dosyalarını servis etmelidir."""
+    root_resp = await client.get("/")
+    assert root_resp.status_code == 200
+    assert root_resp.headers["content-type"].startswith("text/html")
+    assert "CoreRAG" in root_resp.text
+    assert "window-controls" not in root_resp.text
+    assert 'id="workspace-menu"' in root_resp.text
+    assert "/static/app.js" in root_resp.text
+
+    css_resp = await client.get("/static/styles.css")
+    assert css_resp.status_code == 200
+    assert "--apple-blue" in css_resp.text
+
+    js_resp = await client.get("/static/app.js")
+    assert js_resp.status_code == 200
+    assert "/api/v1/query/stream" in js_resp.text
+    assert "/api/v1/documents/tenants" in js_resp.text
+    assert "citation-source-num" in js_resp.text

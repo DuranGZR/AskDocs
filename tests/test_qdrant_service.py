@@ -275,3 +275,102 @@ async def test_lifespan_initializes_and_closes_vector_db(
         assert resolved is app.state.vector_db
 
     assert events == ["init", "ensure_collection", "close"]
+
+
+async def test_async_qdrant_service_list_documents_aggregates_and_isolates_tenants() -> None:
+    """list_documents sayfaları/parçaları saymalı, filename dönmeli ve tenant'ı izole etmelidir."""
+    client = AsyncQdrantClient(location=":memory:")
+    service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=client,
+    )
+    try:
+        await service.ensure_collection()
+        await service.upsert(
+            points=[
+                VectorPoint(
+                    point_id=build_chunk_point_id("doc-policy", 0),
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                    chunk=DocumentChunk(
+                        document_id="doc-policy",
+                        tenant_id="tenant_a",
+                        page_number=1,
+                        chunk_index=0,
+                        text="Sayfa 1 metni",
+                        file_type="pdf",
+                        filename="el_kitabi.pdf",
+                    ),
+                ),
+                VectorPoint(
+                    point_id=build_chunk_point_id("doc-policy", 1),
+                    vector=[0.9, 0.1, 0.0, 0.0],
+                    chunk=DocumentChunk(
+                        document_id="doc-policy",
+                        tenant_id="tenant_a",
+                        page_number=3,
+                        chunk_index=1,
+                        text="Sayfa 3 metni",
+                        file_type="pdf",
+                        filename="el_kitabi.pdf",
+                    ),
+                ),
+                VectorPoint(
+                    point_id=build_chunk_point_id("doc-policy", 2),
+                    vector=[0.8, 0.2, 0.0, 0.0],
+                    chunk=DocumentChunk(
+                        document_id="doc-policy",
+                        tenant_id="tenant_a",
+                        page_number=3,
+                        chunk_index=2,
+                        text="Sayfa 3 ikinci parça",
+                        file_type="pdf",
+                        filename="el_kitabi.pdf",
+                    ),
+                ),
+                VectorPoint(
+                    point_id=build_chunk_point_id("doc-legacy-1234", 0),
+                    vector=[0.7, 0.3, 0.0, 0.0],
+                    chunk=DocumentChunk(
+                        document_id="doc-legacy-1234",
+                        tenant_id="tenant_a",
+                        page_number=1,
+                        chunk_index=0,
+                        text="Eski kayıt metni",
+                        file_type="txt",
+                        filename="",
+                    ),
+                ),
+                VectorPoint(
+                    point_id=build_chunk_point_id("doc-other-tenant", 0),
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                    chunk=DocumentChunk(
+                        document_id="doc-other-tenant",
+                        tenant_id="tenant_b",
+                        page_number=1,
+                        chunk_index=0,
+                        text="Gizli belge",
+                        file_type="pdf",
+                        filename="gizli.pdf",
+                    ),
+                ),
+            ]
+        )
+
+        docs_a = await service.list_documents(tenant_id="tenant_a")
+        assert [(d.document_id, d.filename, d.page_count, d.chunk_count) for d in docs_a] == [
+            ("doc-legacy-1234", "doc-lega.txt", 1, 1),
+            ("doc-policy", "el_kitabi.pdf", 2, 3),
+        ]
+
+        search_hits = await service.search(
+            query_vector=[1.0, 0.0, 0.0, 0.0],
+            tenant_id="tenant_a",
+            top_k=1,
+            score_threshold=0.9,
+        )
+        assert len(search_hits) == 1
+        assert search_hits[0].chunk.filename == "el_kitabi.pdf"
+        assert await service.list_tenants() == ["tenant_a", "tenant_b"]
+    finally:
+        await service.close()
