@@ -821,3 +821,52 @@ async def test_query_multi_turn_history_window_sanitizes_and_contextualizes_foll
         },
     )
     assert bad_resp.status_code == 422
+
+    # Kök konu sonrası çoklu takip ("biraz daha detaylı anlat" + "örnek ver") ve bağımsız yeni konu
+    recorded_embeddings.clear()
+    chained_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "biraz daha detaylı anlat",
+            "tenant_id": "tenant_hr",
+            "history": [
+                {"role": "user", "content": "Bitcoin çift harcama sorunu nasıl çözülüyor?"},
+                {"role": "assistant", "content": "İş kanıtı zinciri ile çözülür."},
+            ],
+            "stream": False,
+        },
+    )
+    assert chained_resp.status_code == 200
+    assert "Bitcoin çift harcama" in recorded_embeddings[-1]
+
+    deep_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "buna örnek ver",
+            "tenant_id": "tenant_hr",
+            "history": [
+                {"role": "user", "content": "Bitcoin çift harcama sorunu nasıl çözülüyor?"},
+                {"role": "assistant", "content": "İş kanıtı zinciri ile çözülür."},
+                {"role": "user", "content": "biraz daha detaylı anlat"},
+                {"role": "assistant", "content": "Düğümler en uzun zinciri seçer."},
+            ],
+            "stream": False,
+        },
+    )
+    assert deep_resp.status_code == 200
+    assert "Bitcoin çift harcama" in recorded_embeddings[-1]
+
+    independent_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "uzaktan çalışma kurallarını kısaca anlat",
+            "tenant_id": "tenant_hr",
+            "history": [
+                {"role": "user", "content": "Bitcoin çift harcama sorunu nasıl çözülüyor?"},
+                {"role": "assistant", "content": "İş kanıtı zinciri ile çözülür."},
+            ],
+            "stream": False,
+        },
+    )
+    assert independent_resp.status_code == 200
+    assert recorded_embeddings[-1] == "uzaktan çalışma kurallarını kısaca anlat"

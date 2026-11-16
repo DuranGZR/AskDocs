@@ -47,10 +47,21 @@ router = APIRouter(
 )
 
 _CONTEXT_TAG_RE = re.compile(r"<\s*/?\s*context\b[^>]*>", flags=re.IGNORECASE)
-_FOLLOWUP_REF_RE = re.compile(
-    r"\b(?:bunu|bunun|bundan|buna|bunda|onun|onu|ondan|ona|şunu|şunun|peki|"
-    r"ayrıca|detay|detaylandır|ayrıntı|örnek|basitçe|sadeleştir|özetle|neden|"
-    r"it|this|that|they|these|those|elaborate|simplify|clarify|example)\b",
+_ANAPHORA_REF_RE = re.compile(
+    r"\b(?:bunu\w*|bundan|buna|bunda|onun|onu\w*|ondan|ona|onda|şunu\w*|şundan|"
+    r"burada|orada|peki|ayrıca|biraz\s+daha|daha\s+fazla|daha\s+detaylı|"
+    r"daha\s+ayrıntılı|daha\s+basit|daha\s+sade|devam\w*|"
+    r"it|this|that|they|them|these|those|elaborate|simplify|continue)\b",
+    flags=re.IGNORECASE,
+)
+_SHORT_FOLLOWUP_VERB_RE = re.compile(
+    r"\b(?:detay\w*|ayrıntı\w*|açıkla\w*|açar\s+mısın\w*|anlat\w*|örnek\w*|"
+    r"basit\w*|sade\w*|özet\w*|neden|niçin|niye|explain|example|details?|summarize|why|more)\b",
+    flags=re.IGNORECASE,
+)
+_AFFIRMATIVE_FOLLOWUP_RE = re.compile(
+    r"^(?:evet|tamam|olur|tabi|tabii|lütfen|inceleyelim|anlat|devam|"
+    r"yes|sure|ok|okay|please|go\s+ahead|continue)[!.,?\s]*$",
     flags=re.IGNORECASE,
 )
 _TRIVIAL_GREETING_RE = re.compile(
@@ -130,27 +141,59 @@ def format_context_block(chunks: Sequence[ScoredChunk]) -> str:
     return f"<context>\n{joined}\n</context>"
 
 
+def _is_followup_query(text: str) -> bool:
+    """Sorgunun tek başına tam konu içermeyen bir devam/takip ifadesi olup olmadığını döner."""
+    if _AFFIRMATIVE_FOLLOWUP_RE.fullmatch(text) or _ANAPHORA_REF_RE.search(text):
+        return True
+    return len(text.split()) <= 4 and bool(_SHORT_FOLLOWUP_VERB_RE.search(text))
+
+
 def _build_retrieval_query(
     *,
     query: str,
     history: Sequence[ConversationMessage],
     max_history_messages: int,
 ) -> str:
-    """Takip soruları referans içeriyorsa önceki anlamlı soruyla arama bağlamını kurar."""
-    if not history or max_history_messages <= 0 or not _FOLLOWUP_REF_RE.search(query):
+    """Takip soruları referans içeriyorsa önceki anlamlı konu sorusuyla arama bağlamını kurar."""
+    if not history or max_history_messages <= 0 or not _is_followup_query(query):
         return query
 
     recent = history[-max_history_messages:]
+    is_affirmative = bool(_AFFIRMATIVE_FOLLOWUP_RE.fullmatch(query))
+
+    # Geri yürürken ara takip mesajlarını atlayıp asıl konuyu soran son kullanıcı sorusunu bul
+    fallback_user = ""
+    topic_user = ""
     for entry in reversed(recent):
         if entry.role != "user":
             continue
         candidate = entry.content.strip()
-        if not candidate or candidate.casefold() == query.casefold():
+        if (
+            not candidate
+            or candidate.casefold() == query.casefold()
+            or _TRIVIAL_GREETING_RE.fullmatch(candidate)
+        ):
             continue
-        if _TRIVIAL_GREETING_RE.fullmatch(candidate):
-            continue
-        return f"{candidate[:240]} — {query}"
-    return query
+        if not fallback_user:
+            fallback_user = candidate
+        if not _is_followup_query(candidate):
+            topic_user = candidate
+            break
+
+    resolved_topic = topic_user or fallback_user
+    if not resolved_topic:
+        return query
+
+    if is_affirmative:
+        last_assistant = next(
+            (item.content.strip() for item in reversed(recent) if item.role == "assistant"),
+            "",
+        )
+        tail_sentence = last_assistant.splitlines()[-1].strip() if last_assistant else ""
+        if tail_sentence.endswith("?"):
+            return f"{resolved_topic[:180]} — {tail_sentence[:200]}"
+
+    return f"{resolved_topic[:240]} — {query}"
 
 
 def build_rag_messages(
