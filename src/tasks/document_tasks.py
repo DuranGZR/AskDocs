@@ -1,10 +1,12 @@
 import asyncio
 import logging
+import threading
 import time
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from src.core.circuit_breaker import SyncCircuitBreaker
 from src.core.config import Settings, get_settings
 from src.core.exceptions import ServiceUnavailableError
 from src.core.logging import request_id_ctx
@@ -38,6 +40,35 @@ RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
 )
 
 
+_WORKER_BREAKERS: dict[tuple[str, bool, int, float, int, int], SyncCircuitBreaker] = {}
+_WORKER_BREAKERS_LOCK = threading.Lock()
+
+
+def _get_worker_circuit_breaker(name: str, settings: Settings) -> SyncCircuitBreaker:
+    """Worker süreci içinde yapılandırmayla uyumlu paylaşımlı SyncCircuitBreaker döner."""
+    cache_key = (
+        name,
+        settings.CIRCUIT_BREAKER_ENABLED,
+        settings.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+        settings.CIRCUIT_BREAKER_RECOVERY_SECONDS,
+        settings.CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS,
+        settings.CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_THRESHOLD,
+    )
+    with _WORKER_BREAKERS_LOCK:
+        breaker = _WORKER_BREAKERS.get(cache_key)
+        if breaker is None:
+            breaker = SyncCircuitBreaker(
+                name=name,
+                enabled=settings.CIRCUIT_BREAKER_ENABLED,
+                failure_threshold=settings.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+                recovery_timeout_seconds=settings.CIRCUIT_BREAKER_RECOVERY_SECONDS,
+                half_open_max_calls=settings.CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS,
+                half_open_success_threshold=settings.CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_THRESHOLD,
+            )
+            _WORKER_BREAKERS[cache_key] = breaker
+        return breaker
+
+
 def create_worker_llm_client(settings: Settings) -> SyncBaseLLMClient:
     """Celery worker için senkron OpenAI-uyumlu embedding istemcisi oluşturur."""
     return SyncOpenAICompatibleLLMClient(
@@ -45,6 +76,7 @@ def create_worker_llm_client(settings: Settings) -> SyncBaseLLMClient:
         api_key=settings.LLM_API_KEY.get_secret_value(),
         embedding_model=settings.EMBEDDING_MODEL,
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
+        circuit_breaker=_get_worker_circuit_breaker("worker.llm", settings),
     )
 
 
@@ -54,6 +86,7 @@ def create_worker_vector_db(settings: Settings) -> SyncBaseVectorDB:
         url=settings.QDRANT_URL,
         collection_name=settings.QDRANT_COLLECTION_NAME,
         vector_size=settings.QDRANT_VECTOR_SIZE,
+        circuit_breaker=_get_worker_circuit_breaker("worker.qdrant", settings),
     )
 
 

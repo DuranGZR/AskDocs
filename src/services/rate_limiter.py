@@ -64,6 +64,8 @@ class AsyncRedisLike(Protocol):
 
     def register_script(self, script: str) -> Any: ...
 
+    async def ping(self) -> Any: ...
+
     async def aclose(self) -> None: ...
 
 
@@ -178,6 +180,15 @@ class RedisRateLimiter(BaseRateLimiter):
             reset_after_seconds=ttl_seconds,
             retry_after_seconds=ttl_seconds,
         )
+
+    async def ping(self, *, timeout_seconds: float = 2.0) -> bool:
+        """Mevcut Redis havuzu üzerinden PING atarak erişilebilirliği kontrol eder."""
+        try:
+            result = await asyncio.wait_for(self._client.ping(), timeout=timeout_seconds)
+            return bool(result)
+        except (RedisError, OSError, TimeoutError) as exc:
+            logger.warning("Redis health ping failed: %s", type(exc).__name__)
+            return False
 
     async def close(self) -> None:
         """Kendi oluşturduğu asenkron Redis bağlantı havuzunu kapatır."""

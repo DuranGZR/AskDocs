@@ -1,18 +1,14 @@
-import asyncio
-import os
-from pathlib import Path
-
 from fastapi import APIRouter, Request, Response, status
 
-from src.api.dependencies import SettingsDep
+from src.api.dependencies import (
+    HealthCheckerDep,
+    LLMCircuitBreakerDep,
+    QdrantCircuitBreakerDep,
+    SettingsDep,
+)
 from src.schemas.common import HealthResponse
 
 router = APIRouter(tags=["health"])
-
-
-def _is_writable_dir(path: Path) -> bool:
-    """Dizinin mevcut ve yazılabilir olup olmadığını kontrol eder."""
-    return path.is_dir() and os.access(path, os.W_OK)
 
 
 @router.get(
@@ -25,21 +21,30 @@ def _is_writable_dir(path: Path) -> bool:
             "description": "One or more dependencies are degraded",
         }
     },
-    summary="Check service health",
+    summary="Check service and dependency health",
 )
 async def health_check(
     request: Request,
     response: Response,
     settings: SettingsDep,
+    health_checker: HealthCheckerDep,
+    qdrant_breaker: QdrantCircuitBreakerDep,
+    llm_breaker: LLMCircuitBreakerDep,
 ) -> HealthResponse:
-    """Uygulamanın temel çalışma ve depolama dizini yazılabilirliğini kontrol eder."""
-    storage_ok = await asyncio.to_thread(_is_writable_dir, settings.UPLOAD_DIR)
-    if not storage_ok:
+    """Depolama, Redis ve Qdrant bağımlılıkları ile devre kesici durumlarını kontrol eder."""
+    checks = await health_checker.check_dependencies()
+    all_ok = all(value == "ok" for value in checks.values())
+    if not all_ok:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
     return HealthResponse(
-        status="ok" if storage_ok else "degraded",
+        status="ok" if all_ok else "degraded",
         app_name=settings.APP_NAME,
         version=request.app.version,
         environment=settings.APP_ENV,
-        checks={"storage": "ok" if storage_ok else "unavailable"},
+        checks=checks,
+        circuits={
+            "qdrant": qdrant_breaker.state,
+            "llm": llm_breaker.state,
+        },
     )

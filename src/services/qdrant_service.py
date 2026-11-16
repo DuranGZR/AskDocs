@@ -1,11 +1,15 @@
+import asyncio
 import logging
 import uuid
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
+from typing import TypeVar
 
 from qdrant_client import AsyncQdrantClient, QdrantClient, models
 from qdrant_client.conversions.common_types import PointId
 
+from src.core.circuit_breaker import CircuitBreaker, SyncCircuitBreaker
+from src.core.exceptions import AppError, ServiceUnavailableError
 from src.services.base import (
     BaseVectorDB,
     DocumentChunk,
@@ -16,6 +20,7 @@ from src.services.base import (
 )
 
 logger = logging.getLogger(__name__)
+_T = TypeVar("_T")
 
 _INDEXED_PAYLOAD_FIELDS: tuple[str, ...] = ("tenant_id", "document_id")
 
@@ -97,12 +102,30 @@ class AsyncQdrantService(BaseVectorDB):
         vector_size: int,
         url: str | None = None,
         client: AsyncQdrantClient | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
     ) -> None:
         if client is None and not url:
             raise ValueError("Either 'url' or 'client' must be provided")
         self._collection_name = collection_name
         self._vector_size = vector_size
         self._client = client if client is not None else AsyncQdrantClient(url=url)
+        self._circuit_breaker = circuit_breaker
+
+    async def _run_guarded(self, op: Callable[[], Awaitable[_T]]) -> _T:
+        """Qdrant çağrısını devre kesici koruması ve standart 503 hata eşlemesiyle yürütür."""
+
+        async def _invoke() -> _T:
+            try:
+                return await op()
+            except AppError:
+                raise
+            except Exception as exc:
+                logger.error("Async Qdrant operation failed: %s", type(exc).__name__)
+                raise ServiceUnavailableError("Vector database is currently unavailable.") from exc
+
+        if self._circuit_breaker is not None:
+            return await self._circuit_breaker.call(_invoke)
+        return await op()
 
     async def ensure_collection(self) -> None:
         """Koleksiyon yoksa oluşturur ve tenant_id/document_id payload indekslerini tanımlar."""
@@ -133,12 +156,16 @@ class AsyncQdrantService(BaseVectorDB):
         if not points:
             return 0
         qdrant_points = [_to_point_struct(point) for point in points]
-        await self._client.upsert(
-            collection_name=self._collection_name,
-            points=qdrant_points,
-            wait=True,
-        )
-        return len(qdrant_points)
+
+        async def _op() -> int:
+            await self._client.upsert(
+                collection_name=self._collection_name,
+                points=qdrant_points,
+                wait=True,
+            )
+            return len(qdrant_points)
+
+        return await self._run_guarded(_op)
 
     async def search(
         self,
@@ -149,102 +176,127 @@ class AsyncQdrantService(BaseVectorDB):
         score_threshold: float = 0.5,
     ) -> list[ScoredChunk]:
         """Sorgu vektörünü tenant_id filtresi ve minimum skor eşiğiyle arar."""
-        response = await self._client.query_points(
-            collection_name=self._collection_name,
-            query=list(query_vector),
-            query_filter=_build_tenant_filter(tenant_id=tenant_id),
-            limit=top_k,
-            score_threshold=score_threshold,
-            with_payload=True,
-        )
-        return [_to_scored_chunk(point) for point in response.points]
+
+        async def _op() -> list[ScoredChunk]:
+            response = await self._client.query_points(
+                collection_name=self._collection_name,
+                query=list(query_vector),
+                query_filter=_build_tenant_filter(tenant_id=tenant_id),
+                limit=top_k,
+                score_threshold=score_threshold,
+                with_payload=True,
+            )
+            return [_to_scored_chunk(point) for point in response.points]
+
+        return await self._run_guarded(_op)
 
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm chunk vektörlerini siler."""
-        await self._client.delete(
-            collection_name=self._collection_name,
-            points_selector=models.FilterSelector(
-                filter=_build_tenant_filter(tenant_id=tenant_id, document_id=document_id),
-            ),
-            wait=True,
-        )
+
+        async def _op() -> None:
+            await self._client.delete(
+                collection_name=self._collection_name,
+                points_selector=models.FilterSelector(
+                    filter=_build_tenant_filter(tenant_id=tenant_id, document_id=document_id),
+                ),
+                wait=True,
+            )
+
+        await self._run_guarded(_op)
 
     async def list_documents(self, *, tenant_id: str) -> list[IndexedDocumentSummary]:
         """Belirtilen tenant_id altındaki dokümanları sayfalayarak tarar ve özetler."""
-        grouped: dict[str, _DocumentAggregate] = {}
-        offset: PointId | None = None
-        tenant_filter = _build_tenant_filter(tenant_id=tenant_id)
 
-        while True:
-            records, next_offset = await self._client.scroll(
-                collection_name=self._collection_name,
-                scroll_filter=tenant_filter,
-                limit=256,
-                offset=offset,
-                with_payload=True,
-                with_vectors=False,
-            )
-            for record in records:
-                payload = record.payload or {}
-                doc_id = str(payload.get("document_id") or "")
-                if not doc_id:
-                    continue
-                file_type = str(payload.get("file_type") or "pdf")
-                filename = str(payload.get("filename") or "").strip()
-                page_number = int(payload.get("page_number") or 1)
+        async def _op() -> list[IndexedDocumentSummary]:
+            grouped: dict[str, _DocumentAggregate] = {}
+            offset: PointId | None = None
+            tenant_filter = _build_tenant_filter(tenant_id=tenant_id)
 
-                entry = grouped.get(doc_id)
-                if entry is None:
-                    entry = _DocumentAggregate(file_type=file_type, filename=filename)
-                    grouped[doc_id] = entry
-                elif not entry.filename and filename:
-                    entry.filename = filename
+            while True:
+                records, next_offset = await self._client.scroll(
+                    collection_name=self._collection_name,
+                    scroll_filter=tenant_filter,
+                    limit=256,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                for record in records:
+                    payload = record.payload or {}
+                    doc_id = str(payload.get("document_id") or "")
+                    if not doc_id:
+                        continue
+                    file_type = str(payload.get("file_type") or "pdf")
+                    filename = str(payload.get("filename") or "").strip()
+                    page_number = int(payload.get("page_number") or 1)
 
-                entry.chunk_count += 1
-                entry.pages.add(page_number)
+                    entry = grouped.get(doc_id)
+                    if entry is None:
+                        entry = _DocumentAggregate(file_type=file_type, filename=filename)
+                        grouped[doc_id] = entry
+                    elif not entry.filename and filename:
+                        entry.filename = filename
 
-            if next_offset is None:
-                break
-            offset = next_offset
+                    entry.chunk_count += 1
+                    entry.pages.add(page_number)
 
-        summaries = [
-            IndexedDocumentSummary(
-                document_id=doc_id,
-                tenant_id=tenant_id,
-                filename=entry.filename or f"{doc_id[:8]}.{entry.file_type}",
-                file_type=entry.file_type,
-                page_count=len(entry.pages) or 1,
-                chunk_count=entry.chunk_count,
-            )
-            for doc_id, entry in grouped.items()
-        ]
-        summaries.sort(key=lambda item: (item.filename.lower(), item.document_id))
-        return summaries
+                if next_offset is None:
+                    break
+                offset = next_offset
+
+            summaries = [
+                IndexedDocumentSummary(
+                    document_id=doc_id,
+                    tenant_id=tenant_id,
+                    filename=entry.filename or f"{doc_id[:8]}.{entry.file_type}",
+                    file_type=entry.file_type,
+                    page_count=len(entry.pages) or 1,
+                    chunk_count=entry.chunk_count,
+                )
+                for doc_id, entry in grouped.items()
+            ]
+            summaries.sort(key=lambda item: (item.filename.lower(), item.document_id))
+            return summaries
+
+        return await self._run_guarded(_op)
 
     async def list_tenants(self) -> list[str]:
         """Vektör veritabanında dokümanı bulunan benzersiz tenant_id listesini döndürür."""
-        tenants: set[str] = set()
-        offset: PointId | None = None
 
-        while True:
-            records, next_offset = await self._client.scroll(
-                collection_name=self._collection_name,
-                limit=256,
-                offset=offset,
-                with_payload=["tenant_id"],
-                with_vectors=False,
-            )
-            for record in records:
-                payload = record.payload or {}
-                tenant_id = str(payload.get("tenant_id") or "").strip()
-                if tenant_id:
-                    tenants.add(tenant_id)
+        async def _op() -> list[str]:
+            tenants: set[str] = set()
+            offset: PointId | None = None
 
-            if next_offset is None:
-                break
-            offset = next_offset
+            while True:
+                records, next_offset = await self._client.scroll(
+                    collection_name=self._collection_name,
+                    limit=256,
+                    offset=offset,
+                    with_payload=["tenant_id"],
+                    with_vectors=False,
+                )
+                for record in records:
+                    payload = record.payload or {}
+                    tenant_id = str(payload.get("tenant_id") or "").strip()
+                    if tenant_id:
+                        tenants.add(tenant_id)
 
-        return sorted(tenants)
+                if next_offset is None:
+                    break
+                offset = next_offset
+
+            return sorted(tenants)
+
+        return await self._run_guarded(_op)
+
+    async def ping(self, *, timeout_seconds: float = 2.0) -> bool:
+        """Qdrant erişilebilirliğini devre kesiciden bağımsız olarak doğrular."""
+        try:
+            await asyncio.wait_for(self._client.get_collections(), timeout=timeout_seconds)
+            return True
+        except Exception as exc:
+            logger.warning("Qdrant health ping failed: %s", type(exc).__name__)
+            return False
 
     async def close(self) -> None:
         """Asenkron Qdrant istemci bağlantısını kapatır."""
@@ -261,58 +313,88 @@ class SyncQdrantService(SyncBaseVectorDB):
         vector_size: int,
         url: str | None = None,
         client: QdrantClient | None = None,
+        circuit_breaker: SyncCircuitBreaker | None = None,
     ) -> None:
         if client is None and not url:
             raise ValueError("Either 'url' or 'client' must be provided")
         self._collection_name = collection_name
         self._vector_size = vector_size
         self._client = client if client is not None else QdrantClient(url=url)
+        self._circuit_breaker = circuit_breaker
+
+    def _run_guarded(self, op: Callable[[], _T]) -> _T:
+        """Senkron Qdrant çağrısını devre kesici koruması ve 503 eşlemesiyle yürütür."""
+
+        def _invoke() -> _T:
+            try:
+                return op()
+            except AppError:
+                raise
+            except Exception as exc:
+                logger.error("Sync Qdrant operation failed: %s", type(exc).__name__)
+                raise ServiceUnavailableError("Vector database is currently unavailable.") from exc
+
+        if self._circuit_breaker is not None:
+            return self._circuit_breaker.call(_invoke)
+        return op()
 
     def ensure_collection(self) -> None:
         """Koleksiyon yoksa oluşturur ve tenant_id/document_id payload indekslerini tanımlar."""
-        exists = self._client.collection_exists(self._collection_name)
-        if not exists:
-            self._client.create_collection(
-                collection_name=self._collection_name,
-                vectors_config=models.VectorParams(
-                    size=self._vector_size,
-                    distance=models.Distance.COSINE,
-                ),
-            )
-            logger.info(
-                "Created Qdrant collection '%s' (vector_size=%d, distance=Cosine)",
-                self._collection_name,
-                self._vector_size,
-            )
 
-        for field_name in _INDEXED_PAYLOAD_FIELDS:
-            self._client.create_payload_index(
-                collection_name=self._collection_name,
-                field_name=field_name,
-                field_schema=models.PayloadSchemaType.KEYWORD,
-            )
+        def _op() -> None:
+            exists = self._client.collection_exists(self._collection_name)
+            if not exists:
+                self._client.create_collection(
+                    collection_name=self._collection_name,
+                    vectors_config=models.VectorParams(
+                        size=self._vector_size,
+                        distance=models.Distance.COSINE,
+                    ),
+                )
+                logger.info(
+                    "Created Qdrant collection '%s' (vector_size=%d, distance=Cosine)",
+                    self._collection_name,
+                    self._vector_size,
+                )
+
+            for field_name in _INDEXED_PAYLOAD_FIELDS:
+                self._client.create_payload_index(
+                    collection_name=self._collection_name,
+                    field_name=field_name,
+                    field_schema=models.PayloadSchemaType.KEYWORD,
+                )
+
+        self._run_guarded(_op)
 
     def upsert(self, *, points: Sequence[VectorPoint]) -> int:
         """Vektör noktalarını idempotent olarak Qdrant'a yazar."""
         if not points:
             return 0
         qdrant_points = [_to_point_struct(point) for point in points]
-        self._client.upsert(
-            collection_name=self._collection_name,
-            points=qdrant_points,
-            wait=True,
-        )
-        return len(qdrant_points)
+
+        def _op() -> int:
+            self._client.upsert(
+                collection_name=self._collection_name,
+                points=qdrant_points,
+                wait=True,
+            )
+            return len(qdrant_points)
+
+        return self._run_guarded(_op)
 
     def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm chunk vektörlerini siler."""
-        self._client.delete(
-            collection_name=self._collection_name,
-            points_selector=models.FilterSelector(
-                filter=_build_tenant_filter(tenant_id=tenant_id, document_id=document_id),
-            ),
-            wait=True,
-        )
+
+        def _op() -> None:
+            self._client.delete(
+                collection_name=self._collection_name,
+                points_selector=models.FilterSelector(
+                    filter=_build_tenant_filter(tenant_id=tenant_id, document_id=document_id),
+                ),
+                wait=True,
+            )
+
+        self._run_guarded(_op)
 
     def close(self) -> None:
         """Senkron Qdrant istemci bağlantısını kapatır."""

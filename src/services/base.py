@@ -171,6 +171,11 @@ class BaseVectorDB(ABC):
         """Vektör veritabanında dokümanı bulunan tüm çalışma alanlarını listeler."""
         return ["test-user"]
 
+    async def ping(self, *, timeout_seconds: float = 2.0) -> bool:
+        """Vektör veritabanı bağlantısının canlılığını doğrular (devre kesiciden bağımsız)."""
+        del timeout_seconds
+        return True
+
     @abstractmethod
     async def close(self) -> None:
         """Açık ağ bağlantılarını ve istemci havuzunu güvenli şekilde kapatır."""
@@ -253,9 +258,22 @@ class BaseRateLimiter(ABC):
     ) -> RateLimitDecision:
         """Belirtilen kapsam ve özne için kayan pencere kotasını atomik olarak kontrol eder."""
 
+    async def ping(self, *, timeout_seconds: float = 2.0) -> bool:
+        """Hız sınırlayıcı arka ucu (Redis) erişilebilirliğini kontrol eder."""
+        del timeout_seconds
+        return True
+
     @abstractmethod
     async def close(self) -> None:
         """Açık hız sınırlayıcı bağlantılarını güvenli şekilde kapatır."""
+
+
+class BaseHealthChecker(ABC):
+    """Sistem bağımlılıklarının (depolama, Redis, Qdrant) sağlık durumu arayüzü."""
+
+    @abstractmethod
+    async def check_dependencies(self) -> dict[str, str]:
+        """Depolama, Redis ve Qdrant kontrollerini çalıştırıp durum sözlüğü döndürür."""
 
 
 class SyncBaseLLMClient(ABC):

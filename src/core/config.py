@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = Field(default=32, ge=1, le=512)
     LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
 
+    # --- Resilience (Circuit Breaker & Health) ---
+    CIRCUIT_BREAKER_ENABLED: bool = True
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = Field(default=5, ge=1, le=100)
+    CIRCUIT_BREAKER_RECOVERY_SECONDS: float = Field(default=30.0, gt=0.0, le=600.0)
+    CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS: int = Field(default=1, ge=1, le=20)
+    CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_THRESHOLD: int = Field(default=1, ge=1, le=20)
+    HEALTH_CHECK_TIMEOUT_SECONDS: float = Field(default=2.0, gt=0.1, le=30.0)
+
     # --- Observability (Langfuse) ---
     LANGFUSE_ENABLED: bool = True
     LANGFUSE_HOST: str = "http://localhost:3000"

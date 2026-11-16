@@ -253,6 +253,9 @@ async def test_redis_rate_limiter_lua_contract_and_fail_modes() -> None:
             assert "ZREMRANGEBYSCORE" in script
             return _FakeScript(should_fail=self.should_fail)
 
+        async def ping(self) -> bool:
+            return not self.should_fail
+
         async def aclose(self) -> None:
             self.closed = True
 

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from src.api.dependencies import build_circuit_breaker
 from src.api.v1.router import api_router
 from src.core.config import get_settings
 from src.core.exceptions import register_exception_handlers
@@ -30,10 +31,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Uygulama açılış ve kapanışında altyapı kaynaklarını güvenli şekilde yönetir."""
     settings = get_settings()
     settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    qdrant_breaker = getattr(app.state, "qdrant_circuit_breaker", None) or build_circuit_breaker(
+        name="qdrant", settings=settings
+    )
+    llm_breaker = getattr(app.state, "llm_circuit_breaker", None) or build_circuit_breaker(
+        name="llm", settings=settings
+    )
+    app.state.qdrant_circuit_breaker = qdrant_breaker
+    app.state.llm_circuit_breaker = llm_breaker
+
     vector_db = AsyncQdrantService(
         url=settings.QDRANT_URL,
         collection_name=settings.QDRANT_COLLECTION_NAME,
         vector_size=settings.QDRANT_VECTOR_SIZE,
+        circuit_breaker=qdrant_breaker,
     )
     await vector_db.ensure_collection()
     app.state.vector_db = vector_db
@@ -44,6 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         llm_model=settings.LLM_MODEL,
         embedding_model=settings.EMBEDDING_MODEL,
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
+        circuit_breaker=llm_breaker,
     )
     app.state.llm_client = llm_client
     rate_limiter = RedisRateLimiter(

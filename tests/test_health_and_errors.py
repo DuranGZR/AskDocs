@@ -8,7 +8,7 @@ from src.core.exceptions import AppError
 
 
 async def test_health_check_ok(client: httpx.AsyncClient) -> None:
-    """Depolama dizini yazılabilirken 200 OK ve Request-ID dönmelidir."""
+    """Tüm bağımlılıklar hazırken 200 OK, checks/circuits özeti ve Request-ID dönmelidir."""
     response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
@@ -17,7 +17,8 @@ async def test_health_check_ok(client: httpx.AsyncClient) -> None:
         "app_name": "CoreRAG-Engine",
         "version": "0.1.0",
         "environment": "development",
-        "checks": {"storage": "ok"},
+        "checks": {"storage": "ok", "redis": "ok", "qdrant": "ok"},
+        "circuits": {"qdrant": "closed", "llm": "closed"},
     }
     request_id = response.headers.get("x-request-id")
     assert request_id is not None
@@ -44,7 +45,8 @@ async def test_health_check_degraded_returns_503(
         "app_name": "CoreRAG-Engine",
         "version": "0.1.0",
         "environment": "development",
-        "checks": {"storage": "unavailable"},
+        "checks": {"storage": "unavailable", "redis": "ok", "qdrant": "ok"},
+        "circuits": {"qdrant": "closed", "llm": "closed"},
     }
 
 

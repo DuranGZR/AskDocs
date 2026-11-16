@@ -294,11 +294,24 @@ async def _run_offline_suite(count: int) -> None:
             "LOG_LEVEL": "WARNING",
         }
         with _temporary_env(env_overrides):
-            from src.api.dependencies import get_task_dispatcher
+            from src.api.dependencies import get_health_checker, get_task_dispatcher
             from src.core.config import Settings, get_settings
             from src.main import create_app
-            from src.services.base import SyncBaseLLMClient, SyncBaseVectorDB
+            from src.services.base import BaseHealthChecker, SyncBaseLLMClient, SyncBaseVectorDB
+            from src.services.health_service import is_writable_dir
             from src.tasks import document_tasks
+
+            class _OfflineHealthChecker(BaseHealthChecker):
+                def __init__(self, target_dir: Path) -> None:
+                    self._upload_dir = target_dir
+
+                async def check_dependencies(self) -> dict[str, str]:
+                    storage_ok = await asyncio.to_thread(is_writable_dir, self._upload_dir)
+                    return {
+                        "storage": "ok" if storage_ok else "unavailable",
+                        "redis": "ok",
+                        "qdrant": "ok",
+                    }
 
             class _OfflineSyncLLMClient(SyncBaseLLMClient):
                 def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
@@ -337,6 +350,7 @@ async def _run_offline_suite(count: int) -> None:
             app = create_app()
             simulator = _SequentialQueueSimulator()
             app.dependency_overrides[get_task_dispatcher] = lambda: simulator
+            app.dependency_overrides[get_health_checker] = lambda: _OfflineHealthChecker(upload_dir)
 
             try:
                 async with httpx.AsyncClient(

@@ -26,3 +26,4 @@ class HealthResponse(BaseModel):
     version: str
     environment: str
     checks: dict[str, str] = Field(default_factory=dict)
+    circuits: dict[str, str] = Field(default_factory=dict)

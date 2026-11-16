@@ -1,3 +1,4 @@
+import asyncio
 import os
 from collections.abc import AsyncGenerator, Iterator, Sequence
 from pathlib import Path
@@ -11,11 +12,13 @@ os.environ.setdefault("API_KEY", "test-api-key-minimum-8-chars")
 from src.core.config import Settings, get_settings  # noqa: E402
 from src.core.observability import set_langfuse_client  # noqa: E402
 from src.services.base import (  # noqa: E402
+    BaseHealthChecker,
     SyncBaseLLMClient,
     SyncBaseVectorDB,
     TaskStatusSnapshot,
     VectorPoint,
 )
+from src.services.health_service import is_writable_dir  # noqa: E402
 
 
 class RecordingSyncLLMClient(SyncBaseLLMClient):
@@ -155,12 +158,25 @@ def app(
     task_dispatcher: RecordingTaskDispatcher,
 ) -> Iterator[FastAPI]:
     """Her test fonksiyonuna bağımsız bir FastAPI uygulama örneği sağlar."""
-    from src.api.dependencies import get_task_dispatcher
+    from src.api.dependencies import SettingsDep, get_health_checker, get_task_dispatcher
     from src.main import create_app
+
+    class _OfflineHealthChecker(BaseHealthChecker):
+        def __init__(self, settings: SettingsDep) -> None:
+            self._upload_dir = settings.UPLOAD_DIR
+
+        async def check_dependencies(self) -> dict[str, str]:
+            storage_ok = await asyncio.to_thread(is_writable_dir, self._upload_dir)
+            return {
+                "storage": "ok" if storage_ok else "unavailable",
+                "redis": "ok",
+                "qdrant": "ok",
+            }
 
     application = create_app()
     application.dependency_overrides[get_settings] = lambda: test_settings
     application.dependency_overrides[get_task_dispatcher] = lambda: task_dispatcher
+    application.dependency_overrides[get_health_checker] = _OfflineHealthChecker
     try:
         yield application
     finally:

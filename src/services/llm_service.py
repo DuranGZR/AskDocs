@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from src.core.circuit_breaker import CircuitBreaker, SyncCircuitBreaker
 from src.core.exceptions import ServiceUnavailableError
 from src.services.base import BaseLLMClient, ChatMessage, SyncBaseLLMClient
 
@@ -147,12 +148,14 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         embedding_model: str = "nomic-embed-text",
         timeout_seconds: float = 60.0,
         client: httpx.AsyncClient | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._llm_model = llm_model
         self._embedding_model = embedding_model
         self._headers = _build_headers(api_key)
         self._owns_client = client is None
+        self._circuit_breaker = circuit_breaker
         self._client = client or httpx.AsyncClient(
             base_url=self._base_url,
             headers=self._headers,
@@ -167,7 +170,11 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         """Metin listesini /v1/embeddings ucu üzerinden toplu vektörlere dönüştürür."""
         if not texts:
             return []
+        if self._circuit_breaker is not None:
+            return await self._circuit_breaker.call(self._embed_texts_once, texts)
+        return await self._embed_texts_once(texts)
 
+    async def _embed_texts_once(self, texts: Sequence[str]) -> list[list[float]]:
         payload: Any = None
         try:
             for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
@@ -208,6 +215,26 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         max_tokens: int | None = None,
     ) -> str:
         """Mesaj geçmişine göre /v1/chat/completions ucundan tam yanıt üretir."""
+        if self._circuit_breaker is not None:
+            return await self._circuit_breaker.call(
+                self._generate_once,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        return await self._generate_once(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+
+    async def _generate_once(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+    ) -> str:
         request_body: dict[str, Any] = {
             "model": self._llm_model,
             "messages": [{"role": msg.role, "content": msg.content} for msg in messages],
@@ -241,6 +268,31 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Mesaj geçmişine göre /v1/chat/completions ucundan SSE ile token akışı üretir."""
+        if self._circuit_breaker is not None:
+            async for token in self._circuit_breaker.stream(
+                lambda: self._stream_generate_once(
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+            ):
+                yield token
+            return
+
+        async for token in self._stream_generate_once(
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        ):
+            yield token
+
+    async def _stream_generate_once(
+        self,
+        *,
+        messages: Sequence[ChatMessage],
+        temperature: float = 0.0,
+        max_tokens: int | None = None,
+    ) -> AsyncIterator[str]:
         request_body: dict[str, Any] = {
             "model": self._llm_model,
             "messages": [{"role": msg.role, "content": msg.content} for msg in messages],
@@ -285,11 +337,13 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
         embedding_model: str = "nomic-embed-text",
         timeout_seconds: float = 60.0,
         client: httpx.Client | None = None,
+        circuit_breaker: SyncCircuitBreaker | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._embedding_model = embedding_model
         self._headers = _build_headers(api_key)
         self._owns_client = client is None
+        self._circuit_breaker = circuit_breaker
         self._client = client or httpx.Client(
             base_url=self._base_url,
             headers=self._headers,
@@ -304,7 +358,11 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
         """Metin listesini /v1/embeddings ucu üzerinden senkron olarak vektörlere dönüştürür."""
         if not texts:
             return []
+        if self._circuit_breaker is not None:
+            return self._circuit_breaker.call(self._embed_texts_once, texts)
+        return self._embed_texts_once(texts)
 
+    def _embed_texts_once(self, texts: Sequence[str]) -> list[list[float]]:
         payload: Any = None
         try:
             for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
