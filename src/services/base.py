@@ -159,6 +159,24 @@ class BaseVectorDB(ABC):
     ) -> list[ScoredChunk]:
         """Sorgu vektörünü yalnızca ilgili tenant_id altında ve eşik skoruyla arar."""
 
+    async def search_scoped(
+        self,
+        *,
+        query_vector: Sequence[float],
+        tenant_id: str,
+        top_k: int = 5,
+        score_threshold: float = 0.5,
+        document_ids: Sequence[str] | None = None,
+    ) -> list[ScoredChunk]:
+        """Opsiyonel doküman listesi kapsamıyla vektör araması yapar."""
+        del document_ids
+        return await self.search(
+            query_vector=query_vector,
+            tenant_id=tenant_id,
+            top_k=top_k,
+            score_threshold=score_threshold,
+        )
+
     @abstractmethod
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm vektör kayıtlarını siler."""

@@ -37,6 +37,11 @@ class QueryRequest(BaseModel):
         max_length=20,
         description="Recent conversation messages (sliding window)",
     )
+    document_ids: list[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Optional document IDs to scope retrieval within the tenant",
+    )
     top_k: int | None = Field(
         default=None,
         ge=1,
@@ -61,6 +66,19 @@ class QueryRequest(BaseModel):
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("Query must not be empty or whitespace only")
+        return cleaned
+
+    @field_validator("document_ids")
+    @classmethod
+    def normalize_document_ids(cls, value: list[str]) -> list[str]:
+        """Kapsam filtresindeki boş/tekrarlı document_id değerlerini temizler."""
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for raw_id in value:
+            doc_id = raw_id.strip()
+            if doc_id and doc_id not in seen:
+                seen.add(doc_id)
+                cleaned.append(doc_id)
         return cleaned
 
 

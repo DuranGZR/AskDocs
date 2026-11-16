@@ -430,3 +430,52 @@ async def test_list_documents_projects_metadata_and_list_tenants_falls_back_from
         assert scroll_with_payload_calls[-1] == ["tenant_id"]
     finally:
         await service.close()
+
+
+@pytest.mark.asyncio
+async def test_qdrant_search_scoped_restricts_to_document_ids_within_tenant() -> None:
+    """search_scoped hem tenant izolasyonunu hem de seçili document_ids filtresini uygulamalıdır."""
+    client = AsyncQdrantClient(location=":memory:")
+    service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=client,
+    )
+    try:
+        await service.ensure_collection()
+        await service.upsert(
+            points=[
+                _make_point(
+                    document_id="doc-a1",
+                    tenant_id="tenant_a",
+                    chunk_index=0,
+                    text="Birinci doküman",
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                ),
+                _make_point(
+                    document_id="doc-a2",
+                    tenant_id="tenant_a",
+                    chunk_index=0,
+                    text="İkinci doküman",
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                ),
+                _make_point(
+                    document_id="doc-b1",
+                    tenant_id="tenant_b",
+                    chunk_index=0,
+                    text="Başka tenant dokümanı",
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                ),
+            ]
+        )
+
+        hits = await service.search_scoped(
+            query_vector=[1.0, 0.0, 0.0, 0.0],
+            tenant_id="tenant_a",
+            top_k=5,
+            score_threshold=0.5,
+            document_ids=["doc-a2", "doc-b1"],
+        )
+        assert [hit.chunk.document_id for hit in hits] == ["doc-a2"]
+    finally:
+        await service.close()

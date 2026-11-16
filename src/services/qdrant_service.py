@@ -82,8 +82,12 @@ def _to_scored_chunk(point: models.ScoredPoint) -> ScoredChunk:
     )
 
 
-def _build_tenant_filter(tenant_id: str, document_id: str | None = None) -> models.Filter:
-    """Multi-tenant izolasyonu için zorunlu tenant_id (ve opsiyonel document_id) filtresi kurar."""
+def _build_tenant_filter(
+    tenant_id: str,
+    document_id: str | None = None,
+    document_ids: Sequence[str] | None = None,
+) -> models.Filter:
+    """Multi-tenant izolasyonu ve opsiyonel doküman kapsam filtresi kurar."""
     conditions: list[models.Condition] = [
         models.FieldCondition(
             key="tenant_id",
@@ -97,6 +101,15 @@ def _build_tenant_filter(tenant_id: str, document_id: str | None = None) -> mode
                 match=models.MatchValue(value=document_id),
             )
         )
+    elif document_ids:
+        clean_ids = [doc_id.strip() for doc_id in document_ids if doc_id.strip()]
+        if clean_ids:
+            conditions.append(
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchAny(any=clean_ids),
+                )
+            )
     return models.Filter(must=conditions)
 
 
@@ -182,14 +195,18 @@ class AsyncQdrantService(BaseVectorDB):
         tenant_id: str,
         top_k: int = 5,
         score_threshold: float = 0.5,
+        document_ids: Sequence[str] | None = None,
     ) -> list[ScoredChunk]:
-        """Sorgu vektörünü tenant_id filtresi ve minimum skor eşiğiyle arar."""
+        """Sorgu vektörünü tenant_id (ve opsiyonel document_ids) filtresiyle arar."""
 
         async def _op() -> list[ScoredChunk]:
             response = await self._client.query_points(
                 collection_name=self._collection_name,
                 query=list(query_vector),
-                query_filter=_build_tenant_filter(tenant_id=tenant_id),
+                query_filter=_build_tenant_filter(
+                    tenant_id=tenant_id,
+                    document_ids=document_ids,
+                ),
                 limit=top_k,
                 score_threshold=score_threshold,
                 with_payload=True,
@@ -197,6 +214,24 @@ class AsyncQdrantService(BaseVectorDB):
             return [_to_scored_chunk(point) for point in response.points]
 
         return await self._run_guarded(_op)
+
+    async def search_scoped(
+        self,
+        *,
+        query_vector: Sequence[float],
+        tenant_id: str,
+        top_k: int = 5,
+        score_threshold: float = 0.5,
+        document_ids: Sequence[str] | None = None,
+    ) -> list[ScoredChunk]:
+        """Opsiyonel document_ids filtresiyle vektör araması yapar."""
+        return await self.search(
+            query_vector=query_vector,
+            tenant_id=tenant_id,
+            top_k=top_k,
+            score_threshold=score_threshold,
+            document_ids=document_ids,
+        )
 
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm chunk vektörlerini siler."""

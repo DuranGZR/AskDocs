@@ -73,8 +73,20 @@
       <div class="sidebar-docs-section">
         <div class="section-header">
           <span class="section-label">YÜKLÜ DOKÜMANLAR</span>
-          <span class="section-count" id="doc-count-badge">0</span>
+          <div class="section-header-right">
+            <button
+              type="button"
+              class="section-clear-btn hidden"
+              id="clear-scope-btn"
+              title="Belge filtresini temizle"
+            >
+              Temizle
+            </button>
+            <span class="section-count" id="doc-count-badge">0</span>
+          </div>
         </div>
+
+        <div class="upload-summary-bar hidden" id="upload-summary-bar" aria-live="polite"></div>
 
         <div class="doc-list-scroll" id="doc-list" aria-live="polite">
           <!-- Aktif yükleme/indeksleme görevleri + Qdrant dokümanları app.js tarafından doldurulur -->
@@ -226,6 +238,8 @@
       <footer class="composer-dock">
         <div class="toast-stack" id="toast-stack" aria-live="polite"></div>
 
+        <div class="scope-chips-bar hidden" id="scope-chips-bar" aria-live="polite"></div>
+
         <form class="composer-capsule" id="query-form">
           <textarea
             id="query-input"
@@ -253,6 +267,59 @@
         </form>
       </footer>
     </main>
+
+    <!-- Sağ Kaynak İnceleme Çekmecesi (Source Inspector Drawer) -->
+    <div class="inspector-backdrop hidden" id="inspector-backdrop"></div>
+    <aside
+      class="inspector-drawer hidden"
+      id="inspector-drawer"
+      aria-label="Kaynak Alıntı İnceleyici"
+    >
+      <div class="inspector-header">
+        <div class="inspector-title-group">
+          <p class="inspector-kicker" id="inspector-kicker">Kaynak İnceleyici</p>
+          <h2 class="inspector-title" id="inspector-title">Doküman</h2>
+          <p class="inspector-subtitle" id="inspector-subtitle">Sayfa 1</p>
+        </div>
+        <div class="inspector-nav">
+          <button
+            type="button"
+            class="icon-button"
+            id="inspector-prev-btn"
+            aria-label="Önceki sayfa grubu"
+            title="Önceki kaynak"
+          >
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <path d="M10 3.5L5.5 8L10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-button"
+            id="inspector-next-btn"
+            aria-label="Sonraki sayfa grubu"
+            title="Sonraki kaynak"
+          >
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="icon-button"
+            id="inspector-close-btn"
+            aria-label="Kaynak panelini kapat"
+            title="Kapat (Esc)"
+          >
+            <svg viewBox="0 0 16 16" fill="none" width="14" height="14">
+              <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="inspector-body" id="inspector-body"></div>
+    </aside>
   </div>
 
   <!-- Tam Pencere Sürükle-Bırak Örtüsü -->

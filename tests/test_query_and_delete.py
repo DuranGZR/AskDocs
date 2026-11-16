@@ -583,11 +583,19 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert "CoreRAG" in root_resp.text
     assert "window-controls" not in root_resp.text
     assert 'id="workspace-menu"' in root_resp.text
+    assert 'id="inspector-drawer"' in root_resp.text
+    assert 'id="scope-chips-bar"' in root_resp.text
+    assert 'id="clear-scope-btn"' in root_resp.text
+    assert 'id="upload-summary-bar"' in root_resp.text
     assert "/static/app.js" in root_resp.text
 
     css_resp = await client.get("/static/styles.css")
     assert css_resp.status_code == 200
     assert "--apple-blue" in css_resp.text
+    assert ".inspector-drawer" in css_resp.text
+    assert ".md-table" in css_resp.text
+    assert ".turn-action-chip" in css_resp.text
+    assert "mark.quote-highlight" in css_resp.text
 
     js_resp = await client.get("/static/app.js")
     assert js_resp.status_code == 200
@@ -606,6 +614,13 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert "groupCitationsByPage" in js_resp.text
     assert "MAX_HISTORY_MESSAGES" in js_resp.text
     assert "chatHistory" in js_resp.text
+    assert "openInspector" in js_resp.text
+    assert "renderTurnActions" in js_resp.text
+    assert "buildFollowupChipPayload" in js_resp.text
+    assert "turn-followup-chip" in js_resp.text
+    assert "renderScopeChips" in js_resp.text
+    assert "restoreChatTranscript" in js_resp.text
+    assert "md-table" in js_resp.text
 
 
 async def test_query_fallback_threshold_activates_only_on_empty_default_search(
@@ -870,3 +885,104 @@ async def test_query_multi_turn_history_window_sanitizes_and_contextualizes_foll
     )
     assert independent_resp.status_code == 200
     assert recorded_embeddings[-1] == "uzaktan çalışma kurallarını kısaca anlat"
+
+
+async def test_query_and_stream_respect_document_ids_scope_and_emit_citation_header(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """document_ids seçildiğinde aramayı seçili belgelere sınırlayıp SSE başlığı dönmelidir."""
+    qdrant_client = AsyncQdrantClient(location=":memory:")
+    vector_db = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=qdrant_client,
+    )
+    await vector_db.ensure_collection()
+    await vector_db.upsert(
+        points=[
+            VectorPoint(
+                point_id=build_chunk_point_id("doc-policy", 0),
+                vector=[1.0, 0.0, 0.0, 0.0],
+                chunk=DocumentChunk(
+                    document_id="doc-policy",
+                    tenant_id="tenant_scope",
+                    page_number=1,
+                    chunk_index=0,
+                    text="Yıllık izin 20 gündür.",
+                    file_type="pdf",
+                    filename="policy.pdf",
+                ),
+            ),
+            VectorPoint(
+                point_id=build_chunk_point_id("doc-tech", 0),
+                vector=[1.0, 0.0, 0.0, 0.0],
+                chunk=DocumentChunk(
+                    document_id="doc-tech",
+                    tenant_id="tenant_scope",
+                    page_number=3,
+                    chunk_index=0,
+                    text="RAG-Token token bazında belge seçer.",
+                    file_type="pdf",
+                    filename="rag.pdf",
+                ),
+            ),
+        ]
+    )
+
+    class _ScopedLLM(BaseLLMClient):
+        async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+            return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+        async def generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> str:
+            return "RAG-Token token bazlı çalışır [Source 1]."
+
+        async def stream_generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> AsyncIterator[str]:
+            yield "RAG-Token token bazlı çalışır."
+
+        async def close(self) -> None:
+            return None
+
+    app.dependency_overrides[get_llm_client] = _ScopedLLM
+    app.dependency_overrides[get_vector_db] = lambda: vector_db
+    try:
+        scoped_resp = await client.post(
+            "/api/v1/query",
+            json={
+                "query": "Ne seçer?",
+                "tenant_id": "tenant_scope",
+                "document_ids": ["doc-tech", "doc-tech", " "],
+                "stream": False,
+            },
+        )
+        assert scoped_resp.status_code == 200
+        citations = scoped_resp.json()["citations"]
+        assert [cit["document_id"] for cit in citations] == ["doc-tech"]
+
+        async with client.stream(
+            "POST",
+            "/api/v1/query/stream",
+            json={
+                "query": "Ne seçer?",
+                "tenant_id": "tenant_scope",
+                "document_ids": ["doc-tech"],
+                "stream": True,
+            },
+        ) as stream_resp:
+            assert stream_resp.status_code == 200
+            assert stream_resp.headers.get("x-retrieved-citations") == "1"
+            await stream_resp.aread()
+    finally:
+        await vector_db.close()

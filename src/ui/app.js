@@ -6,9 +6,11 @@
   const STORAGE_TENANT_KEY = "corerag.tenantId";
   const STORAGE_TENANTS_LIST_KEY = "corerag.savedTenants";
   const STORAGE_API_KEY = "corerag.apiKey";
+  const STORAGE_CHAT_PREFIX = "corerag.chat.";
   const POLL_INTERVAL_MS = 900;
   const MAX_CONCURRENT_UPLOADS = 2;
   const MAX_HISTORY_MESSAGES = 10;
+  const MAX_SAVED_UI_TURNS = 24;
   const HEALTH_POLL_INTERVAL_MS = 30000;
   const HEALTH_MIN_REFRESH_GAP_MS = 5000;
 
@@ -20,6 +22,7 @@
     apiKeyVerified: false,
     documents: [],
     docNameById: new Map(),
+    selectedDocumentIds: new Set(),
     uploads: new Map(),
     uploadQueue: [],
     activeUploadCount: 0,
@@ -29,6 +32,15 @@
     streamController: null,
     hasMessages: false,
     chatHistory: [],
+    uiTurns: [],
+    promptHistory: [],
+    promptCursor: -1,
+    inspector: {
+      groups: [],
+      activeGroupIndex: 0,
+      focusCitationIndex: null,
+      queryText: "",
+    },
     healthStatus: "ok",
     openCircuits: [],
     lastHealthCheckAt: 0,
@@ -37,6 +49,7 @@
   };
 
   const dom = {
+    appShell: document.getElementById("app-shell"),
     sidebar: document.getElementById("sidebar"),
     sidebarBackdrop: document.getElementById("sidebar-backdrop"),
     mobileOpenBtn: document.getElementById("mobile-sidebar-open"),
@@ -44,6 +57,8 @@
     dropzone: document.getElementById("dropzone"),
     fileInput: document.getElementById("file-input"),
     selectFilesBtn: document.getElementById("select-files-btn"),
+    clearScopeBtn: document.getElementById("clear-scope-btn"),
+    uploadSummaryBar: document.getElementById("upload-summary-bar"),
     docList: document.getElementById("doc-list"),
     docCountBadge: document.getElementById("doc-count-badge"),
     topbarDocSummary: document.getElementById("topbar-doc-summary"),
@@ -72,6 +87,7 @@
     emptyDesc: document.getElementById("empty-desc"),
     starterPrompts: document.getElementById("starter-prompts"),
     messagesList: document.getElementById("messages-list"),
+    scopeChipsBar: document.getElementById("scope-chips-bar"),
     queryForm: document.getElementById("query-form"),
     queryInput: document.getElementById("query-input"),
     sendBtn: document.getElementById("send-btn"),
@@ -79,6 +95,14 @@
     stopIcon: document.querySelector("#send-btn .icon-stop"),
     toastStack: document.getElementById("toast-stack"),
     windowDropOverlay: document.getElementById("window-drop-overlay"),
+    inspectorBackdrop: document.getElementById("inspector-backdrop"),
+    inspectorDrawer: document.getElementById("inspector-drawer"),
+    inspectorTitle: document.getElementById("inspector-title"),
+    inspectorSubtitle: document.getElementById("inspector-subtitle"),
+    inspectorPrevBtn: document.getElementById("inspector-prev-btn"),
+    inspectorNextBtn: document.getElementById("inspector-next-btn"),
+    inspectorCloseBtn: document.getElementById("inspector-close-btn"),
+    inspectorBody: document.getElementById("inspector-body"),
   };
 
   function loadInitialApiKey() {
@@ -297,10 +321,13 @@
       return;
     }
     state.tenantId = nextTenant;
+    state.selectedDocumentIds.clear();
     saveTenant(nextTenant);
     renderWorkspaceList();
     renderSummaryTexts();
-    clearConversation();
+    renderScopeChips();
+    resetChatView();
+    restoreChatTranscript();
     fetchDocuments();
     showToast(`Çalışma alanı: ${nextTenant}`);
   }
@@ -406,7 +433,10 @@
     if (!state.apiKey) {
       state.documents = [];
       state.docNameById = new Map();
+      state.selectedDocumentIds.clear();
       renderDocumentList();
+      renderScopeChips();
+      renderStarterPrompts();
       dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
       return;
     }
@@ -425,8 +455,15 @@
       state.docNameById = new Map(
         state.documents.map((doc) => [doc.document_id, doc.filename])
       );
+      for (const selectedId of Array.from(state.selectedDocumentIds)) {
+        if (!state.docNameById.has(selectedId)) {
+          state.selectedDocumentIds.delete(selectedId);
+        }
+      }
       renderDocumentList();
       renderSummaryTexts();
+      renderScopeChips();
+      renderStarterPrompts();
     } catch (err) {
       dom.topbarDocSummary.textContent = "Doküman listesi yüklenemedi";
       showToast(err instanceof Error ? err.message : "Doküman listesi alınamadı", true);
@@ -470,7 +507,169 @@
     return svg;
   }
 
+  function toggleDocumentScope(documentId) {
+    if (state.selectedDocumentIds.has(documentId)) {
+      state.selectedDocumentIds.delete(documentId);
+    } else {
+      state.selectedDocumentIds.add(documentId);
+    }
+    renderDocumentList();
+    renderScopeChips();
+  }
+
+  function clearDocumentScope() {
+    if (state.selectedDocumentIds.size === 0) {
+      return;
+    }
+    state.selectedDocumentIds.clear();
+    renderDocumentList();
+    renderScopeChips();
+  }
+
+  function renderScopeChips() {
+    if (dom.clearScopeBtn) {
+      dom.clearScopeBtn.classList.toggle("hidden", state.selectedDocumentIds.size === 0);
+    }
+    if (!dom.scopeChipsBar) {
+      return;
+    }
+    dom.scopeChipsBar.replaceChildren();
+    if (state.selectedDocumentIds.size === 0) {
+      dom.scopeChipsBar.classList.add("hidden");
+      return;
+    }
+
+    const prefix = document.createElement("span");
+    prefix.className = "scope-bar-label";
+    prefix.textContent = "Kapsam:";
+    dom.scopeChipsBar.appendChild(prefix);
+
+    for (const docId of state.selectedDocumentIds) {
+      const name = state.docNameById.get(docId) || `${docId.slice(0, 8)}.pdf`;
+      const chip = document.createElement("span");
+      chip.className = "scope-chip";
+
+      const label = document.createElement("span");
+      label.className = "scope-chip-name";
+      label.textContent = name;
+
+      const removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "scope-chip-remove";
+      removeBtn.setAttribute("aria-label", `${name} belgesini kapsamdan çıkar`);
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => toggleDocumentScope(docId));
+
+      chip.append(label, removeBtn);
+      dom.scopeChipsBar.appendChild(chip);
+    }
+
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.className = "scope-reset-link";
+    resetBtn.textContent = "Tümünde ara";
+    resetBtn.addEventListener("click", clearDocumentScope);
+    dom.scopeChipsBar.appendChild(resetBtn);
+    dom.scopeChipsBar.classList.remove("hidden");
+  }
+
+  function renderStarterPrompts() {
+    if (!dom.starterPrompts) {
+      return;
+    }
+    const docs = state.documents;
+    if (docs.length === 0) {
+      return;
+    }
+
+    const demoPromptByName = {
+      "sirket_el_kitabi_tr.pdf": {
+        label: "Yıllık izin hakkı ve uzaktan çalışma kuralları nedir?",
+        prompt: "Yıllık izin hakkı kaç gün ve uzaktan çalışma kuralları nelerdir?",
+      },
+      "bitcoin_whitepaper.pdf": {
+        label: "Bitcoin'de double-spending sorunu nasıl çözülüyor?",
+        prompt: "Bitcoin whitepaper'ında çift harcama (double-spending) sorunu nasıl çözülüyor?",
+      },
+      "rag_paper_2005_11401.pdf": {
+        label: "RAG mimarisinde bellek mekanizması nasıl çalışır?",
+        prompt: "RAG (Retrieval-Augmented Generation) yaklaşımında parametrik ve parametrik olmayan bellek nasıl birleşir?",
+      },
+    };
+
+    const items = [];
+    const customDocs = docs.filter((doc) => !demoPromptByName[doc.filename]);
+    if (customDocs.length > 0) {
+      for (const doc of docs.slice(0, 3)) {
+        const preset = demoPromptByName[doc.filename];
+        if (preset) {
+          items.push(preset);
+        } else {
+          items.push({
+            label: `${doc.filename} belgesindeki temel konuları özetle`,
+            prompt: `${doc.filename} belgesinin temel konusunu ve önemli maddelerini özetler misin?`,
+          });
+        }
+      }
+      if (items.length < 3 && docs[0]) {
+        items.push({
+          label: `${docs[0].filename} içinde öne çıkan kurallar veya bulgular neler?`,
+          prompt: `${docs[0].filename} belgesinde öne çıkan temel kurallar, tanımlar veya bulgular nelerdir?`,
+        });
+      }
+    } else {
+      for (const doc of docs) {
+        if (demoPromptByName[doc.filename]) {
+          items.push(demoPromptByName[doc.filename]);
+        }
+      }
+    }
+
+    if (items.length === 0) {
+      return;
+    }
+    dom.starterPrompts.replaceChildren();
+    for (const entry of items.slice(0, 3)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "starter-chip";
+      btn.setAttribute("data-prompt", entry.prompt);
+      btn.textContent = entry.label;
+      dom.starterPrompts.appendChild(btn);
+    }
+  }
+
+  function renderUploadSummaryBar() {
+    if (!dom.uploadSummaryBar) {
+      return;
+    }
+    const items = Array.from(state.uploads.values()).filter(
+      (job) => job.tenantId === state.tenantId
+    );
+    if (items.length === 0) {
+      dom.uploadSummaryBar.classList.add("hidden");
+      dom.uploadSummaryBar.textContent = "";
+      return;
+    }
+    const activeCount = items.filter(
+      (job) => job.state === "queued" || job.state === "uploading" || job.state === "indexing"
+    ).length;
+    const errorCount = items.filter((job) => job.state === "error").length;
+
+    const parts = [];
+    if (activeCount > 0) {
+      parts.push(`${activeCount} dosya işleniyor`);
+    }
+    if (errorCount > 0) {
+      parts.push(`${errorCount} hatalı`);
+    }
+    dom.uploadSummaryBar.textContent = parts.join(" • ") || `${items.length} yükleme`;
+    dom.uploadSummaryBar.classList.toggle("is-error", activeCount === 0 && errorCount > 0);
+    dom.uploadSummaryBar.classList.remove("hidden");
+  }
+
   function renderDocumentList() {
+    renderUploadSummaryBar();
     dom.docList.replaceChildren();
 
     const uploadItems = Array.from(state.uploads.values()).filter(
@@ -551,12 +750,28 @@
   }
 
   function buildIndexedDocRow(doc) {
+    const isSelected = state.selectedDocumentIds.has(doc.document_id);
     const row = document.createElement("div");
-    row.className = "doc-item";
+    row.className = isSelected ? "doc-item is-selected" : "doc-item";
     row.dataset.documentId = doc.document_id;
 
     const main = document.createElement("div");
     main.className = "doc-item-main";
+
+    const selectBtn = document.createElement("button");
+    selectBtn.type = "button";
+    selectBtn.role = "checkbox";
+    selectBtn.setAttribute("aria-checked", isSelected ? "true" : "false");
+    selectBtn.className = isSelected ? "doc-select-btn is-selected" : "doc-select-btn";
+    selectBtn.title = isSelected
+      ? "Kapsam filtresinden çıkar"
+      : "Aramayı bu belgeyle sınırla";
+    selectBtn.setAttribute("aria-label", `${doc.filename} belgesini kapsam olarak seç`);
+    selectBtn.textContent = isSelected ? "✓" : "";
+    selectBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      toggleDocumentScope(doc.document_id);
+    });
 
     const ext = doc.file_type === "txt" ? "txt" : "pdf";
     const badge = document.createElement("span");
@@ -616,7 +831,7 @@
       actions.appendChild(deleteBtn);
     }
 
-    main.append(badge, meta, actions);
+    main.append(selectBtn, badge, meta, actions);
     row.appendChild(main);
     return row;
   }
@@ -1002,6 +1217,7 @@
       .replace(INLINE_LATEX_SYMBOL_RE, "$1")
       .replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, "<em>$1</em>")
       .replace(INLINE_CITATION_BLOCK_RE, (fullMatch, _leadingWs, inner, _tWs, trailingPunct) => {
         const groupHtml = renderInlineCitationsHtml(inner);
         if (!groupHtml) {
@@ -1011,10 +1227,27 @@
       });
   }
 
+  function parseMarkdownTableRow(line) {
+    const stripped = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+    return stripped.split("|").map((cell) => cell.trim());
+  }
+
+  function isMarkdownTableSeparator(line) {
+    const trimmed = line.trim();
+    if (!trimmed.includes("|") || !trimmed.includes("-")) {
+      return false;
+    }
+    const cells = parseMarkdownTableRow(trimmed);
+    return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
+  }
+
   function renderSafeMarkdown(text) {
     const lines = escapeHtml(text).replace(/\r\n/g, "\n").split("\n");
     const htmlParts = [];
     let listType = null;
+    let inCodeBlock = false;
+    let codeLang = "";
+    let codeLines = [];
 
     const closeList = () => {
       if (listType === "ul") {
@@ -1025,10 +1258,72 @@
       listType = null;
     };
 
-    for (const line of lines) {
-      const trimmed = line.trim();
+    const flushCodeBlock = () => {
+      const langLabel = codeLang || "metin";
+      htmlParts.push(
+        `<div class="md-code-block"><div class="md-code-head"><span class="md-code-lang">${langLabel}</span><button type="button" class="md-code-copy">Kopyala</button></div><pre><code>${codeLines.join("\n")}</code></pre></div>`
+      );
+      inCodeBlock = false;
+      codeLang = "";
+      codeLines = [];
+    };
+
+    for (let i = 0; i < lines.length; i += 1) {
+      const rawLine = lines[i];
+      const trimmed = rawLine.trim();
+
+      const fenceMatch = trimmed.match(/^```([A-Za-z0-9_+-]*)\s*$/);
+      if (fenceMatch) {
+        closeList();
+        if (inCodeBlock) {
+          flushCodeBlock();
+        } else {
+          inCodeBlock = true;
+          codeLang = fenceMatch[1] || "";
+          codeLines = [];
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        codeLines.push(rawLine);
+        continue;
+      }
+
       if (!trimmed) {
         closeList();
+        continue;
+      }
+
+      if (
+        trimmed.includes("|") &&
+        i + 1 < lines.length &&
+        isMarkdownTableSeparator(lines[i + 1])
+      ) {
+        closeList();
+        const headers = parseMarkdownTableRow(trimmed);
+        i += 2;
+        const bodyRows = [];
+        while (i < lines.length && lines[i].trim().includes("|")) {
+          bodyRows.push(parseMarkdownTableRow(lines[i]));
+          i += 1;
+        }
+        i -= 1;
+
+        const thHtml = headers
+          .map((cell) => `<th>${formatInlineMarkdown(cell)}</th>`)
+          .join("");
+        const trHtml = bodyRows
+          .map(
+            (row) =>
+              `<tr>${headers
+                .map((_, colIdx) => `<td>${formatInlineMarkdown(row[colIdx] || "")}</td>`)
+                .join("")}</tr>`
+          )
+          .join("");
+        htmlParts.push(
+          `<div class="md-table-wrap"><table class="md-table"><thead><tr>${thHtml}</tr></thead><tbody>${trHtml}</tbody></table></div>`
+        );
         continue;
       }
 
@@ -1066,8 +1361,51 @@
       htmlParts.push(`<p>${formatInlineMarkdown(trimmed)}</p>`);
     }
 
+    if (inCodeBlock) {
+      flushCodeBlock();
+    }
     closeList();
     return htmlParts.join("");
+  }
+
+  function wireCodeCopyHandlers(bodyEl) {
+    const copyBtns = bodyEl.querySelectorAll(".md-code-copy");
+    copyBtns.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const block = btn.closest(".md-code-block");
+        const codeEl = block ? block.querySelector("code") : null;
+        if (!codeEl) {
+          return;
+        }
+        const ok = await copyTextToClipboard(codeEl.textContent || "");
+        if (ok) {
+          btn.textContent = "Kopyalandı ✓";
+          window.setTimeout(() => {
+            btn.textContent = "Kopyala";
+          }, 1800);
+        }
+      });
+    });
+  }
+
+  async function copyTextToClipboard(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+      const helper = document.createElement("textarea");
+      helper.value = text;
+      helper.style.position = "fixed";
+      helper.style.opacity = "0";
+      document.body.appendChild(helper);
+      helper.select();
+      const copied = document.execCommand("copy");
+      helper.remove();
+      return copied;
+    } catch {
+      return false;
+    }
   }
 
   function hideEmptyState() {
@@ -1078,15 +1416,54 @@
     }
   }
 
-  function clearConversation() {
+  function getSavedChatKey(tenantId) {
+    return `${STORAGE_CHAT_PREFIX}${tenantId}`;
+  }
+
+  function saveChatTranscript() {
+    try {
+      const compactTurns = state.uiTurns.slice(-MAX_SAVED_UI_TURNS).map((item) => ({
+        query: item.query,
+        answer: item.answer,
+        citations: Array.isArray(item.citations) ? item.citations : [],
+        stopped: Boolean(item.stopped),
+      }));
+      if (compactTurns.length === 0) {
+        window.localStorage.removeItem(getSavedChatKey(state.tenantId));
+      } else {
+        window.localStorage.setItem(getSavedChatKey(state.tenantId), JSON.stringify(compactTurns));
+      }
+    } catch {
+      // Depolama kotası doluysa bellek içinde devam et
+    }
+  }
+
+  function removeSavedChat(tenantId) {
+    try {
+      window.localStorage.removeItem(getSavedChatKey(tenantId));
+    } catch {
+      // ignore
+    }
+  }
+
+  function resetChatView() {
     if (state.isStreaming && state.streamController) {
       state.streamController.abort();
     }
+    closeInspector();
     dom.messagesList.replaceChildren();
     state.hasMessages = false;
     state.chatHistory = [];
+    state.uiTurns = [];
+    state.promptHistory = [];
+    state.promptCursor = -1;
     dom.emptyState.classList.remove("hidden");
     dom.clearChatBtn.classList.add("hidden");
+  }
+
+  function clearConversation() {
+    resetChatView();
+    removeSavedChat(state.tenantId);
     dom.queryInput.focus();
   }
 
@@ -1135,12 +1512,15 @@
     scrollChatToBottomIfNearBottom(true);
   }
 
-  function createAssistantMessageTurn() {
+  function createAssistantMessageTurn(initialStatusText = "Belgeler taranıyor…") {
     const row = document.createElement("div");
     row.className = "msg-row is-assistant";
 
     const body = document.createElement("div");
     body.className = "assistant-body";
+
+    const thinkingRow = document.createElement("div");
+    thinkingRow.className = "thinking-row";
 
     const thinking = document.createElement("div");
     thinking.className = "thinking-dots";
@@ -1149,16 +1529,31 @@
       dot.className = "thinking-dot";
       thinking.appendChild(dot);
     }
-    body.appendChild(thinking);
+
+    const thinkingLabel = document.createElement("span");
+    thinkingLabel.className = "thinking-label";
+    thinkingLabel.textContent = initialStatusText;
+
+    thinkingRow.append(thinking, thinkingLabel);
+    body.appendChild(thinkingRow);
+
+    const actionsBar = document.createElement("div");
+    actionsBar.className = "turn-actions-bar hidden";
 
     const citationsWrap = document.createElement("div");
     citationsWrap.className = "citations-wrap hidden";
 
-    row.append(body, citationsWrap);
+    row.append(body, actionsBar, citationsWrap);
     dom.messagesList.appendChild(row);
     scrollChatToBottomIfNearBottom(true);
 
-    return { row, body, citationsWrap };
+    return { row, body, thinkingLabel, actionsBar, citationsWrap };
+  }
+
+  function setTurnThinkingStatus(turn, statusText) {
+    if (turn.thinkingLabel && turn.thinkingLabel.isConnected) {
+      turn.thinkingLabel.textContent = statusText;
+    }
   }
 
   function updateAssistantText(bodyEl, text, showCaret) {
@@ -1166,6 +1561,7 @@
       return;
     }
     bodyEl.innerHTML = renderSafeMarkdown(text);
+    wireCodeCopyHandlers(bodyEl);
     if (showCaret) {
       const caret = document.createElement("span");
       caret.className = "stream-caret";
@@ -1254,7 +1650,182 @@
     return groups;
   }
 
-  function renderCitations(citationsWrap, citations) {
+  const KEYWORD_STOPWORDS = new Set([
+    "nedir",
+    "nasil",
+    "nasıl",
+    "neler",
+    "nelerdir",
+    "hangi",
+    "hakkinda",
+    "hakkında",
+    "icin",
+    "için",
+    "veya",
+    "ile",
+    "gibi",
+    "kadar",
+    "olan",
+    "olarak",
+    "biraz",
+    "daha",
+    "detayli",
+    "detaylı",
+    "anlat",
+    "ozetle",
+    "özetle",
+    "what",
+    "how",
+    "does",
+    "with",
+    "about",
+    "this",
+    "that",
+    "from",
+  ]);
+
+  function extractSearchKeywords(queryText) {
+    const tokens = String(queryText || "")
+      .toLowerCase()
+      .split(/[^a-z0-9çğıöşüÇĞİÖŞÜ-]+/i)
+      .map((item) => item.trim())
+      .filter((item) => item.length >= 3 && !KEYWORD_STOPWORDS.has(item));
+    return Array.from(new Set(tokens)).slice(0, 8);
+  }
+
+  function escapeRegExp(raw) {
+    return raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function appendHighlightedText(containerEl, rawText, keywords) {
+    containerEl.replaceChildren();
+    if (!rawText) {
+      return;
+    }
+    if (!keywords || keywords.length === 0) {
+      containerEl.textContent = rawText;
+      return;
+    }
+
+    const pattern = new RegExp(`(${keywords.map(escapeRegExp).join("|")})`, "gi");
+    let lastIdx = 0;
+    let match = pattern.exec(rawText);
+    while (match !== null) {
+      if (match.index > lastIdx) {
+        containerEl.appendChild(document.createTextNode(rawText.slice(lastIdx, match.index)));
+      }
+      const mark = document.createElement("mark");
+      mark.className = "quote-highlight";
+      mark.textContent = match[0];
+      containerEl.appendChild(mark);
+      lastIdx = pattern.lastIndex;
+      match = pattern.exec(rawText);
+    }
+    if (lastIdx < rawText.length) {
+      containerEl.appendChild(document.createTextNode(rawText.slice(lastIdx)));
+    }
+  }
+
+  function closeInspector() {
+    if (!dom.inspectorDrawer) {
+      return;
+    }
+    dom.inspectorDrawer.classList.remove("is-open");
+    dom.inspectorDrawer.classList.add("hidden");
+    if (dom.inspectorBackdrop) {
+      dom.inspectorBackdrop.classList.add("hidden");
+    }
+    document.querySelectorAll(".citation-pill.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+    });
+  }
+
+  function renderInspectorView() {
+    const { groups, activeGroupIndex, focusCitationIndex, queryText, pillsCol } = state.inspector;
+    if (!dom.inspectorDrawer || !groups || groups.length === 0) {
+      closeInspector();
+      return;
+    }
+
+    const safeIdx = Math.max(0, Math.min(activeGroupIndex, groups.length - 1));
+    state.inspector.activeGroupIndex = safeIdx;
+    const group = groups[safeIdx];
+
+    document.querySelectorAll(".citation-pill.is-active").forEach((el) => {
+      el.classList.remove("is-active");
+    });
+    if (pillsCol) {
+      const activePill = pillsCol.children[safeIdx];
+      if (activePill) {
+        activePill.classList.add("is-active");
+      }
+    }
+
+    dom.inspectorTitle.textContent = group.filename;
+    dom.inspectorSubtitle.textContent = `Sayfa ${group.pageNum} • ${group.entries.length} alıntı • %${group.bestScorePct} eşleşme`;
+    dom.inspectorPrevBtn.disabled = safeIdx <= 0;
+    dom.inspectorNextBtn.disabled = safeIdx >= groups.length - 1;
+
+    const keywords = extractSearchKeywords(queryText);
+    dom.inspectorBody.replaceChildren();
+
+    let focusEl = null;
+    group.entries.forEach((entry) => {
+      const card = document.createElement("article");
+      const isFocused =
+        focusCitationIndex !== null && entry.index === focusCitationIndex;
+      card.className = isFocused
+        ? "inspector-passage-card is-focused"
+        : "inspector-passage-card";
+
+      const meta = document.createElement("div");
+      meta.className = "inspector-passage-meta";
+      const left = document.createElement("span");
+      left.className = "inspector-passage-badge";
+      left.textContent = `Kaynak [${entry.sourceNum}]`;
+      const right = document.createElement("span");
+      right.textContent = `Benzerlik %${entry.scorePct}`;
+      meta.append(left, right);
+
+      const body = document.createElement("p");
+      body.className = "inspector-passage-text";
+      appendHighlightedText(body, entry.text, keywords);
+
+      card.append(meta, body);
+      dom.inspectorBody.appendChild(card);
+      if (isFocused) {
+        focusEl = card;
+      }
+    });
+
+    if (focusEl) {
+      focusEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function openInspector(groups, groupIndex, focusCitationIndex, queryText, pillsCol) {
+    if (!dom.inspectorDrawer || !groups || groups.length === 0) {
+      return;
+    }
+    state.inspector = {
+      groups,
+      activeGroupIndex: groupIndex,
+      focusCitationIndex,
+      queryText: queryText || "",
+      pillsCol: pillsCol || null,
+    };
+
+    dom.inspectorDrawer.classList.remove("hidden");
+    if (dom.inspectorBackdrop) {
+      dom.inspectorBackdrop.classList.remove("hidden");
+    }
+    window.requestAnimationFrame(() => {
+      dom.inspectorDrawer.classList.add("is-open");
+    });
+    renderInspectorView();
+  }
+
+  function renderCitations(citationsWrap, citations, queryText = "") {
     citationsWrap.replaceChildren();
     citationsWrap.classList.remove("hidden");
 
@@ -1270,64 +1841,9 @@
     const pillsCol = document.createElement("div");
     pillsCol.className = "citations-pills";
 
-    const quoteBox = document.createElement("div");
-    quoteBox.className = "citation-quote-card hidden";
+    const indexLocationMap = new Map();
 
-    let activeGroupKey = null;
-    const pillByGroupKey = new Map();
-    const groupByCitationIndex = new Map();
-
-    const openGroup = (group, focusCitationIndex = null) => {
-      const isSameToggle =
-        focusCitationIndex === null && activeGroupKey === group.key;
-      const allPills = pillsCol.querySelectorAll(".citation-pill");
-      allPills.forEach((btn) => btn.classList.remove("is-active"));
-
-      if (isSameToggle) {
-        activeGroupKey = null;
-        quoteBox.classList.add("hidden");
-        return;
-      }
-
-      const activePill = pillByGroupKey.get(group.key);
-      if (activePill) {
-        activePill.classList.add("is-active");
-      }
-      activeGroupKey = group.key;
-      quoteBox.replaceChildren();
-
-      group.entries.forEach((entry, entryPos) => {
-        const snippetWrap = document.createElement("div");
-        const isHighlighted =
-          focusCitationIndex !== null && entry.index === focusCitationIndex;
-        snippetWrap.className = isHighlighted
-          ? "citation-quote-entry is-highlighted"
-          : "citation-quote-entry";
-        if (entryPos > 0) {
-          snippetWrap.classList.add("has-divider");
-        }
-
-        const meta = document.createElement("div");
-        meta.className = "citation-quote-meta";
-        const leftMeta = document.createElement("span");
-        leftMeta.textContent = `[Kaynak ${entry.sourceNum}] ${group.filename} — Sayfa ${group.pageNum}`;
-        const rightMeta = document.createElement("span");
-        rightMeta.textContent = `Benzerlik: %${entry.scorePct}`;
-        meta.append(leftMeta, rightMeta);
-
-        const body = document.createElement("p");
-        body.className = "citation-quote-body";
-        body.textContent = entry.text;
-
-        snippetWrap.append(meta, body);
-        quoteBox.appendChild(snippetWrap);
-      });
-
-      quoteBox.classList.remove("hidden");
-      quoteBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    };
-
-    groups.forEach((group) => {
+    groups.forEach((group, groupIdx) => {
       const pill = document.createElement("button");
       pill.type = "button";
       pill.className = "citation-pill";
@@ -1346,23 +1862,203 @@
       label.textContent = `${group.filename} • Sayfa ${group.pageNum}${countSuffix} • %${group.bestScorePct}`;
       pill.appendChild(label);
 
-      pill.addEventListener("click", () => openGroup(group, null));
-      pillByGroupKey.set(group.key, pill);
+      pill.addEventListener("click", () => {
+        openInspector(groups, groupIdx, null, queryText, pillsCol);
+      });
       group.entries.forEach((entry) => {
-        groupByCitationIndex.set(entry.index, group);
+        indexLocationMap.set(entry.index, { groupIdx, entryIndex: entry.index });
       });
       pillsCol.appendChild(pill);
     });
 
-    citationsWrap.append(pillsCol, quoteBox);
+    citationsWrap.appendChild(pillsCol);
     scrollChatToBottomIfNearBottom(false);
 
     return (citationIndex) => {
-      const group = groupByCitationIndex.get(citationIndex);
-      if (group) {
-        openGroup(group, citationIndex);
+      const loc = indexLocationMap.get(citationIndex);
+      if (loc) {
+        openInspector(groups, loc.groupIdx, loc.entryIndex, queryText, pillsCol);
       }
     };
+  }
+
+  function stripCitationTagsForCopy(rawText) {
+    return String(rawText || "")
+      .replace(/\s*\[(?:Source|Kaynak)\s*\d+(?:\s*,\s*(?:(?:Source|Kaynak)\s*)?\d+)*\]/gi, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .trim();
+  }
+
+  function clearFollowupChips() {
+    document.querySelectorAll(".turn-followup-chip").forEach((el) => el.remove());
+  }
+
+  function buildFollowupChipPayload(answerText) {
+    const cleanText = stripCitationTagsForCopy(answerText);
+    const nonEmptyLines = cleanText
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (nonEmptyLines.length === 0) {
+      return null;
+    }
+    const lastLine = nonEmptyLines[nonEmptyLines.length - 1];
+    if (!lastLine.endsWith("?")) {
+      return null;
+    }
+
+    const sentences = lastLine.split(/(?<=[.!])\s+/);
+    const questionSentence = (sentences[sentences.length - 1] || lastLine).trim();
+    if (!questionSentence.endsWith("?")) {
+      return null;
+    }
+
+    let topic = questionSentence.slice(0, -1).trim();
+    topic = topic
+      .replace(
+        /\s+(?:hakkında|konusunda|konularını|konusunu|üzerine|ile\s+ilgili)\s+(?:daha\s+(?:fazla|detaylı|yakından)\s+)?(?:(?:bilgi|detay(?:ları|lar)?)\s*)?(?:edinmek|paylaşmamı|vermemi|almak|incelememizi|incelemek|açıklamamı|öğrenmek|gözden\s+geçirmek|bakmamızı|keşfetmek)?\s*(?:ister\s+misiniz|istiyorsanız|merak\s+ediyor\s+musunuz)?$/i,
+        ""
+      )
+      .replace(
+        /\s+(?:konularını|konusunu)\s+(?:daha\s+(?:fazla|yakından|detaylı)\s+)?(?:incelememizi|incelemek|öğrenmek|keşfetmek)\s*(?:ister\s+misiniz)?$/i,
+        ""
+      )
+      .replace(
+        /\s+(?:hakkında|üzerine|ile\s+ilgili)?\s*(?:incelememizi|öğrenmemizi|açıklamamı|paylaşmamı|anlatmamı)\s+ister\s+misiniz$/i,
+        ""
+      )
+      .replace(
+        /^(?:would you like(?:\s+me)?\s+to|do you want(?:\s+me)?\s+to|shall\s+i)\s+(?:explore|explain|examine|compare|discuss|elaborate on|learn more about)\s+/i,
+        ""
+      )
+      .replace(/\s+in more detail$/i, "")
+      .replace(/^(?:bu\s+belgelerdeki|bu\s+konuda|isterseniz|ayrıca|peki)\s+/i, "")
+      .trim();
+
+    if (!topic || topic.length < 4) {
+      topic = questionSentence.slice(0, -1).trim();
+    }
+
+    const cappedTopic =
+      topic.length > 52
+        ? `${topic.slice(0, 49).replace(/\s+\S*$/, "").trim()}...`
+        : topic;
+    const formattedTopic = cappedTopic.charAt(0).toUpperCase() + cappedTopic.slice(1);
+    const isEnglish = /[?]/.test(questionSentence) && /would you|do you|shall i/i.test(questionSentence);
+    const prompt = isEnglish
+      ? `Please explain ${topic} in more detail.`
+      : `${topic} hakkında daha detaylı bilgi verir misin?`;
+
+    return {
+      label: `${formattedTopic} →`,
+      prompt,
+    };
+  }
+
+  function renderTurnActions(actionsBar, answerText, citations, showFollowup = true) {
+    if (!actionsBar) {
+      return;
+    }
+    actionsBar.replaceChildren();
+    if (!answerText) {
+      actionsBar.classList.add("hidden");
+      return;
+    }
+
+    const copyBtn = document.createElement("button");
+    copyBtn.type = "button";
+    copyBtn.className = "turn-action-copy";
+    copyBtn.textContent = "Kopyala";
+    copyBtn.title = "Yanıtı panoya kopyala";
+    copyBtn.addEventListener("click", async () => {
+      const ok = await copyTextToClipboard(stripCitationTagsForCopy(answerText));
+      if (ok) {
+        copyBtn.textContent = "Kopyalandı ✓";
+        window.setTimeout(() => {
+          copyBtn.textContent = "Kopyala";
+        }, 1800);
+      }
+    });
+    actionsBar.appendChild(copyBtn);
+
+    if (showFollowup && citations && citations.length > 0) {
+      const followup = buildFollowupChipPayload(answerText);
+      if (followup) {
+        clearFollowupChips();
+        const acceptBtn = document.createElement("button");
+        acceptBtn.type = "button";
+        acceptBtn.className = "turn-action-chip is-accent turn-followup-chip";
+        acceptBtn.textContent = followup.label;
+        acceptBtn.title = followup.prompt;
+        acceptBtn.addEventListener("click", () => {
+          if (!state.isStreaming) {
+            submitQuery(followup.prompt);
+          }
+        });
+        actionsBar.appendChild(acceptBtn);
+      }
+    }
+
+    actionsBar.classList.remove("hidden");
+  }
+
+  function renderStoppedBadge(bodyEl) {
+    const badge = document.createElement("div");
+    badge.className = "turn-stopped-note";
+    badge.textContent = "Yanıt kullanıcı tarafından durduruldu";
+    bodyEl.appendChild(badge);
+  }
+
+  function restoreChatTranscript() {
+    let saved = [];
+    try {
+      const raw = window.localStorage.getItem(getSavedChatKey(state.tenantId));
+      saved = raw ? JSON.parse(raw) : [];
+    } catch {
+      saved = [];
+    }
+    if (!Array.isArray(saved) || saved.length === 0) {
+      return;
+    }
+
+    hideEmptyState();
+    const restoredHistory = [];
+    const restoredUiTurns = [];
+    const restoredPrompts = [];
+    const validItems = saved.filter(
+      (item) => item && typeof item.query === "string" && typeof item.answer === "string"
+    );
+
+    validItems.forEach((item, idx) => {
+      const isLastTurn = idx === validItems.length - 1;
+      appendUserBubble(item.query);
+      const turn = createAssistantMessageTurn("");
+      updateAssistantText(turn.body, item.answer, false);
+      if (item.stopped) {
+        renderStoppedBadge(turn.body);
+      }
+      const citList = Array.isArray(item.citations) ? item.citations : [];
+      renderTurnActions(turn.actionsBar, item.answer, citList, isLastTurn);
+      const openCitationByIndex = renderCitations(turn.citationsWrap, citList, item.query);
+      wireInlineCitationBadges(turn.body, citList, openCitationByIndex);
+
+      restoredUiTurns.push({
+        query: item.query,
+        answer: item.answer,
+        citations: citList,
+        stopped: Boolean(item.stopped),
+      });
+      restoredPrompts.push(item.query);
+      if (!item.stopped && item.answer) {
+        restoredHistory.push({ role: "user", content: item.query });
+        restoredHistory.push({ role: "assistant", content: item.answer });
+      }
+    });
+
+    state.uiTurns = restoredUiTurns.slice(-MAX_SAVED_UI_TURNS);
+    state.chatHistory = restoredHistory.slice(-MAX_HISTORY_MESSAGES);
+    state.promptHistory = restoredPrompts.slice(-30);
+    scrollChatToBottomIfNearBottom(true);
   }
 
   function wireInlineCitationBadges(bodyEl, citations, openCitationByIndex) {
@@ -1388,12 +2084,20 @@
     }
 
     hideEmptyState();
+    clearFollowupChips();
     appendUserBubble(query);
+    state.promptHistory = [...state.promptHistory, query].slice(-30);
+    state.promptCursor = -1;
 
     dom.queryInput.value = "";
     autoResizeTextarea();
 
-    const turn = createAssistantMessageTurn();
+    const scopedIds = Array.from(state.selectedDocumentIds);
+    const initialSearchMsg =
+      scopedIds.length > 0
+        ? `Seçili ${scopedIds.length} belgede aranıyor…`
+        : "Çalışma alanındaki belgeler taranıyor…";
+    const turn = createAssistantMessageTurn(initialSearchMsg);
     const controller = new AbortController();
     state.streamController = controller;
     setStreamingUi(true);
@@ -1411,6 +2115,7 @@
           query,
           tenant_id: state.tenantId,
           history: historySnapshot,
+          document_ids: scopedIds,
           stream: true,
         }),
         signal: controller.signal,
@@ -1418,6 +2123,14 @@
 
       if (!response.ok || !response.body) {
         throw new Error(await extractErrorMessage(response));
+      }
+
+      const preCountRaw = response.headers.get("X-Retrieved-Citations");
+      const preCount = preCountRaw !== null ? Number.parseInt(preCountRaw, 10) : NaN;
+      if (Number.isFinite(preCount) && preCount > 0) {
+        setTurnThinkingStatus(turn, `${preCount} ilgili pasaj bulundu, yanıt hazırlanıyor…`);
+      } else {
+        setTurnThinkingStatus(turn, "Yanıt hazırlanıyor…");
       }
 
       const reader = response.body.getReader();
@@ -1480,7 +2193,8 @@
         const finalAnswer =
           answerText || "Yüklü dokümanlarda bu soruya ilişkin bir yanıt üretilemedi.";
         updateAssistantText(turn.body, finalAnswer, false);
-        const openCitationByIndex = renderCitations(turn.citationsWrap, citations);
+        renderTurnActions(turn.actionsBar, finalAnswer, citations, true);
+        const openCitationByIndex = renderCitations(turn.citationsWrap, citations, query);
         wireInlineCitationBadges(turn.body, citations, openCitationByIndex);
         if (answerText) {
           state.chatHistory = [
@@ -1489,10 +2203,29 @@
             { role: "assistant", content: answerText },
           ].slice(-MAX_HISTORY_MESSAGES);
         }
+        state.uiTurns = [
+          ...state.uiTurns,
+          { query, answer: finalAnswer, citations, stopped: false },
+        ].slice(-MAX_SAVED_UI_TURNS);
+        saveChatTranscript();
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        updateAssistantText(turn.body, answerText || "Yanıt oluşturma durduruldu.", false);
+        const partial = answerText || "";
+        if (partial) {
+          updateAssistantText(turn.body, partial, false);
+        } else {
+          turn.body.replaceChildren();
+        }
+        renderStoppedBadge(turn.body);
+        if (partial) {
+          renderTurnActions(turn.actionsBar, partial, [], false);
+          state.uiTurns = [
+            ...state.uiTurns,
+            { query, answer: partial, citations: [], stopped: true },
+          ].slice(-MAX_SAVED_UI_TURNS);
+          saveChatTranscript();
+        }
       } else {
         turn.body.replaceChildren();
         const errBox = document.createElement("div");
@@ -1733,6 +2466,34 @@
     });
 
     dom.clearChatBtn.addEventListener("click", clearConversation);
+    if (dom.clearScopeBtn) {
+      dom.clearScopeBtn.addEventListener("click", clearDocumentScope);
+    }
+
+    if (dom.inspectorCloseBtn) {
+      dom.inspectorCloseBtn.addEventListener("click", closeInspector);
+    }
+    if (dom.inspectorBackdrop) {
+      dom.inspectorBackdrop.addEventListener("click", closeInspector);
+    }
+    if (dom.inspectorPrevBtn) {
+      dom.inspectorPrevBtn.addEventListener("click", () => {
+        if (state.inspector.activeGroupIndex > 0) {
+          state.inspector.activeGroupIndex -= 1;
+          state.inspector.focusCitationIndex = null;
+          renderInspectorView();
+        }
+      });
+    }
+    if (dom.inspectorNextBtn) {
+      dom.inspectorNextBtn.addEventListener("click", () => {
+        if (state.inspector.activeGroupIndex < state.inspector.groups.length - 1) {
+          state.inspector.activeGroupIndex += 1;
+          state.inspector.focusCitationIndex = null;
+          renderInspectorView();
+        }
+      });
+    }
 
     dom.queryInput.addEventListener("input", autoResizeTextarea);
 
@@ -1741,6 +2502,44 @@
         event.preventDefault();
         if (!state.isStreaming) {
           submitQuery(dom.queryInput.value);
+        }
+        return;
+      }
+      if (
+        event.key === "ArrowUp" &&
+        !dom.queryInput.value.trim() &&
+        state.promptHistory.length > 0
+      ) {
+        event.preventDefault();
+        if (state.promptCursor < 0) {
+          state.promptCursor = state.promptHistory.length - 1;
+        } else if (state.promptCursor > 0) {
+          state.promptCursor -= 1;
+        }
+        dom.queryInput.value = state.promptHistory[state.promptCursor] || "";
+        autoResizeTextarea();
+        window.requestAnimationFrame(() => {
+          const len = dom.queryInput.value.length;
+          dom.queryInput.setSelectionRange(len, len);
+        });
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const activeTag = document.activeElement?.tagName?.toLowerCase();
+      const isTyping = activeTag === "input" || activeTag === "textarea";
+      if (event.key === "/" && !isTyping) {
+        event.preventDefault();
+        dom.queryInput.focus();
+        return;
+      }
+      if (event.key === "Escape") {
+        if (dom.inspectorDrawer && !dom.inspectorDrawer.classList.contains("hidden")) {
+          closeInspector();
+        } else if (dom.workspaceMenu && !dom.workspaceMenu.classList.contains("hidden")) {
+          closeWorkspaceMenu();
+        } else if (dom.apiKeyModal && !dom.apiKeyModal.classList.contains("hidden") && state.apiKey) {
+          closeApiKeyModal();
         }
       }
     });
@@ -1769,6 +2568,8 @@
     updateApiKeyButtonState();
     renderWorkspaceList();
     renderSummaryTexts();
+    renderScopeChips();
+    restoreChatTranscript();
     checkHealth();
     startHealthPolling();
     if (state.apiKey) {

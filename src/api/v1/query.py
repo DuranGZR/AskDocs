@@ -301,13 +301,25 @@ async def _retrieve_and_prepare_rag(
     t_search = time.perf_counter()
     scored_chunks: list[ScoredChunk] = []
     search_error: str | None = None
-    try:
-        scored_chunks = await vector_db.search(
+
+    async def _search_chunks(threshold: float) -> list[ScoredChunk]:
+        if payload.document_ids:
+            return await vector_db.search_scoped(
+                query_vector=vectors[0],
+                tenant_id=payload.tenant_id,
+                top_k=top_k,
+                score_threshold=threshold,
+                document_ids=payload.document_ids,
+            )
+        return await vector_db.search(
             query_vector=vectors[0],
             tenant_id=payload.tenant_id,
             top_k=top_k,
-            score_threshold=effective_threshold,
+            score_threshold=threshold,
         )
+
+    try:
+        scored_chunks = await _search_chunks(effective_threshold)
         # Diller-arası veya kısa sorgular birincil eşiği kaçırdığında alt eşikle tek yedek arama yap
         if (
             not scored_chunks
@@ -315,12 +327,7 @@ async def _retrieve_and_prepare_rag(
             and settings.RAG_FALLBACK_SCORE_THRESHOLD < effective_threshold
         ):
             effective_threshold = settings.RAG_FALLBACK_SCORE_THRESHOLD
-            scored_chunks = await vector_db.search(
-                query_vector=vectors[0],
-                tenant_id=payload.tenant_id,
-                top_k=top_k,
-                score_threshold=effective_threshold,
-            )
+            scored_chunks = await _search_chunks(effective_threshold)
     except AppError as exc:
         search_error = str(exc)
         raise
@@ -472,6 +479,7 @@ def _build_streaming_response(
 ) -> StreamingResponse:
     """SSE yanıt başlıklarıyla StreamingResponse nesnesi oluşturur."""
     headers = dict(SSE_HEADERS)
+    headers["X-Retrieved-Citations"] = str(len(citations))
     if extra_headers:
         headers.update(extra_headers)
     return StreamingResponse(
