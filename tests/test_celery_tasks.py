@@ -287,3 +287,27 @@ async def test_celery_document_task_dispatcher_get_task_status_maps_states_and_s
     assert fail_snap.status == "FAILURE"
     assert fail_snap.result is None
     assert fail_snap.error == "Document processing failed"
+
+
+def test_process_document_task_reports_no_text_extracted_for_empty_pdf(tmp_path: Path) -> None:
+    """Metin katmanı olmayan PDF sahte 'processed' yerine 'no_text_extracted' dönmelidir."""
+    import pymupdf
+
+    empty_pdf = tmp_path / "scanned_empty.pdf"
+    with pymupdf.open() as doc:
+        doc.new_page()
+        doc.save(empty_pdf)
+
+    result = process_document_task(
+        document_id="doc-empty-pdf",
+        file_path=str(empty_pdf),
+        tenant_id="tenant-a",
+        file_type="pdf",
+    )
+
+    assert result["file_exists"] is True
+    assert result["page_count"] == 1
+    assert result["chunk_count"] == 0
+    assert result["upserted_count"] == 0
+    assert result["status"] == "no_text_extracted"
+    assert not empty_pdf.exists()

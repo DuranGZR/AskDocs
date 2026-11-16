@@ -7,6 +7,10 @@
   const STORAGE_TENANTS_LIST_KEY = "corerag.savedTenants";
   const STORAGE_API_KEY = "corerag.apiKey";
   const POLL_INTERVAL_MS = 900;
+  const MAX_CONCURRENT_UPLOADS = 2;
+  const MAX_HISTORY_MESSAGES = 10;
+  const HEALTH_POLL_INTERVAL_MS = 30000;
+  const HEALTH_MIN_REFRESH_GAP_MS = 5000;
 
   const initialTenant = loadInitialTenant();
   const state = {
@@ -17,12 +21,18 @@
     documents: [],
     docNameById: new Map(),
     uploads: new Map(),
+    uploadQueue: [],
+    activeUploadCount: 0,
     confirmDeleteId: null,
     confirmTimerId: null,
     isStreaming: false,
     streamController: null,
     hasMessages: false,
+    chatHistory: [],
     healthStatus: "ok",
+    openCircuits: [],
+    lastHealthCheckAt: 0,
+    healthPollTimerId: null,
     dragCounter: 0,
   };
 
@@ -159,6 +169,8 @@
       state.apiKeyVerified = false;
       updateApiKeyButtonState();
       openApiKeyModal("Geçerli bir API anahtarı girilmeden işlem yapılamaz.");
+    } else if (response.status === 503) {
+      void scheduleHealthRefresh();
     } else if (response.ok) {
       state.apiKeyVerified = true;
       updateApiKeyButtonState();
@@ -305,38 +317,89 @@
 
   function updateSystemStatus() {
     const activeUploads = Array.from(state.uploads.values()).filter(
-      (item) => item.state === "uploading" || item.state === "indexing"
+      (item) =>
+        item.state === "queued" || item.state === "uploading" || item.state === "indexing"
     );
+    const statusPill = dom.statusText.parentElement;
 
     dom.statusDot.classList.remove("is-ready", "is-busy", "is-degraded");
     if (state.isStreaming) {
       dom.statusDot.classList.add("is-busy");
       dom.statusText.textContent = "Yanıt Yazılıyor";
+      if (statusPill) {
+        statusPill.title = "Yanıt akışı aktif";
+      }
     } else if (activeUploads.length > 0) {
       dom.statusDot.classList.add("is-busy");
       dom.statusText.textContent = "Doküman İşleniyor";
+      if (statusPill) {
+        statusPill.title = "Aktif doküman indeksleme işlemi sürüyor";
+      }
+    } else if (state.openCircuits.length > 0) {
+      dom.statusDot.classList.add("is-degraded");
+      const circuitsLabel = state.openCircuits.join(", ");
+      dom.statusText.textContent = `Devre Açık (${circuitsLabel})`;
+      if (statusPill) {
+        statusPill.title = `Açık devre kesiciler: ${circuitsLabel}`;
+      }
     } else if (state.healthStatus !== "ok") {
       dom.statusDot.classList.add("is-degraded");
       dom.statusText.textContent = "Sistem Kısıtlı";
+      if (statusPill) {
+        statusPill.title = "Bağımlılık sağlık kontrolü kısıtlı";
+      }
     } else {
       dom.statusDot.classList.add("is-ready");
       dom.statusText.textContent = "Sistem Hazır";
+      if (statusPill) {
+        statusPill.title = "Tüm servisler ve devre kesiciler sağlıklı";
+      }
     }
   }
 
   async function checkHealth() {
+    state.lastHealthCheckAt = Date.now();
     try {
       const response = await fetch("/api/v1/health");
-      if (!response.ok) {
-        state.healthStatus = "degraded";
-      } else {
-        const data = await response.json();
-        state.healthStatus = data.status === "ok" ? "ok" : "degraded";
+      let data = null;
+      try {
+        data = await response.json();
+      } catch {
+        data = null;
       }
+      const circuits =
+        data && typeof data.circuits === "object" && data.circuits !== null ? data.circuits : {};
+      state.openCircuits = Object.entries(circuits)
+        .filter(([, value]) => value === "open")
+        .map(([name]) => name);
+      const hasHalfOpen = Object.values(circuits).some((value) => value === "half_open");
+      state.healthStatus =
+        response.ok && data?.status === "ok" && state.openCircuits.length === 0 && !hasHalfOpen
+          ? "ok"
+          : "degraded";
     } catch {
       state.healthStatus = "degraded";
+      state.openCircuits = [];
     }
     updateSystemStatus();
+  }
+
+  async function scheduleHealthRefresh() {
+    if (Date.now() - state.lastHealthCheckAt < HEALTH_MIN_REFRESH_GAP_MS) {
+      return;
+    }
+    await checkHealth();
+  }
+
+  function startHealthPolling() {
+    if (state.healthPollTimerId) {
+      window.clearInterval(state.healthPollTimerId);
+    }
+    state.healthPollTimerId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void checkHealth();
+      }
+    }, HEALTH_POLL_INTERVAL_MS);
   }
 
   async function fetchDocuments() {
@@ -410,7 +473,9 @@
   function renderDocumentList() {
     dom.docList.replaceChildren();
 
-    const uploadItems = Array.from(state.uploads.values());
+    const uploadItems = Array.from(state.uploads.values()).filter(
+      (job) => job.tenantId === state.tenantId
+    );
     for (const job of uploadItems) {
       dom.docList.appendChild(buildUploadRow(job));
     }
@@ -647,31 +712,59 @@
     }
 
     for (const file of accepted) {
-      startFileUpload(file);
+      enqueueFileUpload(file);
     }
+    pumpUploadQueue();
   }
 
-  function startFileUpload(file) {
+  function enqueueFileUpload(file) {
     const localId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     const ext = file.name.toLowerCase().endsWith(".txt") ? "txt" : "pdf";
     const job = {
       localId,
+      tenantId: state.tenantId,
+      file,
       filename: file.name,
       fileType: ext,
-      progress: 8,
-      phaseText: "Yükleniyor • %8",
-      state: "uploading",
+      progress: 4,
+      phaseText: "Sırada bekliyor...",
+      state: "queued",
       isIndeterminate: false,
       documentId: null,
       taskId: null,
     };
     state.uploads.set(localId, job);
+    state.uploadQueue.push(localId);
+    renderDocumentList();
+    updateSystemStatus();
+  }
+
+  function pumpUploadQueue() {
+    while (state.activeUploadCount < MAX_CONCURRENT_UPLOADS && state.uploadQueue.length > 0) {
+      const nextId = state.uploadQueue.shift();
+      if (!nextId) {
+        continue;
+      }
+      const job = state.uploads.get(nextId);
+      if (!job || job.state !== "queued") {
+        continue;
+      }
+      executeFileUpload(job);
+    }
+  }
+
+  function executeFileUpload(job) {
+    const localId = job.localId;
+    state.activeUploadCount += 1;
+    job.state = "uploading";
+    job.progress = 8;
+    job.phaseText = "Yükleniyor • %8";
     renderDocumentList();
     updateSystemStatus();
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("tenant_id", state.tenantId);
+    formData.append("file", job.file);
+    formData.append("tenant_id", job.tenantId);
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/v1/documents/upload", true);
@@ -687,6 +780,12 @@
         job.phaseText = `Yükleniyor • %${pct}`;
         renderDocumentList();
       }
+    };
+
+    const releaseSlot = () => {
+      state.activeUploadCount = Math.max(0, state.activeUploadCount - 1);
+      job.file = null;
+      pumpUploadQueue();
     };
 
     xhr.onload = () => {
@@ -708,6 +807,7 @@
         job.isIndeterminate = true;
         renderDocumentList();
         updateSystemStatus();
+        releaseSlot();
         pollTaskStatus(localId);
         return;
       }
@@ -726,10 +826,14 @@
           : "Hız sınırı aşıldı";
         showToast(job.phaseText, true);
       } else {
+        if (xhr.status === 503) {
+          void scheduleHealthRefresh();
+        }
         job.phaseText = parsed?.error?.message || `Yükleme başarısız (${xhr.status})`;
       }
       renderDocumentList();
       updateSystemStatus();
+      releaseSlot();
     };
 
     xhr.onerror = () => {
@@ -738,9 +842,17 @@
       job.phaseText = "Ağ bağlantısı hatası";
       renderDocumentList();
       updateSystemStatus();
+      releaseSlot();
     };
 
     xhr.send(formData);
+  }
+
+  function computeAdaptivePollDelayMs() {
+    const activeIndexing = Array.from(state.uploads.values()).filter(
+      (item) => item.state === "indexing"
+    ).length;
+    return Math.min(3500, POLL_INTERVAL_MS * Math.max(1, activeIndexing));
   }
 
   async function pollTaskStatus(localId) {
@@ -749,10 +861,35 @@
       return;
     }
 
+    let nextDelayMs = computeAdaptivePollDelayMs();
     try {
       const response = await apiFetch(
         `/api/v1/documents/status/${encodeURIComponent(job.taskId)}`
       );
+      if (response.status === 401) {
+        job.state = "error";
+        job.isIndeterminate = false;
+        job.phaseText = "API anahtarı doğrulanamadı";
+        renderDocumentList();
+        updateSystemStatus();
+        return;
+      }
+      if (response.status === 400 || response.status === 404 || response.status === 422) {
+        job.state = "error";
+        job.isIndeterminate = false;
+        job.phaseText = "Görev takibi sonlandırıldı";
+        renderDocumentList();
+        updateSystemStatus();
+        return;
+      }
+      if (response.status === 429) {
+        const retryAfter = Number(response.headers.get("Retry-After")) || 5;
+        const waitSec = Math.max(2, retryAfter);
+        job.phaseText = `Hız sınırı bekleniyor (${waitSec} sn)...`;
+        renderDocumentList();
+        window.setTimeout(() => pollTaskStatus(localId), waitSec * 1000);
+        return;
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -760,6 +897,7 @@
 
       if (snapshot.status === "SUCCESS") {
         const resultStatus = snapshot.result?.status;
+        const chunkCount = snapshot.result?.chunk_count;
         if (resultStatus === "missing_file") {
           job.state = "error";
           job.isIndeterminate = false;
@@ -768,13 +906,24 @@
           updateSystemStatus();
           return;
         }
+        if (resultStatus === "no_text_extracted" || chunkCount === 0) {
+          job.state = "error";
+          job.isIndeterminate = false;
+          job.phaseText = "Metin çıkarılamadı (taranmış veya boş belge)";
+          renderDocumentList();
+          updateSystemStatus();
+          showToast(`"${job.filename}" içinde çıkarılabilir metin bulunamadı`, true);
+          return;
+        }
 
         job.progress = 100;
         job.isIndeterminate = false;
         job.phaseText = "Hazır • %100";
         renderDocumentList();
 
-        await fetchDocuments();
+        if (job.tenantId === state.tenantId) {
+          await fetchDocuments();
+        }
         window.setTimeout(() => {
           state.uploads.delete(localId);
           renderDocumentList();
@@ -806,10 +955,11 @@
       renderDocumentList();
     } catch {
       job.phaseText = "Durum bekleniyor...";
+      nextDelayMs = Math.min(5000, Math.round(nextDelayMs * 1.5));
       renderDocumentList();
     }
 
-    window.setTimeout(() => pollTaskStatus(localId), POLL_INTERVAL_MS);
+    window.setTimeout(() => pollTaskStatus(localId), nextDelayMs);
   }
 
   /* ================= GÜVENLİ MARKDOWN & SOHBET ================= */
@@ -823,10 +973,42 @@
       .replaceAll("'", "&#39;");
   }
 
+  const INLINE_CITATION_BLOCK_RE =
+    /(\s*)\[((?:Source|Kaynak)\s*\d+(?:\s*,\s*(?:(?:Source|Kaynak)\s*)?\d+)*)\](\s*([.,;:!?]))?/gi;
+  const INLINE_LATEX_SYMBOL_RE = /\$([A-Za-z][A-Za-z0-9_]{0,12})\$/g;
+
+  function renderInlineCitationsHtml(blockContent) {
+    const nums = blockContent.match(/\d+/g) || [];
+    const seen = new Set();
+    const badges = [];
+    for (const rawNum of nums) {
+      const num = Number.parseInt(rawNum, 10);
+      if (!Number.isFinite(num) || num < 1 || seen.has(num)) {
+        continue;
+      }
+      seen.add(num);
+      badges.push(
+        `<button type="button" class="inline-citation-badge" data-citation-index="${num - 1}" title="${num}. kaynağa git">${num}</button>`
+      );
+    }
+    if (badges.length === 0) {
+      return "";
+    }
+    return `<span class="inline-citation-group">${badges.join("")}</span>`;
+  }
+
   function formatInlineMarkdown(escapedLine) {
     return escapedLine
+      .replace(INLINE_LATEX_SYMBOL_RE, "$1")
       .replace(/`([^`]+)`/g, "<code>$1</code>")
-      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(INLINE_CITATION_BLOCK_RE, (fullMatch, _leadingWs, inner, _tWs, trailingPunct) => {
+        const groupHtml = renderInlineCitationsHtml(inner);
+        if (!groupHtml) {
+          return fullMatch;
+        }
+        return trailingPunct ? `${trailingPunct}${groupHtml}` : groupHtml;
+      });
   }
 
   function renderSafeMarkdown(text) {
@@ -902,6 +1084,7 @@
     }
     dom.messagesList.replaceChildren();
     state.hasMessages = false;
+    state.chatHistory = [];
     dom.emptyState.classList.remove("hidden");
     dom.clearChatBtn.classList.add("hidden");
     dom.queryInput.focus();
@@ -1034,6 +1217,43 @@
     return svg;
   }
 
+  function groupCitationsByPage(citations) {
+    const groups = [];
+    const groupByKey = new Map();
+
+    citations.forEach((cit, idx) => {
+      const filename = resolveCitationFilename(cit);
+      const pageNum = Number(cit.page_number) || 1;
+      const scorePct = Math.round((Number(cit.score) || 0) * 100);
+      const sourceNum = idx + 1;
+      const key = `${cit.document_id || filename}::${pageNum}`;
+
+      let group = groupByKey.get(key);
+      if (!group) {
+        group = {
+          key,
+          filename,
+          pageNum,
+          bestScorePct: scorePct,
+          entries: [],
+        };
+        groupByKey.set(key, group);
+        groups.push(group);
+      } else if (scorePct > group.bestScorePct) {
+        group.bestScorePct = scorePct;
+      }
+
+      group.entries.push({
+        index: idx,
+        sourceNum,
+        scorePct,
+        text: cit.text || "",
+      });
+    });
+
+    return groups;
+  }
+
   function renderCitations(citationsWrap, citations) {
     citationsWrap.replaceChildren();
     citationsWrap.classList.remove("hidden");
@@ -1043,23 +1263,71 @@
       note.className = "no-citations-note";
       note.textContent = "Yüklü dokümanlarda eşik üzerinde eşleşen kaynak bulunamadı.";
       citationsWrap.appendChild(note);
-      return;
+      return null;
     }
 
+    const groups = groupCitationsByPage(citations);
     const pillsCol = document.createElement("div");
     pillsCol.className = "citations-pills";
 
     const quoteBox = document.createElement("div");
     quoteBox.className = "citation-quote-card hidden";
 
-    let activeIndex = -1;
+    let activeGroupKey = null;
+    const pillByGroupKey = new Map();
+    const groupByCitationIndex = new Map();
 
-    citations.forEach((cit, idx) => {
-      const sourceNum = idx + 1;
-      const filename = resolveCitationFilename(cit);
-      const scorePct = Math.round((Number(cit.score) || 0) * 100);
-      const pageNum = Number(cit.page_number) || 1;
+    const openGroup = (group, focusCitationIndex = null) => {
+      const isSameToggle =
+        focusCitationIndex === null && activeGroupKey === group.key;
+      const allPills = pillsCol.querySelectorAll(".citation-pill");
+      allPills.forEach((btn) => btn.classList.remove("is-active"));
 
+      if (isSameToggle) {
+        activeGroupKey = null;
+        quoteBox.classList.add("hidden");
+        return;
+      }
+
+      const activePill = pillByGroupKey.get(group.key);
+      if (activePill) {
+        activePill.classList.add("is-active");
+      }
+      activeGroupKey = group.key;
+      quoteBox.replaceChildren();
+
+      group.entries.forEach((entry, entryPos) => {
+        const snippetWrap = document.createElement("div");
+        const isHighlighted =
+          focusCitationIndex !== null && entry.index === focusCitationIndex;
+        snippetWrap.className = isHighlighted
+          ? "citation-quote-entry is-highlighted"
+          : "citation-quote-entry";
+        if (entryPos > 0) {
+          snippetWrap.classList.add("has-divider");
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "citation-quote-meta";
+        const leftMeta = document.createElement("span");
+        leftMeta.textContent = `[Kaynak ${entry.sourceNum}] ${group.filename} — Sayfa ${group.pageNum}`;
+        const rightMeta = document.createElement("span");
+        rightMeta.textContent = `Benzerlik: %${entry.scorePct}`;
+        meta.append(leftMeta, rightMeta);
+
+        const body = document.createElement("p");
+        body.className = "citation-quote-body";
+        body.textContent = entry.text;
+
+        snippetWrap.append(meta, body);
+        quoteBox.appendChild(snippetWrap);
+      });
+
+      quoteBox.classList.remove("hidden");
+      quoteBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+
+    groups.forEach((group) => {
       const pill = document.createElement("button");
       pill.type = "button";
       pill.className = "citation-pill";
@@ -1067,51 +1335,46 @@
 
       const numBadge = document.createElement("span");
       numBadge.className = "citation-source-num";
-      numBadge.textContent = `[${sourceNum}]`;
+      const numsLabel = group.entries.map((entry) => entry.sourceNum).join(", ");
+      numBadge.textContent = `[${numsLabel}]`;
       pill.appendChild(numBadge);
 
       const label = document.createElement("span");
       label.className = "citation-pill-text";
-      label.textContent = `${filename} • Sayfa ${pageNum} • %${scorePct} eşleşme`;
+      const countSuffix =
+        group.entries.length > 1 ? ` • ${group.entries.length} alıntı` : "";
+      label.textContent = `${group.filename} • Sayfa ${group.pageNum}${countSuffix} • %${group.bestScorePct}`;
       pill.appendChild(label);
 
-      pill.addEventListener("click", () => {
-        const allPills = pillsCol.querySelectorAll(".citation-pill");
-        if (activeIndex === idx) {
-          activeIndex = -1;
-          pill.classList.remove("is-active");
-          quoteBox.classList.add("hidden");
-          return;
-        }
-
-        allPills.forEach((btn) => btn.classList.remove("is-active"));
-        pill.classList.add("is-active");
-        activeIndex = idx;
-
-        quoteBox.replaceChildren();
-        const meta = document.createElement("div");
-        meta.className = "citation-quote-meta";
-
-        const leftMeta = document.createElement("span");
-        leftMeta.textContent = `[Kaynak ${sourceNum}] ${filename} — Sayfa ${pageNum}`;
-        const rightMeta = document.createElement("span");
-        rightMeta.textContent = `Benzerlik: %${scorePct}`;
-        meta.append(leftMeta, rightMeta);
-
-        const body = document.createElement("p");
-        body.className = "citation-quote-body";
-        body.textContent = cit.text || "";
-
-        quoteBox.append(meta, body);
-        quoteBox.classList.remove("hidden");
-        quoteBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      pill.addEventListener("click", () => openGroup(group, null));
+      pillByGroupKey.set(group.key, pill);
+      group.entries.forEach((entry) => {
+        groupByCitationIndex.set(entry.index, group);
       });
-
       pillsCol.appendChild(pill);
     });
 
     citationsWrap.append(pillsCol, quoteBox);
     scrollChatToBottomIfNearBottom(false);
+
+    return (citationIndex) => {
+      const group = groupByCitationIndex.get(citationIndex);
+      if (group) {
+        openGroup(group, citationIndex);
+      }
+    };
+  }
+
+  function wireInlineCitationBadges(bodyEl, citations, openCitationByIndex) {
+    const badges = bodyEl.querySelectorAll(".inline-citation-badge");
+    badges.forEach((badge) => {
+      const idx = Number.parseInt(badge.getAttribute("data-citation-index") || "", 10);
+      if (!openCitationByIndex || !Number.isFinite(idx) || idx < 0 || idx >= citations.length) {
+        badge.disabled = true;
+        return;
+      }
+      badge.addEventListener("click", () => openCitationByIndex(idx));
+    });
   }
 
   async function submitQuery(rawQuery) {
@@ -1138,6 +1401,7 @@
     let answerText = "";
     let citations = [];
     let streamErrorMessage = "";
+    const historySnapshot = state.chatHistory.slice(-MAX_HISTORY_MESSAGES);
 
     try {
       const response = await apiFetch("/api/v1/query/stream", {
@@ -1146,6 +1410,7 @@
         body: JSON.stringify({
           query,
           tenant_id: state.tenantId,
+          history: historySnapshot,
           stream: true,
         }),
         signal: controller.signal,
@@ -1159,6 +1424,29 @@
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
 
+      const processSseFrame = (frameText) => {
+        if (!frameText.trim()) {
+          return;
+        }
+        const parsed = parseSseFrame(frameText);
+        if (!parsed) {
+          return;
+        }
+        if (parsed.event === "token") {
+          const payload = JSON.parse(parsed.data);
+          if (payload.delta) {
+            answerText += payload.delta;
+            updateAssistantText(turn.body, answerText, true);
+          }
+        } else if (parsed.event === "citations") {
+          const payload = JSON.parse(parsed.data);
+          citations = Array.isArray(payload.citations) ? payload.citations : [];
+        } else if (parsed.event === "error") {
+          const payload = JSON.parse(parsed.data);
+          streamErrorMessage = payload.message || "Yanıt akışı sırasında hata oluştu.";
+        }
+      };
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) {
@@ -1170,36 +1458,12 @@
         buffer = frames.pop() ?? "";
 
         for (const frame of frames) {
-          if (!frame.trim()) {
-            continue;
-          }
-          const parsed = parseSseFrame(frame);
-          if (!parsed) {
-            continue;
-          }
-
-          if (parsed.event === "token") {
-            const payload = JSON.parse(parsed.data);
-            if (payload.delta) {
-              answerText += payload.delta;
-              updateAssistantText(turn.body, answerText, true);
-            }
-          } else if (parsed.event === "citations") {
-            const payload = JSON.parse(parsed.data);
-            citations = Array.isArray(payload.citations) ? payload.citations : [];
-          } else if (parsed.event === "error") {
-            const payload = JSON.parse(parsed.data);
-            streamErrorMessage = payload.message || "Yanıt akışı sırasında hata oluştu.";
-          }
+          processSseFrame(frame);
         }
       }
 
       if (buffer.trim()) {
-        const trailing = parseSseFrame(buffer);
-        if (trailing?.event === "citations") {
-          const payload = JSON.parse(trailing.data);
-          citations = Array.isArray(payload.citations) ? payload.citations : [];
-        }
+        processSseFrame(buffer);
       }
 
       if (streamErrorMessage) {
@@ -1213,12 +1477,18 @@
         errBox.textContent = streamErrorMessage;
         turn.body.appendChild(errBox);
       } else {
-        updateAssistantText(
-          turn.body,
-          answerText || "Yüklü dokümanlarda bu soruya ilişkin bir yanıt üretilemedi.",
-          false
-        );
-        renderCitations(turn.citationsWrap, citations);
+        const finalAnswer =
+          answerText || "Yüklü dokümanlarda bu soruya ilişkin bir yanıt üretilemedi.";
+        updateAssistantText(turn.body, finalAnswer, false);
+        const openCitationByIndex = renderCitations(turn.citationsWrap, citations);
+        wireInlineCitationBadges(turn.body, citations, openCitationByIndex);
+        if (answerText) {
+          state.chatHistory = [
+            ...state.chatHistory,
+            { role: "user", content: query },
+            { role: "assistant", content: answerText },
+          ].slice(-MAX_HISTORY_MESSAGES);
+        }
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -1487,6 +1757,11 @@
     dom.mobileOpenBtn.addEventListener("click", openMobileSidebar);
     dom.mobileCloseBtn.addEventListener("click", closeMobileSidebar);
     dom.sidebarBackdrop.addEventListener("click", closeMobileSidebar);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        void scheduleHealthRefresh();
+      }
+    });
   }
 
   function init() {
@@ -1495,6 +1770,7 @@
     renderWorkspaceList();
     renderSummaryTexts();
     checkHealth();
+    startHealthPolling();
     if (state.apiKey) {
       fetchKnownTenants();
       fetchDocuments();

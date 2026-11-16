@@ -122,6 +122,7 @@ async def _run_cli(args: argparse.Namespace) -> int:
             use_llm_judge=args.llm_judge,
             sweep_thresholds=thresholds,
             delay_seconds=args.delay_seconds,
+            embedding_batch_size=settings.EMBEDDING_BATCH_SIZE,
             langfuse_client=langfuse_client,
         )
     finally:

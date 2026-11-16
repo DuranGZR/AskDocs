@@ -51,6 +51,7 @@ async def test_upload_valid_txt_writes_uuid_file_without_path_traversal(
     assert task_dispatcher.calls[0]["document_id"] == body["document_id"]
     assert task_dispatcher.calls[0]["tenant_id"] == "acme_corp"
     assert task_dispatcher.calls[0]["file_type"] == "txt"
+    assert task_dispatcher.calls[0]["filename"] == "notes.txt"
     assert task_dispatcher.calls[0]["request_id"] == response.headers["x-request-id"]
 
 
@@ -75,6 +76,7 @@ async def test_upload_valid_pdf_passes_magic_bytes_and_propagates_request_id(
     assert body["task_id"] == f"test-task-{body['document_id']}"
     assert len(list(test_settings.UPLOAD_DIR.iterdir())) == 1
     assert len(task_dispatcher.calls) == 1
+    assert task_dispatcher.calls[0]["filename"] == "report.pdf"
     assert task_dispatcher.calls[0]["request_id"] == "upload-pdf-01"
 
 
@@ -130,6 +132,7 @@ async def test_upload_cleans_up_stored_file_and_returns_503_when_queue_fails(
             tenant_id: str,
             file_type: str,
             request_id: str,
+            filename: str = "",
         ) -> str:
             raise RuntimeError("broker unreachable")
 
@@ -226,6 +229,7 @@ async def test_get_document_task_status_returns_503_when_backend_fails(
             tenant_id: str,
             file_type: str,
             request_id: str,
+            filename: str = "",
         ) -> str:
             return f"task-{document_id}"
 

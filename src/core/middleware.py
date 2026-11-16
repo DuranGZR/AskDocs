@@ -163,3 +163,30 @@ class UnhandledExceptionMiddleware:
             request = Request(scope, receive)
             response = await unhandled_exception_handler(request, exc)
             await response(scope, receive, send)
+
+
+class SecurityHeadersMiddleware:
+    """Tüm HTTP yanıtlarına temel güvenlik başlıklarını ve UI dosyalarına no-cache ekler."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = str(scope.get("path", ""))
+        is_ui_asset = path == "/" or path.startswith("/static/")
+
+        async def send_wrapper(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers.setdefault("X-Content-Type-Options", "nosniff")
+                headers.setdefault("X-Frame-Options", "DENY")
+                headers.setdefault("Referrer-Policy", "no-referrer")
+                if is_ui_asset:
+                    headers.setdefault("Cache-Control", "no-cache")
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

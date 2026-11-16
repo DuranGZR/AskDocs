@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import math
 import re
 import time
 from collections.abc import AsyncIterator, Sequence
@@ -9,16 +10,23 @@ from typing import Any
 import httpx
 
 from src.core.circuit_breaker import CircuitBreaker, SyncCircuitBreaker
-from src.core.exceptions import ServiceUnavailableError
+from src.core.exceptions import AppError, ServiceUnavailableError
 from src.services.base import BaseLLMClient, ChatMessage, SyncBaseLLMClient
 
 logger = logging.getLogger(__name__)
 
 _MAX_RATE_LIMIT_RETRIES = 3
+_CHAT_MAX_RATE_LIMIT_RETRIES = 2
+_CHAT_MAX_RETRY_WAIT_SECONDS = 10.0
 _RETRY_IN_PATTERN = re.compile(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
 
 
-def _extract_retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
+def _extract_retry_delay_seconds(
+    response: httpx.Response,
+    attempt: int,
+    *,
+    fallback_base_seconds: float = 15.0,
+) -> float:
     """HTTP 429 yanıtındaki Retry-After veya mesaj ipucundan bekleme süresini hesaplar."""
     retry_after = response.headers.get("retry-after")
     if retry_after is not None:
@@ -31,7 +39,7 @@ def _extract_retry_delay_seconds(response: httpx.Response, attempt: int) -> floa
     if match:
         return min(65.0, max(1.0, float(match.group(1)) + 1.5))
 
-    return float(min(60.0, 15.0 * (2**attempt)))
+    return float(min(60.0, fallback_base_seconds * (2**attempt)))
 
 
 def _build_headers(api_key: str) -> dict[str, str]:
@@ -174,37 +182,67 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
             return await self._circuit_breaker.call(self._embed_texts_once, texts)
         return await self._embed_texts_once(texts)
 
-    async def _embed_texts_once(self, texts: Sequence[str]) -> list[list[float]]:
-        payload: Any = None
+    async def _post_json_with_retry(
+        self,
+        *,
+        endpoint: str,
+        request_body: dict[str, Any],
+        operation_label: str,
+        max_retries: int,
+        max_wait_seconds: float | None,
+        fallback_base_seconds: float,
+    ) -> Any:
+        """OpenAI-uyumlu JSON uçlarına 429 hız sınırı yeniden denemeli POST isteği gönderir."""
         try:
-            for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+            for attempt in range(max_retries + 1):
                 response = await self._client.post(
-                    f"{self._base_url}/embeddings",
+                    f"{self._base_url}{endpoint}",
                     headers=self._headers,
-                    json={
-                        "model": self._embedding_model,
-                        "input": list(texts),
-                    },
+                    json=request_body,
                 )
-                if response.status_code == 429 and attempt < _MAX_RATE_LIMIT_RETRIES:
-                    delay = _extract_retry_delay_seconds(response, attempt)
-                    logger.warning(
-                        "Embedding rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
-                        delay,
-                        attempt + 1,
-                        _MAX_RATE_LIMIT_RETRIES,
+                if response.status_code == 429:
+                    delay = _extract_retry_delay_seconds(
+                        response,
+                        attempt,
+                        fallback_base_seconds=fallback_base_seconds,
                     )
-                    await asyncio.sleep(delay)
-                    continue
+                    within_budget = max_wait_seconds is None or delay <= max_wait_seconds
+                    if attempt < max_retries and within_budget:
+                        logger.warning(
+                            "%s rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
+                            operation_label,
+                            delay,
+                            attempt + 1,
+                            max_retries,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    raise ServiceUnavailableError(
+                        "AI inference service rate limit exceeded.",
+                        headers={"Retry-After": str(max(1, math.ceil(delay)))},
+                    )
                 response.raise_for_status()
-                payload = response.json()
-                break
+                return response.json()
+        except AppError:
+            raise
         except httpx.HTTPError as exc:
-            logger.error("Embedding request to AI server failed: %s", exc)
+            logger.error("%s request to AI server failed: %s", operation_label, exc)
             raise ServiceUnavailableError("AI inference service is currently unavailable.") from exc
         except ValueError as exc:
             raise ServiceUnavailableError("Invalid JSON received from AI server.") from exc
 
+    async def _embed_texts_once(self, texts: Sequence[str]) -> list[list[float]]:
+        payload = await self._post_json_with_retry(
+            endpoint="/embeddings",
+            request_body={
+                "model": self._embedding_model,
+                "input": list(texts),
+            },
+            operation_label="Embedding",
+            max_retries=_MAX_RATE_LIMIT_RETRIES,
+            max_wait_seconds=None,
+            fallback_base_seconds=15.0,
+        )
         return _parse_embeddings_payload(payload, expected_count=len(texts))
 
     async def generate(
@@ -244,20 +282,14 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         if max_tokens is not None:
             request_body["max_tokens"] = max_tokens
 
-        try:
-            response = await self._client.post(
-                f"{self._base_url}/chat/completions",
-                headers=self._headers,
-                json=request_body,
-            )
-            response.raise_for_status()
-            payload = response.json()
-        except httpx.HTTPError as exc:
-            logger.error("Chat completion request to AI server failed: %s", exc)
-            raise ServiceUnavailableError("AI inference service is currently unavailable.") from exc
-        except ValueError as exc:
-            raise ServiceUnavailableError("Invalid JSON received from AI server.") from exc
-
+        payload = await self._post_json_with_retry(
+            endpoint="/chat/completions",
+            request_body=request_body,
+            operation_label="Chat completion",
+            max_retries=_CHAT_MAX_RATE_LIMIT_RETRIES,
+            max_wait_seconds=_CHAT_MAX_RETRY_WAIT_SECONDS,
+            fallback_base_seconds=1.5,
+        )
         return _parse_chat_completion_payload(payload)
 
     async def stream_generate(
@@ -303,19 +335,51 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
             request_body["max_tokens"] = max_tokens
 
         try:
-            async with self._client.stream(
-                "POST",
-                f"{self._base_url}/chat/completions",
-                headers=self._headers,
-                json=request_body,
-            ) as response:
-                response.raise_for_status()
-                async for raw_line in response.aiter_lines():
-                    is_done, token = _extract_sse_delta(raw_line)
-                    if is_done:
-                        break
-                    if token:
-                        yield token
+            for attempt in range(_CHAT_MAX_RATE_LIMIT_RETRIES + 1):
+                pending_retry_delay: float | None = None
+                async with self._client.stream(
+                    "POST",
+                    f"{self._base_url}/chat/completions",
+                    headers=self._headers,
+                    json=request_body,
+                ) as response:
+                    if response.status_code == 429:
+                        await response.aread()
+                        delay = _extract_retry_delay_seconds(
+                            response,
+                            attempt,
+                            fallback_base_seconds=1.5,
+                        )
+                        if (
+                            attempt < _CHAT_MAX_RATE_LIMIT_RETRIES
+                            and delay <= _CHAT_MAX_RETRY_WAIT_SECONDS
+                        ):
+                            pending_retry_delay = delay
+                        else:
+                            raise ServiceUnavailableError(
+                                "AI inference service rate limit exceeded.",
+                                headers={"Retry-After": str(max(1, math.ceil(delay)))},
+                            )
+                    else:
+                        response.raise_for_status()
+                        async for raw_line in response.aiter_lines():
+                            is_done, token = _extract_sse_delta(raw_line)
+                            if is_done:
+                                break
+                            if token:
+                                yield token
+                        return
+
+                if pending_retry_delay is not None:
+                    logger.warning(
+                        "Streaming chat rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
+                        pending_retry_delay,
+                        attempt + 1,
+                        _CHAT_MAX_RATE_LIMIT_RETRIES,
+                    )
+                    await asyncio.sleep(pending_retry_delay)
+        except AppError:
+            raise
         except httpx.HTTPError as exc:
             logger.error("Streaming chat request to AI server failed: %s", exc)
             raise ServiceUnavailableError("AI inference service is currently unavailable.") from exc

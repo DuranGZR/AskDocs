@@ -1,8 +1,10 @@
 from celery import Celery
 from celery.signals import setup_logging as celery_setup_logging
+from celery.signals import worker_process_shutdown, worker_shutdown
 
 from src.core.config import get_settings
 from src.core.logging import setup_logging
+from src.core.observability import shutdown_observability
 
 
 def create_celery_app() -> Celery:
@@ -47,6 +49,13 @@ def configure_celery_logging(**kwargs: object) -> None:
     """Celery root logger ezmesini önleyip proje log formatını uygular."""
     settings = get_settings()
     setup_logging(log_level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
+
+
+@worker_process_shutdown.connect
+@worker_shutdown.connect
+def shutdown_celery_observability(**kwargs: object) -> None:
+    """Worker alt süreci veya ana worker kapanırken bekleyen Langfuse izlerini gönderir."""
+    shutdown_observability()
 
 
 celery_app = create_celery_app()

@@ -57,6 +57,8 @@ class Settings(BaseSettings):
     QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
     RAG_TOP_K: int = Field(default=5, ge=1, le=20)
     RAG_SCORE_THRESHOLD: float = Field(default=0.7, ge=0.0, le=1.0)
+    RAG_FALLBACK_SCORE_THRESHOLD: float = Field(default=0.58, ge=0.0, le=1.0)
+    RAG_MAX_HISTORY_MESSAGES: int = Field(default=10, ge=0, le=20)
 
     # --- AI / LLM & Embedding (Ollama / vLLM / OpenAI-Compatible) ---
     LLM_BASE_URL: str = "http://localhost:11434/v1"
@@ -154,6 +156,8 @@ class Settings(BaseSettings):
             raise ValueError("DEBUG must be False in production")
         if self.CHUNK_OVERLAP >= self.CHUNK_SIZE:
             raise ValueError("CHUNK_OVERLAP must be smaller than CHUNK_SIZE")
+        if self.RAG_FALLBACK_SCORE_THRESHOLD > self.RAG_SCORE_THRESHOLD:
+            raise ValueError("RAG_FALLBACK_SCORE_THRESHOLD cannot exceed RAG_SCORE_THRESHOLD")
         return self
 
 

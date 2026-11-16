@@ -15,6 +15,7 @@ from src.core.logging import setup_logging
 from src.core.middleware import (
     MaxBodySizeMiddleware,
     RequestIdMiddleware,
+    SecurityHeadersMiddleware,
     UnhandledExceptionMiddleware,
 )
 from src.core.observability import configure_observability, shutdown_observability
@@ -117,6 +118,7 @@ def create_app() -> FastAPI:
         max_body_bytes=settings.max_upload_size_bytes + 1024 * 1024,
     )
     app.add_middleware(UnhandledExceptionMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIdMiddleware)
 
     return app

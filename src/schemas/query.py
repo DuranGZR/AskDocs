@@ -5,6 +5,22 @@ from pydantic import BaseModel, Field, field_validator
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
 
 
+class ConversationMessage(BaseModel):
+    """Çok turlu sohbet geçmişindeki tekil kullanıcı veya asistan mesajı."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000)
+
+    @field_validator("content")
+    @classmethod
+    def validate_non_empty_content(cls, value: str) -> str:
+        """Boşluktan ibaret geçmiş mesajlarını reddeder."""
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("History message content must not be empty or whitespace only")
+        return cleaned
+
+
 class QueryRequest(BaseModel):
     """Semantik RAG soru sorma isteğinin doğrulama şeması."""
 
@@ -15,6 +31,11 @@ class QueryRequest(BaseModel):
         max_length=64,
         pattern=TENANT_ID_PATTERN,
         description="Tenant identifier for multi-tenant isolation",
+    )
+    history: list[ConversationMessage] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Recent conversation messages (sliding window)",
     )
     top_k: int | None = Field(
         default=None,

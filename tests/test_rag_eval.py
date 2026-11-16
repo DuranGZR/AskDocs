@@ -19,6 +19,7 @@ from src.services.base import (
     BaseVectorDB,
     ChatMessage,
     DocumentChunk,
+    IndexedDocumentSummary,
     ScoredChunk,
     VectorPoint,
 )
@@ -353,3 +354,85 @@ async def test_llm_judge_fallback_and_full_eval_pipeline_with_langfuse() -> None
         langfuse_client=broken_lf,
     )
     assert report_fail_open.total_questions == 2
+
+
+async def test_evaluate_rag_dataset_batches_embeddings_and_resolves_live_filenames() -> None:
+    """Embed çağrıları partilenmeli ve güncel doküman ID'si dosya adından çözülmelidir."""
+
+    class _BatchSpyLLMClient(_StubEvalLLMClient):
+        def __init__(self) -> None:
+            super().__init__()
+            self.embed_batch_sizes: list[int] = []
+
+        async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+            self.embed_batch_sizes.append(len(texts))
+            return await super().embed_texts(texts=texts)
+
+    class _ReuploadedVectorDB(_StubEvalVectorDB):
+        async def list_documents(self, *, tenant_id: str) -> list[IndexedDocumentSummary]:
+            return [
+                IndexedDocumentSummary(
+                    document_id="doc-hr-reuploaded-999",
+                    tenant_id=tenant_id,
+                    filename="hr.pdf",
+                    file_type="pdf",
+                    page_count=2,
+                    chunk_count=3,
+                )
+            ]
+
+        async def search(
+            self,
+            *,
+            query_vector: Sequence[float],
+            tenant_id: str,
+            top_k: int = 5,
+            score_threshold: float = 0.5,
+        ) -> list[ScoredChunk]:
+            del query_vector, top_k, score_threshold
+            chunk = DocumentChunk(
+                document_id="doc-hr-reuploaded-999",
+                tenant_id=tenant_id,
+                page_number=1,
+                chunk_index=0,
+                text="Haftalık çalışma süresi 40 saattir.",
+                file_type="pdf",
+                filename="hr.pdf",
+            )
+            return [ScoredChunk(point_id="p-live-1", score=0.92, chunk=chunk)]
+
+    dataset = GoldenDataset(
+        tenant_id="tenant-eval",
+        documents={"hr.pdf": "doc-hr-stale-001"},
+        items=[
+            GoldenEvalItem(
+                id=f"q{i}",
+                question=f"Haftalık çalışma süresi {i} nedir?",
+                answerable=True,
+                source_file="hr.pdf",
+                expected_pages=[1],
+                reference_answer="40 saattir",
+                expected_keywords=["40"],
+            )
+            for i in range(1, 6)
+        ],
+    )
+
+    llm_client = _BatchSpyLLMClient()
+    report = await evaluate_rag_dataset(
+        dataset=dataset,
+        llm_client=llm_client,
+        vector_db=_ReuploadedVectorDB(),
+        llm_model="stub-llm",
+        embedding_model="stub-emb",
+        top_k=3,
+        score_threshold=0.5,
+        sweep_thresholds=(0.5,),
+        embedding_batch_size=2,
+    )
+
+    assert llm_client.embed_batch_sizes == [2, 2, 1]
+    assert report.mean_recall_at_k == 1.0
+    assert report.mean_mrr == 1.0
+    assert all(res.expected_document_id == "doc-hr-reuploaded-999" for res in report.results)
+    assert dataset.items[0].expected_document_id == "doc-hr-stale-001"

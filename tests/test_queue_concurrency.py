@@ -46,6 +46,7 @@ class _QueuedWorkerDispatcher:
         tenant_id: str,
         file_type: str,
         request_id: str,
+        filename: str = "",
     ) -> str:
         await asyncio.sleep(0.005)
         task_id = f"queue-task-{document_id}"
@@ -58,6 +59,7 @@ class _QueuedWorkerDispatcher:
                 "tenant_id": tenant_id,
                 "file_type": file_type,
                 "request_id": request_id,
+                "filename": filename,
             }
         )
         return task_id
@@ -81,6 +83,7 @@ class _QueuedWorkerDispatcher:
                     "tenant_id": job["tenant_id"],
                     "file_type": job["file_type"],
                     "request_id": job["request_id"],
+                    "filename": job["filename"],
                 },
             )
             finished = time.perf_counter()

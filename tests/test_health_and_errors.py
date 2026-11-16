@@ -149,3 +149,27 @@ async def test_app_error_preserves_custom_headers(
     assert response.status_code == 401
     assert response.headers.get("www-authenticate") == "Bearer"
     assert response.json()["error"]["code"] == "unauthorized"
+
+
+async def test_security_headers_and_static_ui_cache_control(
+    client: httpx.AsyncClient,
+) -> None:
+    """API ve UI yanıtları güvenlik başlıkları taşımalı, UI varlıkları no-cache dönmelidir."""
+    health_resp = await client.get("/api/v1/health")
+    assert health_resp.status_code == 200
+    assert health_resp.headers.get("x-content-type-options") == "nosniff"
+    assert health_resp.headers.get("x-frame-options") == "DENY"
+    assert health_resp.headers.get("referrer-policy") == "no-referrer"
+    assert "cache-control" not in health_resp.headers
+
+    root_resp = await client.get("/")
+    assert root_resp.status_code == 200
+    assert root_resp.headers.get("cache-control") == "no-cache"
+    assert root_resp.headers.get("x-content-type-options") == "nosniff"
+    assert root_resp.headers.get("x-frame-options") == "DENY"
+    assert root_resp.headers.get("referrer-policy") == "no-referrer"
+
+    js_resp = await client.get("/static/app.js")
+    assert js_resp.status_code == 200
+    assert js_resp.headers.get("cache-control") == "no-cache"
+    assert js_resp.headers.get("x-content-type-options") == "nosniff"

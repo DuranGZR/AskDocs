@@ -1,4 +1,3 @@
-import asyncio
 import os
 from collections.abc import AsyncGenerator, Iterator, Sequence
 from pathlib import Path
@@ -18,7 +17,7 @@ from src.services.base import (  # noqa: E402
     TaskStatusSnapshot,
     VectorPoint,
 )
-from src.services.health_service import is_writable_dir  # noqa: E402
+from src.services.health_service import check_writable_status  # noqa: E402
 
 
 class RecordingSyncLLMClient(SyncBaseLLMClient):
@@ -76,6 +75,7 @@ class RecordingTaskDispatcher:
         tenant_id: str,
         file_type: str,
         request_id: str,
+        filename: str = "",
     ) -> str:
         self.calls.append(
             {
@@ -84,6 +84,7 @@ class RecordingTaskDispatcher:
                 "tenant_id": tenant_id,
                 "file_type": file_type,
                 "request_id": request_id,
+                "filename": filename,
             }
         )
         task_id = f"test-task-{document_id}"
@@ -166,9 +167,8 @@ def app(
             self._upload_dir = settings.UPLOAD_DIR
 
         async def check_dependencies(self) -> dict[str, str]:
-            storage_ok = await asyncio.to_thread(is_writable_dir, self._upload_dir)
             return {
-                "storage": "ok" if storage_ok else "unavailable",
+                "storage": await check_writable_status(self._upload_dir),
                 "redis": "ok",
                 "qdrant": "ok",
             }

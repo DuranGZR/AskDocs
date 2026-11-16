@@ -31,7 +31,7 @@ jobs:
         run: uv run ruff check .
 
       - name: Run Mypy static type check
-        run: uv run mypy src tests scripts
+        run: uv run mypy src tests scripts locustfile.py
 
       - name: Run Pytest suite
         run: uv run pytest -v

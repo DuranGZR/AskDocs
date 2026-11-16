@@ -20,6 +20,15 @@ def is_writable_dir(path: Path) -> bool:
     return path.is_dir() and os.access(path, os.W_OK)
 
 
+async def check_writable_status(path: Path) -> str:
+    """Dizinin yazılabilirlik durumunu health-check standardında ('ok'/'unavailable') döner."""
+    try:
+        storage_ok = await asyncio.to_thread(is_writable_dir, path)
+    except OSError:
+        return "unavailable"
+    return "ok" if storage_ok else "unavailable"
+
+
 class DependencyHealthChecker(BaseHealthChecker):
     """Depolama dizini, Redis ve Qdrant sağlık kontrollerini paralel yürütür."""
 
@@ -42,22 +51,16 @@ class DependencyHealthChecker(BaseHealthChecker):
 
     async def check_dependencies(self) -> dict[str, str]:
         """Depolama, Redis ve Qdrant sağlık kontrollerini eşzamanlı olarak koşar."""
-        storage_ok, redis_ok, qdrant_ok = await asyncio.gather(
-            self._check_storage(),
+        storage_status, redis_ok, qdrant_ok = await asyncio.gather(
+            check_writable_status(self._upload_dir),
             self._check_redis(),
             self._check_qdrant(),
         )
         return {
-            "storage": "ok" if storage_ok else "unavailable",
+            "storage": storage_status,
             "redis": "ok" if redis_ok else "unavailable",
             "qdrant": "ok" if qdrant_ok else "unavailable",
         }
-
-    async def _check_storage(self) -> bool:
-        try:
-            return await asyncio.to_thread(is_writable_dir, self._upload_dir)
-        except OSError:
-            return False
 
     async def _check_redis(self) -> bool:
         try:

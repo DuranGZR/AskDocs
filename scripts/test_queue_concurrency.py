@@ -100,6 +100,7 @@ class _SequentialQueueSimulator:
         tenant_id: str,
         file_type: str,
         request_id: str,
+        filename: str = "",
     ) -> str:
         from src.services.base import TaskStatusSnapshot
 
@@ -114,6 +115,7 @@ class _SequentialQueueSimulator:
                 "tenant_id": tenant_id,
                 "file_type": file_type,
                 "request_id": request_id,
+                "filename": filename,
             }
         )
         return task_id
@@ -145,6 +147,7 @@ class _SequentialQueueSimulator:
                     "tenant_id": job["tenant_id"],
                     "file_type": job["file_type"],
                     "request_id": job["request_id"],
+                    "filename": job["filename"],
                 },
             )
             finished_at = time.perf_counter()
@@ -298,7 +301,7 @@ async def _run_offline_suite(count: int) -> None:
             from src.core.config import Settings, get_settings
             from src.main import create_app
             from src.services.base import BaseHealthChecker, SyncBaseLLMClient, SyncBaseVectorDB
-            from src.services.health_service import is_writable_dir
+            from src.services.health_service import check_writable_status
             from src.tasks import document_tasks
 
             class _OfflineHealthChecker(BaseHealthChecker):
@@ -306,9 +309,8 @@ async def _run_offline_suite(count: int) -> None:
                     self._upload_dir = target_dir
 
                 async def check_dependencies(self) -> dict[str, str]:
-                    storage_ok = await asyncio.to_thread(is_writable_dir, self._upload_dir)
                     return {
-                        "storage": "ok" if storage_ok else "unavailable",
+                        "storage": await check_writable_status(self._upload_dir),
                         "redis": "ok",
                         "qdrant": "ok",
                     }

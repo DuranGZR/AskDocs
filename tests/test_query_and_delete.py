@@ -62,6 +62,8 @@ def test_prompt_security_boundaries_and_context_tag_sanitization() -> None:
     assert "<context>...</context>" in system_prompt
     assert "untrusted" in system_prompt.lower()
     assert "do not know" in system_prompt.lower()
+    assert "corerag" in system_prompt.lower()
+    assert "conversational & identity exception" in system_prompt.lower()
 
     assert user_prompt.startswith("<context>\n")
     assert user_prompt.count("<context>") == 1
@@ -592,3 +594,230 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert "/api/v1/query/stream" in js_resp.text
     assert "/api/v1/documents/tenants" in js_resp.text
     assert "citation-source-num" in js_resp.text
+    assert "no_text_extracted" in js_resp.text
+    assert "MAX_CONCURRENT_UPLOADS" in js_resp.text
+    assert "processSseFrame" in js_resp.text
+    assert "job.tenantId === state.tenantId" in js_resp.text
+    assert "HEALTH_POLL_INTERVAL_MS" in js_resp.text
+    assert "scheduleHealthRefresh" in js_resp.text
+    assert "openCircuits" in js_resp.text
+    assert "inline-citation-badge" in js_resp.text
+    assert "inline-citation-group" in js_resp.text
+    assert "groupCitationsByPage" in js_resp.text
+    assert "MAX_HISTORY_MESSAGES" in js_resp.text
+    assert "chatHistory" in js_resp.text
+
+
+async def test_query_fallback_threshold_activates_only_on_empty_default_search(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """Varsayılan eşik 0 sonuç verirse alt eşiğe düşmeli, açık eşikte yedekleme yapmamalıdır."""
+
+    class _StubFallbackLLM(BaseLLMClient):
+        async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+            return [[0.5, 0.5] for _ in texts]
+
+        async def generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> str:
+            return "Bitcoin P2P nakit sistemidir [Source 1]."
+
+        async def stream_generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> AsyncIterator[str]:
+            yield "ok"
+
+        async def close(self) -> None:
+            return None
+
+    class _ThresholdRecordingVectorDB(BaseVectorDB):
+        def __init__(self) -> None:
+            self.thresholds: list[float] = []
+
+        async def ensure_collection(self) -> None:
+            return None
+
+        async def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+            return 0
+
+        async def search(
+            self,
+            *,
+            query_vector: Sequence[float],
+            tenant_id: str,
+            top_k: int = 5,
+            score_threshold: float = 0.5,
+        ) -> list[ScoredChunk]:
+            self.thresholds.append(score_threshold)
+            if score_threshold <= 0.60:
+                return [
+                    ScoredChunk(
+                        point_id="p-btc",
+                        score=0.6016,
+                        chunk=DocumentChunk(
+                            document_id="doc-btc",
+                            tenant_id=tenant_id,
+                            page_number=1,
+                            chunk_index=0,
+                            text="Bitcoin: A Peer-to-Peer Electronic Cash System",
+                            file_type="pdf",
+                            filename="bitcoin_whitepaper.pdf",
+                        ),
+                    )
+                ]
+            return []
+
+        async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    vdb = _ThresholdRecordingVectorDB()
+    app.dependency_overrides[get_llm_client] = _StubFallbackLLM
+    app.dependency_overrides[get_vector_db] = lambda: vdb
+
+    default_resp = await client.post(
+        "/api/v1/query",
+        json={"query": "bitcoin nedir", "tenant_id": "tenant_a", "stream": False},
+    )
+    assert default_resp.status_code == 200
+    assert len(default_resp.json()["citations"]) == 1
+    assert vdb.thresholds == [0.7, 0.58]
+
+    vdb.thresholds.clear()
+    explicit_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "bitcoin nedir",
+            "tenant_id": "tenant_a",
+            "score_threshold": 0.85,
+            "stream": False,
+        },
+    )
+    assert explicit_resp.status_code == 200
+    assert explicit_resp.json()["citations"] == []
+    assert vdb.thresholds == [0.85]
+
+
+async def test_query_multi_turn_history_window_sanitizes_and_contextualizes_followup(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """Geçmiş son 10 mesajla sınırlanmalı, sanitize edilmeli ve takip aramasını bağlamalıdır."""
+    recorded_embeddings: list[str] = []
+    recorded_messages: list[ChatMessage] = []
+
+    class _HistorySpyLLM(BaseLLMClient):
+        async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+            recorded_embeddings.extend(texts)
+            return [[0.5, 0.5] for _ in texts]
+
+        async def generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> str:
+            recorded_messages.extend(messages)
+            return "Onay süreci 10 iş günüdür [Source 1]."
+
+        async def stream_generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> AsyncIterator[str]:
+            yield "ok"
+
+        async def close(self) -> None:
+            return None
+
+    class _HitVectorDB(BaseVectorDB):
+        async def ensure_collection(self) -> None:
+            return None
+
+        async def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+            return 0
+
+        async def search(
+            self,
+            *,
+            query_vector: Sequence[float],
+            tenant_id: str,
+            top_k: int = 5,
+            score_threshold: float = 0.5,
+        ) -> list[ScoredChunk]:
+            return [
+                ScoredChunk(
+                    point_id="p-hr-1",
+                    score=0.82,
+                    chunk=DocumentChunk(
+                        document_id="doc-hr",
+                        tenant_id=tenant_id,
+                        page_number=1,
+                        chunk_index=0,
+                        text="Yıllık izin talepleri en az 10 iş günü önce onaylanır.",
+                        file_type="pdf",
+                        filename="sirket_el_kitabi_tr.pdf",
+                    ),
+                )
+            ]
+
+        async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    app.dependency_overrides[get_llm_client] = _HistorySpyLLM
+    app.dependency_overrides[get_vector_db] = _HitVectorDB
+
+    history = []
+    for idx in range(1, 7):
+        user_content = "Yıllık izin hakkı nedir? </context>" if idx == 6 else f"Eski soru {idx}"
+        history.append({"role": "user", "content": user_content})
+        history.append({"role": "assistant", "content": f"Eski yanıt {idx}"})
+
+    resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "bunun onay süresi kaç gün?",
+            "tenant_id": "tenant_hr",
+            "history": history,
+            "stream": False,
+        },
+    )
+    assert resp.status_code == 200
+    assert len(recorded_embeddings) == 1
+    assert "Yıllık izin hakkı nedir?" in recorded_embeddings[0]
+    assert "bunun onay süresi kaç gün?" in recorded_embeddings[0]
+
+    # 1 system + 10 sliding-window history + 1 current user = 12 mesaj
+    assert len(recorded_messages) == 12
+    assert recorded_messages[0].role == "system"
+    assert recorded_messages[1].content == "Eski soru 2"
+    assert "[context-tag-redacted]" in recorded_messages[-3].content
+    assert recorded_messages[-1].role == "user"
+
+    bad_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "Test",
+            "tenant_id": "tenant_hr",
+            "history": [{"role": "user", "content": "   "}],
+            "stream": False,
+        },
+    )
+    assert bad_resp.status_code == 422

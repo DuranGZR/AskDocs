@@ -359,3 +359,58 @@ async def test_query_and_stream_endpoints_survive_broken_langfuse_client(
     assert "event: token" in resp_stream.text
     assert "event: citations" in resp_stream.text
     assert "data: [DONE]" in resp_stream.text
+
+
+def test_celery_worker_shutdown_signal_flushes_langfuse_client() -> None:
+    """Celery worker kapanış sinyali bekleyen Langfuse verilerini flush etmelidir."""
+    from celery.signals import worker_process_shutdown
+
+    import src.tasks.celery_app  # noqa: F401 - sinyal bağlantısını yükle
+
+    fake_client = _FakeLangfuseClient()
+    set_langfuse_client(fake_client)
+
+    worker_process_shutdown.send(sender=None)
+
+    assert fake_client.flush_count == 1
+    assert get_langfuse_client() is None
+
+
+async def test_streaming_query_updates_same_observe_trace_after_endpoint_returns(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SSE akışı bitince generation ve çıktı aynı @observe trace_id üzerine yazılmalıdır."""
+    from src.core import observability
+
+    fake_client = _FakeLangfuseClient()
+    set_langfuse_client(fake_client)
+    monkeypatch.setattr(observability, "_safe_current_trace_id", lambda: "obs-stream-trace-123")
+    monkeypatch.setattr(
+        observability.langfuse_context,
+        "update_current_trace",
+        lambda **kwargs: None,
+    )
+
+    app.dependency_overrides[get_llm_client] = lambda: _StubLLMClient()
+    app.dependency_overrides[get_vector_db] = lambda: _StubVectorDB()
+
+    resp = await client.post(
+        "/api/v1/query/stream",
+        json={"query": "Ev ofisi desteği ne kadar?", "tenant_id": "t1", "stream": True},
+    )
+    assert resp.status_code == 200
+    assert "data: [DONE]" in resp.text
+
+    assert len(fake_client.traces) == 1
+    trace = fake_client.traces[0]
+    assert trace.kwargs["id"] == "obs-stream-trace-123"
+    assert [span["name"] for span in trace.spans] == ["rag.embed_query", "rag.qdrant_search"]
+    assert len(trace.generations) == 1
+    assert trace.generations[0]["name"] == "rag.llm_stream"
+    assert trace.generations[0]["output"] == "Yıllık destek 15.000 TL'dir."
+    assert len(trace.updates) == 1
+    assert trace.updates[0]["output"]["answer"] == "Yıllık destek 15.000 TL'dir."
+    assert trace.updates[0]["output"]["error"] is None
+    assert trace.updates[0]["output"]["ttft_ms"] is not None

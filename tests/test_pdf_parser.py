@@ -89,3 +89,43 @@ def test_parse_and_chunk_corrupt_pdf_raises_document_parse_error(tmp_path: Path)
             tenant_id="acme_corp",
             file_type="pdf",
         )
+
+
+def test_iter_document_pages_streams_large_txt_into_sequential_pages_and_wraps_oserror(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Büyük .txt dosyası akışla sayfalara bölünmeli ve OSError sarılmalıdır."""
+    from src.services import pdf_parser
+
+    monkeypatch.setattr(pdf_parser, "_TXT_PAGE_CHAR_LIMIT", 120)
+
+    txt_path = tmp_path / "large_notes.txt"
+    lines = [f"Satır {idx}: CoreRAG akışlı metin okuma doğrulama içeriği." for idx in range(12)]
+    txt_path.write_text("\n".join(lines), encoding="utf-8")
+
+    pages = list(pdf_parser.iter_document_pages(txt_path, file_type="txt"))
+    assert len(pages) >= 4
+    assert [page.page_number for page in pages] == list(range(1, len(pages) + 1))
+    assert all(len(page.text) <= 120 for page in pages)
+
+    parsed = parse_and_chunk_document(
+        file_path=txt_path,
+        document_id="doc-txt-stream",
+        tenant_id="acme_corp",
+        file_type="txt",
+        chunk_size=100,
+        chunk_overlap=15,
+        filename="large_notes.txt",
+    )
+    assert parsed.page_count == len(pages)
+    assert [chunk.chunk_index for chunk in parsed.chunks] == list(range(len(parsed.chunks)))
+    assert parsed.chunks[0].page_number == 1
+    assert parsed.chunks[-1].page_number == len(pages)
+
+    def _raise_oserror(self: Path, *args: object, **kwargs: object) -> object:
+        raise OSError("permission denied")
+
+    monkeypatch.setattr(Path, "open", _raise_oserror)
+    with pytest.raises(DocumentParseError, match="Failed to read text document"):
+        list(pdf_parser.iter_document_pages(txt_path, file_type="txt"))

@@ -938,9 +938,51 @@ textarea {
 
 .citations-pills {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.inline-citation-group {
+  display: inline-flex;
+  align-items: baseline;
+  white-space: nowrap;
+  gap: 3px;
+  margin: 0 3px;
+}
+
+.inline-citation-badge {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 113, 227, 0.24);
+  background: var(--apple-blue-tint);
+  color: var(--apple-blue);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: 2px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.inline-citation-badge:hover:not(:disabled) {
+  background: var(--apple-blue);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.inline-citation-badge:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .citation-pill {
@@ -1022,6 +1064,21 @@ textarea {
   margin: 0;
   white-space: pre-wrap;
   color: var(--text-primary);
+}
+
+.citation-quote-entry {
+  padding: 2px 0;
+}
+
+.citation-quote-entry.has-divider {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.citation-quote-entry.is-highlighted {
+  padding-left: 10px;
+  border-left: 2px solid var(--apple-blue);
 }
 
 .no-citations-note {

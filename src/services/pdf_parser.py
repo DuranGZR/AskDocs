@@ -15,6 +15,7 @@ _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _HYPHEN_WRAP_RE = re.compile(r"(\w)-\n(\w)")
 _HORIZONTAL_WS_RE = re.compile(r"[^\S\n]+")
 _MULTI_NEWLINE_RE = re.compile(r"\n{3,}")
+_TXT_PAGE_CHAR_LIMIT = 65_536
 
 
 class DocumentParseError(ValueError):
@@ -106,10 +107,43 @@ def chunk_text(
     return chunks
 
 
+def _iter_txt_pages(file_path: Path, *, page_char_limit: int) -> Iterator[PageContent]:
+    """Düz metin dosyalarını sabit boyutlu bloklarla belleği doldurmadan sayfa sayfa okur."""
+    if page_char_limit <= 0:
+        raise ValueError("page_char_limit must be greater than 0")
+
+    buffer = ""
+    page_number = 0
+    read_size = min(page_char_limit, 16_384)
+    try:
+        with file_path.open("r", encoding="utf-8", errors="replace") as handle:
+            while True:
+                chunk = handle.read(read_size)
+                if not chunk:
+                    break
+                buffer += chunk
+                while len(buffer) >= page_char_limit:
+                    split_at = buffer.rfind("\n", 0, page_char_limit)
+                    if split_at <= 0:
+                        split_at = buffer.rfind(" ", 0, page_char_limit)
+                    if split_at <= 0:
+                        split_at = page_char_limit
+                    page_number += 1
+                    yield PageContent(page_number=page_number, text=buffer[:split_at])
+                    buffer = buffer[split_at:].lstrip("\r\n ")
+    except OSError as exc:
+        raise DocumentParseError(f"Failed to read text document: {file_path}") from exc
+
+    if buffer or page_number == 0:
+        page_number += 1
+        yield PageContent(page_number=page_number, text=buffer)
+
+
 def iter_document_pages(
     file_path: Path,
     *,
     file_type: str | None = None,
+    txt_page_char_limit: int | None = None,
 ) -> Iterator[PageContent]:
     """Dokümanı belleğe komple yüklemeden sayfa sayfa (stream) okur."""
     if not file_path.is_file():
@@ -136,10 +170,10 @@ def iter_document_pages(
         return
 
     if resolved_type == "txt":
-        yield PageContent(
-            page_number=1,
-            text=file_path.read_text(encoding="utf-8", errors="replace"),
+        resolved_limit = (
+            _TXT_PAGE_CHAR_LIMIT if txt_page_char_limit is None else txt_page_char_limit
         )
+        yield from _iter_txt_pages(file_path, page_char_limit=resolved_limit)
         return
 
     raise DocumentParseError(f"Unsupported document type: {resolved_type}")

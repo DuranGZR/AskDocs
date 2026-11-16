@@ -214,6 +214,16 @@ def process_document_task(
             finally:
                 llm_client.close()
 
+        result_status = "processed" if chunk_count > 0 else "no_text_extracted"
+        if chunk_count == 0:
+            logger.warning(
+                "No extractable text found for document_id=%s tenant_id=%s type=%s pages=%d",
+                document_id,
+                tenant_id,
+                file_type,
+                page_count,
+            )
+
         record_worker_indexing_trace(
             document_id=document_id,
             tenant_id=tenant_id,
@@ -228,10 +238,11 @@ def process_document_task(
             duration_ms=(time.perf_counter() - t_task) * 1000.0,
             start_time=task_start,
             end_time=utc_now(),
-            status="processed",
+            status=result_status,
         )
         logger.info(
-            "Processed document_id=%s tenant_id=%s type=%s pages=%d chunks=%d upserted=%d size=%d",
+            "Processed document_id=%s tenant_id=%s type=%s pages=%d chunks=%d "
+            "upserted=%d size=%d status=%s",
             document_id,
             tenant_id,
             file_type,
@@ -239,6 +250,7 @@ def process_document_task(
             chunk_count,
             upserted_count,
             size_bytes,
+            result_status,
         )
         return {
             "document_id": document_id,
@@ -249,7 +261,7 @@ def process_document_task(
             "page_count": page_count,
             "chunk_count": chunk_count,
             "upserted_count": upserted_count,
-            "status": "processed",
+            "status": result_status,
         }
     except RETRYABLE_EXCEPTIONS as exc:
         current_retries = int(getattr(getattr(self, "request", None), "retries", 0) or 0)

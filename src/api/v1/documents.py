@@ -1,4 +1,3 @@
-import inspect
 import logging
 from typing import Annotated
 
@@ -84,24 +83,14 @@ async def upload_document(
     """Dokümanı ortak depolama dizinine stream ederek kaydeder ve arka plan kuyruğuna atar."""
     stored = await storage.save(file=file, filename=file.filename)
     try:
-        enqueue_params = inspect.signature(task_dispatcher.enqueue_document).parameters
-        if "filename" in enqueue_params:
-            task_id = await task_dispatcher.enqueue_document(
-                document_id=stored.document_id,
-                file_path=stored.file_path,
-                tenant_id=tenant_id,
-                file_type=stored.file_type,
-                request_id=request_id_ctx.get(),
-                filename=stored.original_filename,
-            )
-        else:
-            task_id = await task_dispatcher.enqueue_document(
-                document_id=stored.document_id,
-                file_path=stored.file_path,
-                tenant_id=tenant_id,
-                file_type=stored.file_type,
-                request_id=request_id_ctx.get(),
-            )
+        task_id = await task_dispatcher.enqueue_document(
+            document_id=stored.document_id,
+            file_path=stored.file_path,
+            tenant_id=tenant_id,
+            file_type=stored.file_type,
+            request_id=request_id_ctx.get(),
+            filename=stored.original_filename,
+        )
     except Exception as exc:
         await storage.delete(stored.file_path)
         logger.error(

@@ -481,6 +481,90 @@ def record_eval_scores_to_langfuse(
         logger.warning("Failed to record Langfuse eval scores (fail-open): %s", exc)
 
 
+async def _embed_texts_in_batches(
+    llm_client: BaseLLMClient,
+    texts: Sequence[str],
+    batch_size: int,
+) -> list[list[float]]:
+    """Soru listesini embedding API sınırları içinde partiler halinde vektörleştirir."""
+    if not texts:
+        return []
+    vectors: list[list[float]] = []
+    for start in range(0, len(texts), batch_size):
+        batch = texts[start : start + batch_size]
+        vectors.extend(await llm_client.embed_texts(texts=batch))
+    return vectors
+
+
+async def _resolve_live_document_ids(
+    dataset: GoldenDataset,
+    vector_db: BaseVectorDB,
+) -> GoldenDataset:
+    """Canlı Qdrant indeksinde UUID'si değişen dokümanları dosya adıyla eşler (fail-open)."""
+    try:
+        live_docs = await vector_db.list_documents(tenant_id=dataset.tenant_id)
+    except Exception as exc:
+        logger.warning(
+            "Failed to list live documents for eval filename resolution (fail-open): %s",
+            type(exc).__name__,
+        )
+        return dataset
+
+    if not live_docs:
+        return dataset
+
+    live_ids = {doc.document_id for doc in live_docs}
+    doc_id_by_name: dict[str, str] = {}
+    doc_id_by_lower: dict[str, str] = {}
+    for doc in live_docs:
+        if doc.filename:
+            doc_id_by_name.setdefault(doc.filename, doc.document_id)
+            doc_id_by_lower.setdefault(Path(doc.filename).name.lower(), doc.document_id)
+
+    filename_by_expected_id = {doc_id: fname for fname, doc_id in dataset.documents.items()}
+    updated_items: list[GoldenEvalItem] = []
+    remapped_docs = dict(dataset.documents)
+    changed = False
+
+    for item in dataset.items:
+        if not item.answerable or item.expected_document_id in live_ids:
+            updated_items.append(item)
+            continue
+
+        candidate_name = item.source_file or (
+            filename_by_expected_id.get(item.expected_document_id)
+            if item.expected_document_id
+            else None
+        )
+        if not candidate_name:
+            updated_items.append(item)
+            continue
+
+        basename = Path(candidate_name).name
+        live_id = (
+            doc_id_by_name.get(candidate_name)
+            or doc_id_by_name.get(basename)
+            or doc_id_by_lower.get(basename.lower())
+        )
+        if live_id and live_id != item.expected_document_id:
+            logger.info(
+                "Resolved drifted document_id for eval item=%s source_file=%s (%s -> %s)",
+                item.id,
+                candidate_name,
+                item.expected_document_id,
+                live_id,
+            )
+            remapped_docs[candidate_name] = live_id
+            updated_items.append(item.model_copy(update={"expected_document_id": live_id}))
+            changed = True
+        else:
+            updated_items.append(item)
+
+    if not changed:
+        return dataset
+    return dataset.model_copy(update={"documents": remapped_docs, "items": updated_items})
+
+
 async def evaluate_rag_dataset(
     *,
     dataset: GoldenDataset,
@@ -493,19 +577,28 @@ async def evaluate_rag_dataset(
     use_llm_judge: bool = False,
     sweep_thresholds: Sequence[float] | None = DEFAULT_THRESHOLDS,
     delay_seconds: float = 0.0,
+    embedding_batch_size: int = 32,
     eval_run_id: str | None = None,
     langfuse_client: Any = None,
 ) -> EvalSummaryReport:
     """Altın veri seti üzerinde retrieval + generation + threshold sweep değerlendirmesi yapar."""
+    if embedding_batch_size <= 0:
+        raise ValueError("embedding_batch_size must be greater than 0")
+
     run_id = eval_run_id or f"eval-{utc_now().strftime('%Y%m%d-%H%M%S')}"
-    questions = [item.question for item in dataset.items]
-    query_vectors = await llm_client.embed_texts(texts=questions)
+    resolved_dataset = await _resolve_live_document_ids(dataset, vector_db)
+    questions = [item.question for item in resolved_dataset.items]
+    query_vectors = await _embed_texts_in_batches(
+        llm_client=llm_client,
+        texts=questions,
+        batch_size=embedding_batch_size,
+    )
 
     sweep_items: list[ThresholdSweepItem] = []
     recommended_threshold: float | None = None
     if sweep_thresholds:
         sweep_items, recommended_threshold = await run_threshold_sweep(
-            dataset=dataset,
+            dataset=resolved_dataset,
             query_vectors=query_vectors,
             vector_db=vector_db,
             top_k=top_k,
@@ -513,14 +606,14 @@ async def evaluate_rag_dataset(
         )
 
     results: list[QuestionEvalResult] = []
-    for index, (item, vector) in enumerate(zip(dataset.items, query_vectors, strict=True)):
+    for index, (item, vector) in enumerate(zip(resolved_dataset.items, query_vectors, strict=True)):
         if index > 0 and delay_seconds > 0.0:
             await asyncio.sleep(delay_seconds)
 
         t_start = time.perf_counter()
         scored_chunks = await vector_db.search(
             query_vector=vector,
-            tenant_id=dataset.tenant_id,
+            tenant_id=resolved_dataset.tenant_id,
             top_k=top_k,
             score_threshold=score_threshold,
         )

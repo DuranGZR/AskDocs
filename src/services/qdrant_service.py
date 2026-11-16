@@ -7,6 +7,7 @@ from typing import TypeVar
 
 from qdrant_client import AsyncQdrantClient, QdrantClient, models
 from qdrant_client.conversions.common_types import PointId
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 from src.core.circuit_breaker import CircuitBreaker, SyncCircuitBreaker
 from src.core.exceptions import AppError, ServiceUnavailableError
@@ -23,6 +24,13 @@ logger = logging.getLogger(__name__)
 _T = TypeVar("_T")
 
 _INDEXED_PAYLOAD_FIELDS: tuple[str, ...] = ("tenant_id", "document_id")
+_LIST_DOCUMENT_PAYLOAD_FIELDS: list[str] = [
+    "document_id",
+    "filename",
+    "file_type",
+    "page_number",
+]
+_TENANT_FACET_LIMIT: int = 1000
 
 
 @dataclass(slots=True)
@@ -218,7 +226,7 @@ class AsyncQdrantService(BaseVectorDB):
                     scroll_filter=tenant_filter,
                     limit=256,
                     offset=offset,
-                    with_payload=True,
+                    with_payload=_LIST_DOCUMENT_PAYLOAD_FIELDS,
                     with_vectors=False,
                 )
                 for record in records:
@@ -263,7 +271,7 @@ class AsyncQdrantService(BaseVectorDB):
     async def list_tenants(self) -> list[str]:
         """Vektör veritabanında dokümanı bulunan benzersiz tenant_id listesini döndürür."""
 
-        async def _op() -> list[str]:
+        async def _scroll_tenants() -> list[str]:
             tenants: set[str] = set()
             offset: PointId | None = None
 
@@ -286,6 +294,28 @@ class AsyncQdrantService(BaseVectorDB):
                 offset = next_offset
 
             return sorted(tenants)
+
+        async def _op() -> list[str]:
+            try:
+                facet_response = await self._client.facet(
+                    collection_name=self._collection_name,
+                    key="tenant_id",
+                    limit=_TENANT_FACET_LIMIT,
+                )
+                if len(facet_response.hits) < _TENANT_FACET_LIMIT:
+                    tenants = {
+                        str(hit.value).strip()
+                        for hit in facet_response.hits
+                        if str(hit.value).strip()
+                    }
+                    return sorted(tenants)
+            except (AttributeError, NotImplementedError, UnexpectedResponse) as exc:
+                logger.debug(
+                    "Qdrant facet fallback to scroll for list_tenants: %s",
+                    type(exc).__name__,
+                )
+
+            return await _scroll_tenants()
 
         return await self._run_guarded(_op)
 

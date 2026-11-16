@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from fastapi import FastAPI
 from pydantic import ValidationError
@@ -372,5 +374,59 @@ async def test_async_qdrant_service_list_documents_aggregates_and_isolates_tenan
         assert len(search_hits) == 1
         assert search_hits[0].chunk.filename == "el_kitabi.pdf"
         assert await service.list_tenants() == ["tenant_a", "tenant_b"]
+    finally:
+        await service.close()
+
+
+@pytest.mark.asyncio
+async def test_list_documents_projects_metadata_and_list_tenants_falls_back_from_facet(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """list_documents text payload çekmemeli; list_tenants facet hatasında scroll'a dönmelidir."""
+    client = AsyncQdrantClient(location=":memory:")
+    service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=client,
+    )
+    scroll_with_payload_calls: list[object] = []
+    orig_scroll = client.scroll
+
+    async def _spy_scroll(**kwargs: Any) -> Any:
+        scroll_with_payload_calls.append(kwargs.get("with_payload"))
+        return await orig_scroll(**kwargs)
+
+    async def _failing_facet(**kwargs: Any) -> Any:
+        raise NotImplementedError("facet not supported")
+
+    try:
+        await service.ensure_collection()
+        await service.upsert(
+            points=[
+                _make_point(
+                    document_id="doc-meta-1",
+                    tenant_id="tenant_meta",
+                    chunk_index=0,
+                    text="Çok uzun chunk metni bu projeksiyonda dönmemeli",
+                    vector=[1.0, 0.0, 0.0, 0.0],
+                )
+            ]
+        )
+
+        monkeypatch.setattr(client, "scroll", _spy_scroll)
+        monkeypatch.setattr(client, "facet", _failing_facet)
+
+        docs = await service.list_documents(tenant_id="tenant_meta")
+        assert len(docs) == 1
+        assert docs[0].document_id == "doc-meta-1"
+        assert scroll_with_payload_calls[0] == [
+            "document_id",
+            "filename",
+            "file_type",
+            "page_number",
+        ]
+
+        assert await service.list_tenants() == ["tenant_meta"]
+        assert scroll_with_payload_calls[-1] == ["tenant_id"]
     finally:
         await service.close()

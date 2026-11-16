@@ -288,3 +288,110 @@ async def test_lifespan_initializes_and_closes_llm_client(
         assert resolved is app.state.llm_client
 
     assert events == ["llm_init", "llm_close", "qdrant_close"]
+
+
+async def test_async_generate_retries_short_429_without_tripping_circuit_breaker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Kısa 429 hız sınırında generate yeniden denemeli ve devre kesiciyi açmamalıdır."""
+    from src.core.circuit_breaker import CircuitBreaker
+
+    attempts = 0
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr("src.services.llm_service.asyncio.sleep", _fake_sleep)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(
+                status_code=429,
+                headers={"Retry-After": "2"},
+                text="rate limited",
+            )
+        return httpx.Response(
+            status_code=200,
+            json={"choices": [{"message": {"role": "assistant", "content": "Kurtarıldı"}}]},
+        )
+
+    breaker = CircuitBreaker(name="llm", failure_threshold=2)
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    service = AsyncOpenAICompatibleLLMClient(
+        base_url="http://test-ai:11434/v1",
+        client=http_client,
+        circuit_breaker=breaker,
+    )
+
+    try:
+        answer = await service.generate(messages=[ChatMessage(role="user", content="Soru")])
+        assert answer == "Kurtarıldı"
+        assert attempts == 2
+        assert sleep_calls == [3.0]
+        assert breaker.state == "closed"
+        assert breaker.failure_count == 0
+    finally:
+        await http_client.aclose()
+
+
+async def test_async_stream_generate_429_retry_and_budget_guard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """stream_generate kısa 429'da kurtarmalı, uzun beklemede hızlı 503 Retry-After dönmelidir."""
+    sleep_calls: list[float] = []
+
+    async def _fake_sleep(delay: float) -> None:
+        sleep_calls.append(delay)
+
+    monkeypatch.setattr("src.services.llm_service.asyncio.sleep", _fake_sleep)
+
+    attempts = 0
+
+    def recovering_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(status_code=429, headers={"Retry-After": "1"}, text="busy")
+        return httpx.Response(
+            status_code=200,
+            text='data: {"choices": [{"delta": {"content": "Akış OK"}}]}\n\ndata: [DONE]\n\n',
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    http_ok = httpx.AsyncClient(transport=httpx.MockTransport(recovering_handler))
+    svc_ok = AsyncOpenAICompatibleLLMClient(base_url="http://test-ai:11434/v1", client=http_ok)
+    try:
+        tokens = [
+            t
+            async for t in svc_ok.stream_generate(
+                messages=[ChatMessage(role="user", content="Test")]
+            )
+        ]
+        assert tokens == ["Akış OK"]
+        assert attempts == 2
+        assert sleep_calls == [2.0]
+    finally:
+        await http_ok.aclose()
+
+    sleep_calls.clear()
+
+    def long_wait_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=429, headers={"Retry-After": "45"}, text="quota exhausted"
+        )
+
+    http_long = httpx.AsyncClient(transport=httpx.MockTransport(long_wait_handler))
+    svc_long = AsyncOpenAICompatibleLLMClient(base_url="http://test-ai:11434/v1", client=http_long)
+    try:
+        with pytest.raises(ServiceUnavailableError) as exc_info:
+            async for _ in svc_long.stream_generate(
+                messages=[ChatMessage(role="user", content="Test")]
+            ):
+                pass
+        assert sleep_calls == []
+        assert exc_info.value.headers == {"Retry-After": "46"}
+    finally:
+        await http_long.aclose()
