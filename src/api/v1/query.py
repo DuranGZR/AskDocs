@@ -1,13 +1,19 @@
 import logging
 import re
 import time
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from datetime import datetime
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import StreamingResponse
 
-from src.api.dependencies import LLMClientDep, SettingsDep, VectorDBDep
+from src.api.dependencies import (
+    LLMClientDep,
+    SettingsDep,
+    VectorDBDep,
+    require_rate_limit,
+    verify_api_key,
+)
 from src.core.exceptions import AppError, ServiceUnavailableError
 from src.core.logging import request_id_ctx
 from src.core.observability import RAGTraceRecorder, observe, utc_now
@@ -23,7 +29,20 @@ from src.schemas.query import (
 from src.services.base import ChatMessage, ScoredChunk
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["query"])
+router = APIRouter(
+    tags=["query"],
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Unauthorized",
+        },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": ErrorResponse,
+            "description": "Too Many Requests",
+        },
+    },
+)
 
 _CONTEXT_TAG_RE = re.compile(r"<\s*/?\s*context\b[^>]*>", flags=re.IGNORECASE)
 
@@ -350,8 +369,12 @@ def _build_streaming_response(
     llm_client: LLMClientDep,
     model: str,
     trace_recorder: RAGTraceRecorder | None = None,
+    extra_headers: Mapping[str, str] | None = None,
 ) -> StreamingResponse:
     """SSE yanıt başlıklarıyla StreamingResponse nesnesi oluşturur."""
+    headers = dict(SSE_HEADERS)
+    if extra_headers:
+        headers.update(extra_headers)
     return StreamingResponse(
         _stream_rag_response(
             payload=payload,
@@ -363,7 +386,7 @@ def _build_streaming_response(
             request_id=request_id_ctx.get(),
         ),
         media_type="text/event-stream",
-        headers=SSE_HEADERS,
+        headers=headers,
     )
 
 
@@ -371,6 +394,7 @@ def _build_streaming_response(
     "/query",
     response_model=QueryResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("query"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -381,6 +405,7 @@ def _build_streaming_response(
 )
 @observe(name="rag.query", capture_input=False, capture_output=False)
 async def query_documents(
+    request: Request,
     payload: QueryRequest,
     settings: SettingsDep,
     llm_client: LLMClientDep,
@@ -408,6 +433,7 @@ async def query_documents(
             llm_client=llm_client,
             model=settings.LLM_MODEL,
             trace_recorder=trace_recorder,
+            extra_headers=getattr(request.state, "rate_limit_headers", None),
         )
 
     gen_start = utc_now()
@@ -473,6 +499,7 @@ async def query_documents(
 @router.post(
     "/query/stream",
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("query"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -483,6 +510,7 @@ async def query_documents(
 )
 @observe(name="rag.query.stream", capture_input=False, capture_output=False)
 async def stream_query_documents(
+    request: Request,
     payload: QueryRequest,
     settings: SettingsDep,
     llm_client: LLMClientDep,
@@ -508,4 +536,5 @@ async def stream_query_documents(
         llm_client=llm_client,
         model=settings.LLM_MODEL,
         trace_recorder=trace_recorder,
+        extra_headers=getattr(request.state, "rate_limit_headers", None),
     )

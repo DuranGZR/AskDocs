@@ -157,6 +157,19 @@
             <span>Sohbeti Temizle</span>
           </button>
 
+          <button
+            type="button"
+            class="ghost-action-btn"
+            id="api-key-btn"
+            title="API Anahtarı ayarlarını aç"
+          >
+            <svg viewBox="0 0 16 16" fill="none" width="13" height="13" aria-hidden="true">
+              <rect x="3" y="7" width="10" height="6.5" rx="1.8" stroke="currentColor" stroke-width="1.35" />
+              <path d="M5.5 7V5.2C5.5 3.82 6.62 2.7 8 2.7C9.38 2.7 10.5 3.82 10.5 5.2V7" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" />
+            </svg>
+            <span id="api-key-btn-label">API Anahtarı</span>
+          </button>
+
           <div class="system-status" id="system-status" title="API Sağlık Durumu">
             <span class="status-dot is-ready" id="status-dot"></span>
             <span class="status-text" id="status-text">Sistem Hazır</span>
@@ -251,6 +264,70 @@
       </svg>
       <p class="window-drop-title">Yüklemek için dosyaları bırakın</p>
       <p class="window-drop-sub">Çoklu PDF ve TXT dosyaları aynı anda indekslenir</p>
+    </div>
+  </div>
+
+  <!-- API Anahtarı Doğrulama Penceresi -->
+  <div
+    class="modal-backdrop hidden"
+    id="api-key-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="api-key-modal-title"
+  >
+    <div class="apple-modal">
+      <div class="apple-modal-header">
+        <div class="apple-modal-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" width="20" height="20">
+            <rect x="4.5" y="10.5" width="15" height="10" rx="2.5" stroke="currentColor" stroke-width="1.7" />
+            <path d="M8 10.5V7.8C8 5.59 9.79 3.8 12 3.8C14.21 3.8 16 5.59 16 7.8V10.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div>
+          <h2 class="apple-modal-title" id="api-key-modal-title">API Anahtarı Doğrulaması</h2>
+          <p class="apple-modal-desc">
+            Korumalı uç noktalara erişmek için <code>.env</code> içindeki <code>API_KEY</code> değerini girin. Yalnızca bu tarayıcıda saklanır.
+          </p>
+        </div>
+      </div>
+
+      <form class="apple-modal-form" id="api-key-form">
+        <div class="api-key-input-wrap">
+          <input
+            type="password"
+            id="api-key-input"
+            class="apple-modal-input"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="API anahtarınızı yapıştırın..."
+            aria-label="API Anahtarı"
+          />
+          <button
+            type="button"
+            class="input-toggle-btn"
+            id="api-key-visibility-btn"
+            aria-label="Anahtarı göster veya gizle"
+          >
+            Göster
+          </button>
+        </div>
+
+        <p class="modal-error hidden" id="api-key-error" role="alert"></p>
+
+        <div class="apple-modal-actions">
+          <button type="button" class="apple-secondary-btn hidden" id="api-key-clear-btn">
+            Anahtarı Temizle
+          </button>
+          <div class="apple-modal-actions-right">
+            <button type="button" class="apple-secondary-btn" id="api-key-cancel-btn">
+              Kapat
+            </button>
+            <button type="submit" class="apple-primary-btn" id="api-key-save-btn">
+              Bağlan
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 

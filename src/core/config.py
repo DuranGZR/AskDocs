@@ -24,8 +24,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_FORMAT: Literal["console", "json"] = "console"
 
-    # --- Security ---
+    # --- Security & Rate Limiting ---
     API_KEY: SecretStr = Field(..., min_length=8)
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_FAIL_OPEN: bool = True
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1, le=3600)
+    RATE_LIMIT_UPLOAD_PER_WINDOW: int = Field(default=5, ge=1, le=10000)
+    RATE_LIMIT_DELETE_PER_WINDOW: int = Field(default=5, ge=1, le=10000)
+    RATE_LIMIT_QUERY_PER_WINDOW: int = Field(default=20, ge=1, le=10000)
+    RATE_LIMIT_READ_PER_WINDOW: int = Field(default=120, ge=1, le=10000)
+    RATE_LIMIT_REDIS_TIMEOUT_SECONDS: float = Field(default=1.0, gt=0.0, le=10.0)
 
     # --- Storage (Shared Volume) ---
     UPLOAD_DIR: Path = Path("./data/uploads")

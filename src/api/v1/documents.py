@@ -2,9 +2,15 @@ import inspect
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Path, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile, status
 
-from src.api.dependencies import StorageDep, TaskDispatcherDep, VectorDBDep
+from src.api.dependencies import (
+    StorageDep,
+    TaskDispatcherDep,
+    VectorDBDep,
+    require_rate_limit,
+    verify_api_key,
+)
 from src.core.exceptions import AppError, ServiceUnavailableError
 from src.core.logging import request_id_ctx
 from src.schemas.common import ErrorResponse
@@ -18,7 +24,21 @@ from src.schemas.documents import (
 )
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/documents", tags=["documents"])
+router = APIRouter(
+    prefix="/documents",
+    tags=["documents"],
+    dependencies=[Depends(verify_api_key)],
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {
+            "model": ErrorResponse,
+            "description": "Unauthorized",
+        },
+        status.HTTP_429_TOO_MANY_REQUESTS: {
+            "model": ErrorResponse,
+            "description": "Too Many Requests",
+        },
+    },
+)
 
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
 TASK_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
@@ -29,6 +49,7 @@ DOCUMENT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
     "/upload",
     response_model=DocumentUploadResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_rate_limit("upload"))],
     responses={
         status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse, "description": "Bad Request"},
         status.HTTP_413_CONTENT_TOO_LARGE: {
@@ -106,6 +127,7 @@ async def upload_document(
     "/tenants",
     response_model=TenantListResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("read"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -131,6 +153,7 @@ async def list_tenants(vector_db: VectorDBDep) -> TenantListResponse:
     "",
     response_model=DocumentListResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("read"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -184,6 +207,7 @@ async def list_documents(
     "/status/{task_id}",
     response_model=DocumentTaskStatusResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("read"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,
@@ -229,6 +253,7 @@ async def get_document_task_status(
     "/{document_id}",
     response_model=DocumentDeleteResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_rate_limit("delete"))],
     responses={
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": ErrorResponse,

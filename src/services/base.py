@@ -228,6 +228,36 @@ class BaseLLMClient(ABC):
         """Açık HTTP bağlantı havuzunu güvenli şekilde kapatır."""
 
 
+@dataclass(frozen=True, slots=True)
+class RateLimitDecision:
+    """Hız sınırı kontrolünün izin ve kota bilgisini taşır."""
+
+    allowed: bool
+    limit: int
+    remaining: int
+    reset_after_seconds: int
+    retry_after_seconds: int
+
+
+class BaseRateLimiter(ABC):
+    """Dağıtık veya bellek içi hız sınırlayıcı soyut arayüzü."""
+
+    @abstractmethod
+    async def check_and_consume(
+        self,
+        *,
+        scope: str,
+        subject: str,
+        limit: int,
+        window_seconds: int,
+    ) -> RateLimitDecision:
+        """Belirtilen kapsam ve özne için kayan pencere kotasını atomik olarak kontrol eder."""
+
+    @abstractmethod
+    async def close(self) -> None:
+        """Açık hız sınırlayıcı bağlantılarını güvenli şekilde kapatır."""
+
+
 class SyncBaseLLMClient(ABC):
     """Senkron Embedding istemcisi soyut arayüzü (Celery worker katmanı için)."""
 

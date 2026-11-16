@@ -45,6 +45,24 @@ class BadRequestError(AppError):
     code = "bad_request"
 
 
+class UnauthorizedError(AppError):
+    """Eksik veya geçersiz API anahtarı nedeniyle yetkisiz erişim hatası."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+
+    def __init__(
+        self,
+        message: str = "Missing or invalid API key",
+        *,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        merged_headers = {"WWW-Authenticate": "ApiKey"}
+        if headers:
+            merged_headers.update(headers)
+        super().__init__(message, headers=merged_headers)
+
+
 class NotFoundError(AppError):
     """İstenen kaynağın (doküman, görev vb.) bulunamadığını belirtir."""
 
@@ -64,6 +82,32 @@ class UnsupportedMediaTypeError(AppError):
 
     status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     code = "unsupported_media_type"
+
+
+class RateLimitExceededError(AppError):
+    """İzin verilen hız sınırının aşıldığını belirtir (429 Too Many Requests)."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limit_exceeded"
+
+    def __init__(
+        self,
+        message: str = "Rate limit exceeded. Please retry later.",
+        *,
+        retry_after_seconds: int = 60,
+        limit: int | None = None,
+        reset_after_seconds: int | None = None,
+    ) -> None:
+        safe_retry = max(1, int(retry_after_seconds))
+        headers: dict[str, str] = {
+            "Retry-After": str(safe_retry),
+            "X-RateLimit-Remaining": "0",
+        }
+        if limit is not None:
+            headers["X-RateLimit-Limit"] = str(limit)
+        if reset_after_seconds is not None:
+            headers["X-RateLimit-Reset"] = str(max(1, int(reset_after_seconds)))
+        super().__init__(message, headers=headers)
 
 
 class ServiceUnavailableError(AppError):

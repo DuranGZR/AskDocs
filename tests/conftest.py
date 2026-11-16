@@ -111,8 +111,9 @@ def stub_worker_services(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _disable_langfuse_in_tests(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Testlerin .env içindeki LANGFUSE_ENABLED=true ile dış ağa çıkmasını engeller."""
+    """Testlerin .env içindeki LANGFUSE_ENABLED veya Redis hız sınırıyla dış ağa çıkmasını önler."""
     monkeypatch.setenv("LANGFUSE_ENABLED", "false")
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "false")
     get_settings.cache_clear()
     set_langfuse_client(None)
     yield
@@ -132,6 +133,7 @@ def test_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[S
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     monkeypatch.setenv("LOG_FORMAT", "console")
     monkeypatch.setenv("API_KEY", "test-api-key-minimum-8-chars")
+    monkeypatch.setenv("RATE_LIMIT_ENABLED", "false")
     monkeypatch.setenv("UPLOAD_DIR", str(upload_dir))
     monkeypatch.setenv("MAX_UPLOAD_SIZE_MB", "1")
     monkeypatch.setenv("LANGFUSE_ENABLED", "false")
@@ -166,8 +168,23 @@ def app(
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, None]:
-    """ASGITransport ile ağ açmadan doğrudan bellekte asenkron HTTP istemcisi sağlar."""
+async def client(
+    app: FastAPI,
+    test_settings: Settings,
+) -> AsyncGenerator[httpx.AsyncClient, None]:
+    """ASGITransport ile kimlik doğrulamalı asenkron HTTP istemcisi sağlar."""
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"X-API-Key": test_settings.API_KEY.get_secret_value()},
+    ) as async_client:
+        yield async_client
+
+
+@pytest.fixture
+async def unauthenticated_client(app: FastAPI) -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Kimlik başlığı olmadan çalışan asenkron HTTP test istemcisi sağlar."""
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client

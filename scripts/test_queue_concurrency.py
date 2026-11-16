@@ -284,8 +284,11 @@ async def _run_offline_suite(count: int) -> None:
         upload_dir = Path(tmp_dir) / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
 
+        api_key = os.environ.get("API_KEY") or "concurrency-test-key-1234"
         env_overrides = {
-            "API_KEY": os.environ.get("API_KEY") or "concurrency-test-key-1234",
+            "API_KEY": api_key,
+            "RATE_LIMIT_ENABLED": "false",
+            "LANGFUSE_ENABLED": "false",
             "UPLOAD_DIR": str(upload_dir),
             "APP_ENV": "development",
             "LOG_LEVEL": "WARNING",
@@ -339,6 +342,7 @@ async def _run_offline_suite(count: int) -> None:
                 async with httpx.AsyncClient(
                     transport=httpx.ASGITransport(app=app),
                     base_url="http://test",
+                    headers={"X-API-Key": api_key},
                 ) as client:
                     # 1. Eşzamanlı yükleme + aktif worker + sağlık yoklaması (API bloklanmaz)
                     worker_task = asyncio.create_task(simulator.drain_sequentially(count))
@@ -409,9 +413,20 @@ async def _run_offline_suite(count: int) -> None:
                 get_settings.cache_clear()
 
 
-async def _run_live_suite(base_url: str, count: int, timeout_seconds: float) -> None:
+async def _run_live_suite(
+    base_url: str,
+    count: int,
+    timeout_seconds: float,
+    api_key: str | None = None,
+) -> None:
     """Çalışan HTTP API + Redis + Celery worker yığınına karşı canlı yük/durum testi koşar."""
-    async with httpx.AsyncClient(base_url=base_url.rstrip("/"), timeout=30.0) as client:
+    resolved_key = api_key or os.environ.get("API_KEY", "")
+    headers = {"X-API-Key": resolved_key} if resolved_key else {}
+    async with httpx.AsyncClient(
+        base_url=base_url.rstrip("/"),
+        timeout=30.0,
+        headers=headers,
+    ) as client:
         upload_results = await asyncio.gather(
             *(_upload_one(client, idx) for idx in range(1, count + 1))
         )
@@ -469,6 +484,12 @@ def _parse_args() -> argparse.Namespace:
         default=60.0,
         help="Canlı modda görevlerin tamamlanması için maksimum bekleme süresi (saniye)",
     )
+    parser.add_argument(
+        "--api-key",
+        type=str,
+        default=None,
+        help="Canlı mod için X-API-Key başlığı (boşsa ortam değişkeninden okunur)",
+    )
     return parser.parse_args()
 
 
@@ -479,7 +500,7 @@ def main() -> int:
         raise ValueError("--count must be at least 1")
 
     if args.base_url:
-        asyncio.run(_run_live_suite(args.base_url, args.count, args.timeout))
+        asyncio.run(_run_live_suite(args.base_url, args.count, args.timeout, args.api_key))
     else:
         asyncio.run(_run_offline_suite(args.count))
     return 0

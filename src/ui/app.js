@@ -5,12 +5,15 @@
   const DEFAULT_TENANT = "test-user";
   const STORAGE_TENANT_KEY = "corerag.tenantId";
   const STORAGE_TENANTS_LIST_KEY = "corerag.savedTenants";
+  const STORAGE_API_KEY = "corerag.apiKey";
   const POLL_INTERVAL_MS = 900;
 
   const initialTenant = loadInitialTenant();
   const state = {
     tenantId: initialTenant,
     savedTenants: loadSavedTenants(initialTenant),
+    apiKey: loadInitialApiKey(),
+    apiKeyVerified: false,
     documents: [],
     docNameById: new Map(),
     uploads: new Map(),
@@ -42,6 +45,16 @@
     workspaceForm: document.getElementById("workspace-form"),
     workspaceInput: document.getElementById("workspace-input"),
     clearChatBtn: document.getElementById("clear-chat-btn"),
+    apiKeyBtn: document.getElementById("api-key-btn"),
+    apiKeyBtnLabel: document.getElementById("api-key-btn-label"),
+    apiKeyModal: document.getElementById("api-key-modal"),
+    apiKeyForm: document.getElementById("api-key-form"),
+    apiKeyInput: document.getElementById("api-key-input"),
+    apiKeyVisibilityBtn: document.getElementById("api-key-visibility-btn"),
+    apiKeyError: document.getElementById("api-key-error"),
+    apiKeyClearBtn: document.getElementById("api-key-clear-btn"),
+    apiKeyCancelBtn: document.getElementById("api-key-cancel-btn"),
+    apiKeySaveBtn: document.getElementById("api-key-save-btn"),
     statusDot: document.getElementById("status-dot"),
     statusText: document.getElementById("status-text"),
     chatScroll: document.getElementById("chat-scroll"),
@@ -57,6 +70,101 @@
     toastStack: document.getElementById("toast-stack"),
     windowDropOverlay: document.getElementById("window-drop-overlay"),
   };
+
+  function loadInitialApiKey() {
+    try {
+      const saved = window.localStorage.getItem(STORAGE_API_KEY);
+      return saved ? saved.trim() : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function persistApiKey(value) {
+    state.apiKey = value.trim();
+    try {
+      if (state.apiKey) {
+        window.localStorage.setItem(STORAGE_API_KEY, state.apiKey);
+      } else {
+        window.localStorage.removeItem(STORAGE_API_KEY);
+      }
+    } catch {
+      // Depolama erişimi kapalıysa bellek içinde devam et
+    }
+    updateApiKeyButtonState();
+  }
+
+  function updateApiKeyButtonState() {
+    if (!dom.apiKeyBtn || !dom.apiKeyBtnLabel) {
+      return;
+    }
+    dom.apiKeyBtn.classList.remove("is-missing", "is-verified");
+    if (!state.apiKey) {
+      dom.apiKeyBtn.classList.add("is-missing");
+      dom.apiKeyBtnLabel.textContent = "API Anahtarı Gerekli";
+    } else if (state.apiKeyVerified) {
+      dom.apiKeyBtn.classList.add("is-verified");
+      dom.apiKeyBtnLabel.textContent = "API Anahtarı Bağlı";
+    } else {
+      dom.apiKeyBtnLabel.textContent = "API Anahtarı";
+    }
+  }
+
+  function openApiKeyModal(errorMessage = "") {
+    if (!dom.apiKeyModal) {
+      return;
+    }
+    dom.apiKeyInput.value = state.apiKey;
+    dom.apiKeyInput.type = "password";
+    dom.apiKeyVisibilityBtn.textContent = "Göster";
+    dom.apiKeyClearBtn.classList.toggle("hidden", !state.apiKey);
+    setApiKeyModalError(errorMessage);
+    dom.apiKeyModal.classList.remove("hidden");
+    window.setTimeout(() => dom.apiKeyInput.focus(), 40);
+  }
+
+  function closeApiKeyModal() {
+    if (!dom.apiKeyModal) {
+      return;
+    }
+    dom.apiKeyModal.classList.add("hidden");
+    setApiKeyModalError("");
+  }
+
+  function setApiKeyModalError(message) {
+    if (!dom.apiKeyError) {
+      return;
+    }
+    if (message) {
+      dom.apiKeyError.textContent = message;
+      dom.apiKeyError.classList.remove("hidden");
+    } else {
+      dom.apiKeyError.textContent = "";
+      dom.apiKeyError.classList.add("hidden");
+    }
+  }
+
+  function buildAuthHeaders(extraHeaders = {}) {
+    const headers = { ...extraHeaders };
+    if (state.apiKey) {
+      headers["X-API-Key"] = state.apiKey;
+    }
+    return headers;
+  }
+
+  async function apiFetch(url, options = {}) {
+    const headers = buildAuthHeaders(options.headers || {});
+    const response = await fetch(url, { ...options, headers });
+    if (response.status === 401) {
+      state.apiKeyVerified = false;
+      updateApiKeyButtonState();
+      openApiKeyModal("Geçerli bir API anahtarı girilmeden işlem yapılamaz.");
+    } else if (response.ok) {
+      state.apiKeyVerified = true;
+      updateApiKeyButtonState();
+    }
+    return response;
+  }
 
   function loadInitialTenant() {
     try {
@@ -103,8 +211,11 @@
   }
 
   async function fetchKnownTenants() {
+    if (!state.apiKey) {
+      return;
+    }
     try {
-      const response = await fetch("/api/v1/documents/tenants");
+      const response = await apiFetch("/api/v1/documents/tenants");
       if (!response.ok) {
         return;
       }
@@ -229,11 +340,22 @@
   }
 
   async function fetchDocuments() {
+    if (!state.apiKey) {
+      state.documents = [];
+      state.docNameById = new Map();
+      renderDocumentList();
+      dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
+      return;
+    }
     const url = `/api/v1/documents?tenant_id=${encodeURIComponent(state.tenantId)}`;
     try {
-      const response = await fetch(url);
+      const response = await apiFetch(url);
+      if (response.status === 401) {
+        dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı doğrulanamadı`;
+        return;
+      }
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        throw new Error(await extractErrorMessage(response));
       }
       const data = await response.json();
       state.documents = Array.isArray(data.documents) ? data.documents : [];
@@ -242,9 +364,9 @@
       );
       renderDocumentList();
       renderSummaryTexts();
-    } catch {
+    } catch (err) {
       dom.topbarDocSummary.textContent = "Doküman listesi yüklenemedi";
-      showToast("Doküman listesi alınamadı", true);
+      showToast(err instanceof Error ? err.message : "Doküman listesi alınamadı", true);
     }
   }
 
@@ -462,7 +584,7 @@
     rowElement.classList.add("is-removing");
     try {
       const url = `/api/v1/documents/${encodeURIComponent(documentId)}?tenant_id=${encodeURIComponent(state.tenantId)}`;
-      const response = await fetch(url, { method: "DELETE" });
+      const response = await apiFetch(url, { method: "DELETE" });
       if (!response.ok) {
         throw new Error(await extractErrorMessage(response));
       }
@@ -478,6 +600,16 @@
   }
 
   async function extractErrorMessage(response) {
+    if (response.status === 401) {
+      return "Yetkisiz erişim: Lütfen geçerli bir API anahtarı girin.";
+    }
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      if (retryAfter) {
+        return `Hız sınırı aşıldı. Lütfen ${retryAfter} saniye bekleyip tekrar deneyin.`;
+      }
+      return "Hız sınırı aşıldı. Lütfen kısa süre bekleyip tekrar deneyin.";
+    }
     try {
       const body = await response.json();
       if (body?.error?.message) {
@@ -492,6 +624,10 @@
   function handleSelectedFiles(fileList) {
     const files = Array.from(fileList || []);
     if (files.length === 0) {
+      return;
+    }
+    if (!state.apiKey) {
+      openApiKeyModal("Doküman yüklemek için önce API anahtarınızı girin.");
       return;
     }
 
@@ -539,6 +675,9 @@
 
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/v1/documents/upload", true);
+    if (state.apiKey) {
+      xhr.setRequestHeader("X-API-Key", state.apiKey);
+    }
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) {
@@ -559,6 +698,8 @@
       }
 
       if (xhr.status >= 200 && xhr.status < 300 && parsed?.task_id) {
+        state.apiKeyVerified = true;
+        updateApiKeyButtonState();
         job.documentId = parsed.document_id;
         job.taskId = parsed.task_id;
         job.state = "indexing";
@@ -573,7 +714,20 @@
 
       job.state = "error";
       job.isIndeterminate = false;
-      job.phaseText = parsed?.error?.message || `Yükleme başarısız (${xhr.status})`;
+      if (xhr.status === 401) {
+        state.apiKeyVerified = false;
+        updateApiKeyButtonState();
+        job.phaseText = "API anahtarı doğrulanamadı";
+        openApiKeyModal("Doküman yüklemek için geçerli bir API anahtarı girin.");
+      } else if (xhr.status === 429) {
+        const retryAfter = xhr.getResponseHeader("Retry-After");
+        job.phaseText = retryAfter
+          ? `Hız sınırı aşıldı (${retryAfter} sn bekleyin)`
+          : "Hız sınırı aşıldı";
+        showToast(job.phaseText, true);
+      } else {
+        job.phaseText = parsed?.error?.message || `Yükleme başarısız (${xhr.status})`;
+      }
       renderDocumentList();
       updateSystemStatus();
     };
@@ -596,7 +750,9 @@
     }
 
     try {
-      const response = await fetch(`/api/v1/documents/status/${encodeURIComponent(job.taskId)}`);
+      const response = await apiFetch(
+        `/api/v1/documents/status/${encodeURIComponent(job.taskId)}`
+      );
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -963,6 +1119,10 @@
     if (!query || state.isStreaming) {
       return;
     }
+    if (!state.apiKey) {
+      openApiKeyModal("Soru sormak için önce API anahtarınızı girin.");
+      return;
+    }
 
     hideEmptyState();
     appendUserBubble(query);
@@ -980,7 +1140,7 @@
     let streamErrorMessage = "";
 
     try {
-      const response = await fetch("/api/v1/query/stream", {
+      const response = await apiFetch("/api/v1/query/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1211,10 +1371,85 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !dom.workspaceMenu.classList.contains("hidden")) {
-        closeWorkspaceMenu();
+      if (event.key === "Escape") {
+        if (!dom.workspaceMenu.classList.contains("hidden")) {
+          closeWorkspaceMenu();
+        }
+        if (dom.apiKeyModal && !dom.apiKeyModal.classList.contains("hidden")) {
+          closeApiKeyModal();
+        }
       }
     });
+
+    if (dom.apiKeyBtn) {
+      dom.apiKeyBtn.addEventListener("click", () => openApiKeyModal());
+    }
+    if (dom.apiKeyCancelBtn) {
+      dom.apiKeyCancelBtn.addEventListener("click", closeApiKeyModal);
+    }
+    if (dom.apiKeyModal) {
+      dom.apiKeyModal.addEventListener("click", (event) => {
+        if (event.target === dom.apiKeyModal) {
+          closeApiKeyModal();
+        }
+      });
+    }
+    if (dom.apiKeyVisibilityBtn) {
+      dom.apiKeyVisibilityBtn.addEventListener("click", () => {
+        const isPassword = dom.apiKeyInput.type === "password";
+        dom.apiKeyInput.type = isPassword ? "text" : "password";
+        dom.apiKeyVisibilityBtn.textContent = isPassword ? "Gizle" : "Göster";
+      });
+    }
+    if (dom.apiKeyClearBtn) {
+      dom.apiKeyClearBtn.addEventListener("click", () => {
+        persistApiKey("");
+        state.apiKeyVerified = false;
+        state.documents = [];
+        state.docNameById = new Map();
+        renderDocumentList();
+        dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
+        updateApiKeyButtonState();
+        closeApiKeyModal();
+        showToast("API anahtarı tarayıcıdan temizlendi");
+      });
+    }
+    if (dom.apiKeyForm) {
+      dom.apiKeyForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const candidate = dom.apiKeyInput.value.trim();
+        if (candidate.length < 8) {
+          setApiKeyModalError("API anahtarı en az 8 karakter olmalıdır.");
+          return;
+        }
+        setApiKeyModalError("");
+        dom.apiKeySaveBtn.disabled = true;
+        try {
+          const probe = await fetch("/api/v1/documents/tenants", {
+            headers: { "X-API-Key": candidate },
+          });
+          if (probe.status === 401) {
+            setApiKeyModalError("Geçersiz API anahtarı. Lütfen .env dosyanızdaki değeri kontrol edin.");
+            return;
+          }
+          if (!probe.ok) {
+            setApiKeyModalError(await extractErrorMessage(probe));
+            return;
+          }
+          persistApiKey(candidate);
+          state.apiKeyVerified = true;
+          updateApiKeyButtonState();
+          closeApiKeyModal();
+          showToast("API anahtarı doğrulandı");
+          fetchKnownTenants();
+          fetchDocuments();
+        } catch {
+          setApiKeyModalError("Sunucuya ulaşılamadı. Bağlantınızı kontrol edin.");
+        } finally {
+          dom.apiKeySaveBtn.disabled = false;
+        }
+      });
+    }
 
     dom.starterPrompts.addEventListener("click", (event) => {
       const btn = event.target.closest(".starter-chip");
@@ -1256,11 +1491,17 @@
 
   function init() {
     bindEvents();
+    updateApiKeyButtonState();
     renderWorkspaceList();
     renderSummaryTexts();
     checkHealth();
-    fetchKnownTenants();
-    fetchDocuments();
+    if (state.apiKey) {
+      fetchKnownTenants();
+      fetchDocuments();
+    } else {
+      dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
+      openApiKeyModal();
+    }
     updateSystemStatus();
   }
 

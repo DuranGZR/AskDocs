@@ -19,6 +19,7 @@ from src.core.middleware import (
 from src.core.observability import configure_observability, shutdown_observability
 from src.services.llm_service import AsyncOpenAICompatibleLLMClient
 from src.services.qdrant_service import AsyncQdrantService
+from src.services.rate_limiter import RedisRateLimiter
 
 logger = logging.getLogger(__name__)
 _UI_DIR = Path(__file__).resolve().parent / "ui"
@@ -45,6 +46,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
     )
     app.state.llm_client = llm_client
+    rate_limiter = RedisRateLimiter(
+        redis_url=settings.REDIS_URL,
+        timeout_seconds=settings.RATE_LIMIT_REDIS_TIMEOUT_SECONDS,
+        fail_open=settings.RATE_LIMIT_FAIL_OPEN,
+    )
+    app.state.rate_limiter = rate_limiter
     configure_observability(settings)
     logger.info(
         "Starting %s (env=%s, upload_dir=%s, qdrant_collection=%s, llm_model=%s)",
@@ -59,6 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         shutdown_observability()
+        await rate_limiter.close()
         await llm_client.close()
         await vector_db.close()
         logger.info("Shutting down %s gracefully", settings.APP_NAME)
