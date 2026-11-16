@@ -5,6 +5,7 @@ import math
 import re
 import time
 from collections.abc import AsyncIterator, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -19,6 +20,60 @@ _MAX_RATE_LIMIT_RETRIES = 3
 _CHAT_MAX_RATE_LIMIT_RETRIES = 2
 _CHAT_MAX_RETRY_WAIT_SECONDS = 10.0
 _RETRY_IN_PATTERN = re.compile(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
+_ABNORMAL_REASON_SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]+")
+
+
+@dataclass(frozen=True, slots=True)
+class _SSEChunk:
+    """Ayrıştırılmış tek bir SSE veri satırını temsil eder."""
+
+    is_done: bool = False
+    token: str = ""
+    finish_reason: str | None = None
+
+
+def _normalize_finish_reason(raw_reason: Any) -> str | None:
+    """Model yanıtındaki finish_reason değerini temizler; boşsa None döner."""
+    if isinstance(raw_reason, str):
+        cleaned = raw_reason.strip()
+        if cleaned:
+            return cleaned
+    return None
+
+
+def _extract_upstream_error_summary(error_payload: Any) -> str:
+    """Loglama için yukarı akış hata nesnesinden kısa ve güvenli bir özet çıkarır."""
+    if isinstance(error_payload, dict):
+        parts = [
+            f"{key}={str(error_payload[key]).strip()[:80]}"
+            for key in ("type", "code", "message")
+            if error_payload.get(key) is not None
+        ]
+        if parts:
+            return " ".join(parts).replace("\n", " ").replace("\r", " ")
+    return str(error_payload).strip()[:160].replace("\n", " ").replace("\r", " ")
+
+
+def _build_abnormal_finish_error(finish_reason: str) -> AppError:
+    """Normal 'stop' dışındaki tamamlanma nedenlerini uygun AppError türüne eşler."""
+    logger.warning("Upstream LLM generation stopped abnormally (finish_reason=%s)", finish_reason)
+    lowered = finish_reason.lower()
+    if lowered in {"length", "max_tokens"}:
+        return AppError(
+            "AI response reached the output length limit before completion.",
+            status_code=422,
+            code="stream_truncated",
+        )
+    if lowered in {"content_filter", "safety", "recitation", "blocklist", "prohibited_content"}:
+        return AppError(
+            "AI response stopped early due to content filtering.",
+            status_code=422,
+            code="content_filtered",
+        )
+    safe_reason = _ABNORMAL_REASON_SAFE_RE.sub("_", lowered).strip("_")[:32] or "unknown"
+    return ServiceUnavailableError(
+        f"AI inference stream terminated unexpectedly (reason={safe_reason})."
+    )
 
 
 def _extract_retry_delay_seconds(
@@ -88,6 +143,13 @@ def _parse_chat_completion_payload(payload: Any) -> str:
     if not isinstance(payload, dict):
         raise ServiceUnavailableError("Invalid chat completion response format from AI server.")
 
+    if payload.get("error"):
+        logger.warning(
+            "Chat completion response returned upstream error (%s)",
+            _extract_upstream_error_summary(payload.get("error")),
+        )
+        raise ServiceUnavailableError("AI inference service returned an error.")
+
     choices = payload.get("choices")
     if not isinstance(choices, list) or not choices:
         raise ServiceUnavailableError("Empty choices in chat completion response from AI server.")
@@ -95,6 +157,10 @@ def _parse_chat_completion_payload(payload: Any) -> str:
     first_choice = choices[0]
     if not isinstance(first_choice, dict):
         raise ServiceUnavailableError("Invalid choice item in chat completion response.")
+
+    finish_reason = _normalize_finish_reason(first_choice.get("finish_reason"))
+    if finish_reason is not None and finish_reason.lower() != "stop":
+        raise _build_abnormal_finish_error(finish_reason)
 
     message = first_choice.get("message")
     if not isinstance(message, dict):
@@ -107,15 +173,15 @@ def _parse_chat_completion_payload(payload: Any) -> str:
     return content
 
 
-def _extract_sse_delta(raw_line: str) -> tuple[bool, str]:
-    """SSE (Server-Sent Events) satırını ayrıştırır; (akış_bitti_mi, token_metni) döner."""
+def _extract_sse_delta(raw_line: str) -> _SSEChunk:
+    """SSE (Server-Sent Events) satırını ayrıştırır; bitiş/token/finish_reason döner."""
     line = raw_line.strip()
     if not line or not line.startswith("data:"):
-        return False, ""
+        return _SSEChunk()
 
     data_str = line[5:].strip()
     if data_str == "[DONE]":
-        return True, ""
+        return _SSEChunk(is_done=True)
 
     try:
         chunk = json.loads(data_str)
@@ -125,23 +191,30 @@ def _extract_sse_delta(raw_line: str) -> tuple[bool, str]:
     if not isinstance(chunk, dict):
         raise ServiceUnavailableError("Invalid streaming chunk structure from AI server.")
 
+    if chunk.get("error"):
+        logger.warning(
+            "Upstream LLM SSE stream emitted an error frame (%s)",
+            _extract_upstream_error_summary(chunk.get("error")),
+        )
+        raise ServiceUnavailableError("AI inference service reported an error during streaming.")
+
     choices = chunk.get("choices")
     if not isinstance(choices, list) or not choices:
-        return False, ""
+        return _SSEChunk()
 
     first_choice = choices[0]
     if not isinstance(first_choice, dict):
-        return False, ""
+        return _SSEChunk()
 
+    finish_reason = _normalize_finish_reason(first_choice.get("finish_reason"))
     delta = first_choice.get("delta")
-    if not isinstance(delta, dict):
-        return False, ""
+    token = ""
+    if isinstance(delta, dict):
+        content = delta.get("content")
+        if isinstance(content, str) and content:
+            token = content
 
-    content = delta.get("content")
-    if isinstance(content, str) and content:
-        return False, content
-
-    return False, ""
+    return _SSEChunk(token=token, finish_reason=finish_reason)
 
 
 class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
@@ -362,12 +435,31 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
                             )
                     else:
                         response.raise_for_status()
+                        saw_done = False
+                        saw_stop_finish = False
+                        emitted_tokens = False
                         async for raw_line in response.aiter_lines():
-                            is_done, token = _extract_sse_delta(raw_line)
-                            if is_done:
+                            parsed = _extract_sse_delta(raw_line)
+                            if parsed.is_done:
+                                saw_done = True
                                 break
-                            if token:
-                                yield token
+                            if parsed.token:
+                                emitted_tokens = True
+                                yield parsed.token
+                            if parsed.finish_reason is not None:
+                                if parsed.finish_reason.lower() == "stop":
+                                    saw_stop_finish = True
+                                else:
+                                    raise _build_abnormal_finish_error(parsed.finish_reason)
+                        if not saw_done and not saw_stop_finish:
+                            logger.warning(
+                                "Upstream LLM stream closed before completion marker "
+                                "(emitted_tokens=%s)",
+                                emitted_tokens,
+                            )
+                            raise ServiceUnavailableError(
+                                "AI inference stream closed before completion."
+                            )
                         return
 
                 if pending_retry_delay is not None:

@@ -339,3 +339,88 @@ async def test_query_stream_returns_503_json_when_pre_stream_search_fails(
     assert body["error"]["code"] == "service_unavailable"
     assert body["error"]["request_id"] == "req-pre-stream-503"
     assert "secret-qdrant" not in response.text
+
+
+async def test_query_stream_emits_error_when_upstream_sse_truncates_without_done(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """[DONE] veya finish_reason='stop' gelmeden kesilen akışta SSE error olayı dönmelidir."""
+
+    def llm_handler(request: httpx.Request) -> httpx.Response:
+        if str(request.url).endswith("/embeddings"):
+            return httpx.Response(
+                status_code=200,
+                json={"data": [{"index": 0, "embedding": [1.0, 0.0, 0.0, 0.0]}]},
+            )
+        return httpx.Response(
+            status_code=200,
+            text='data: {"choices": [{"delta": {"content": "seq2seq (diziye"}}]}\n\n',
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    mock_http = httpx.AsyncClient(transport=httpx.MockTransport(llm_handler))
+    llm_service = AsyncOpenAICompatibleLLMClient(
+        base_url="http://mock-llm:11434/v1",
+        client=mock_http,
+    )
+
+    class _StaticVectorDB(BaseVectorDB):
+        async def ensure_collection(self) -> None:
+            return None
+
+        async def upsert(self, *, points: Sequence[VectorPoint]) -> int:
+            return 0
+
+        async def search(
+            self,
+            *,
+            query_vector: Sequence[float],
+            tenant_id: str,
+            top_k: int = 5,
+            score_threshold: float = 0.5,
+        ) -> list[ScoredChunk]:
+            return [
+                ScoredChunk(
+                    point_id="pt-1",
+                    score=0.9,
+                    chunk=DocumentChunk(
+                        document_id="doc-1",
+                        tenant_id=tenant_id,
+                        page_number=2,
+                        chunk_index=0,
+                        text="RAG combines parametric seq2seq and non-parametric memory.",
+                        file_type="pdf",
+                    ),
+                )
+            ]
+
+        async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
+            return None
+
+        async def close(self) -> None:
+            return None
+
+    app.dependency_overrides[get_llm_client] = lambda: llm_service
+    app.dependency_overrides[get_vector_db] = _StaticVectorDB
+
+    try:
+        async with client.stream(
+            "POST",
+            "/api/v1/query/stream",
+            json={"query": "Evet, inceleyelim", "tenant_id": "tenant_a"},
+            headers={"X-Request-ID": "req-truncated-eof"},
+        ) as response:
+            assert response.status_code == 200
+            raw_bytes = await response.aread()
+    finally:
+        await mock_http.aclose()
+
+    events = _parse_sse_events(raw_bytes.decode("utf-8"))
+    assert [name for name, _ in events] == ["token", "error", "done"]
+    assert json.loads(events[0][1]) == {"event": "token", "delta": "seq2seq (diziye"}
+    err = json.loads(events[1][1])
+    assert err["code"] == "service_unavailable"
+    assert "closed before completion" in err["message"]
+    assert err["request_id"] == "req-truncated-eof"
+    assert events[2] == ("done", "[DONE]")

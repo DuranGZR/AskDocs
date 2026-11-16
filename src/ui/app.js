@@ -2065,6 +2065,25 @@
     });
   }
 
+  function formatStreamErrorMessage(code, rawMessage) {
+    if (code === "content_filtered") {
+      return "Yanıt, yapay zeka içerik/tekrar filtresi nedeniyle tamamlanamadan durduruldu. Lütfen soruyu farklı şekilde sormayı deneyin.";
+    }
+    if (code === "stream_truncated") {
+      return "Yanıt maksimum uzunluk sınırına ulaştığı için tamamlanamadan kesildi.";
+    }
+    if (
+      code === "service_unavailable" &&
+      typeof rawMessage === "string" &&
+      (rawMessage.includes("closed before completion") ||
+        rawMessage.includes("terminated unexpectedly") ||
+        rawMessage.includes("reported an error during streaming"))
+    ) {
+      return "Yanıt akışı beklenmedik şekilde yarıda kesildi. Lütfen soruyu yeniden gönderin.";
+    }
+    return rawMessage || "Yanıt akışı sırasında hata oluştu.";
+  }
+
   async function submitQuery(rawQuery) {
     const query = rawQuery.trim();
     if (!query || state.isStreaming) {
@@ -2097,6 +2116,7 @@
     let answerText = "";
     let citations = [];
     let streamErrorMessage = "";
+    let sawDoneEvent = false;
     const historySnapshot = state.chatHistory.slice(-MAX_HISTORY_MESSAGES);
 
     try {
@@ -2148,7 +2168,10 @@
           citations = Array.isArray(payload.citations) ? payload.citations : [];
         } else if (parsed.event === "error") {
           const payload = JSON.parse(parsed.data);
-          streamErrorMessage = payload.message || "Yanıt akışı sırasında hata oluştu.";
+          const errorCode = typeof payload.code === "string" ? payload.code : "";
+          streamErrorMessage = formatStreamErrorMessage(errorCode, payload.message);
+        } else if (parsed.event === "done") {
+          sawDoneEvent = true;
         }
       };
 
@@ -2167,8 +2190,14 @@
         }
       }
 
+      buffer += decoder.decode();
       if (buffer.trim()) {
         processSseFrame(buffer);
+      }
+
+      if (!streamErrorMessage && !sawDoneEvent) {
+        streamErrorMessage =
+          "Yanıt akışı tamamlanmadan sunucu bağlantısı kesildi. Lütfen soruyu yeniden deneyin.";
       }
 
       if (streamErrorMessage) {
@@ -2219,7 +2248,11 @@
           saveChatTranscript();
         }
       } else {
-        turn.body.replaceChildren();
+        if (answerText) {
+          updateAssistantText(turn.body, answerText, false);
+        } else {
+          turn.body.replaceChildren();
+        }
         const errBox = document.createElement("div");
         errBox.className = "assistant-error-box";
         errBox.textContent = err instanceof Error ? err.message : "Sorgu sırasında hata oluştu.";

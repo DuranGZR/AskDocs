@@ -6,8 +6,9 @@ from fastapi import FastAPI
 from starlette.requests import Request
 
 from src.api.dependencies import get_llm_client
+from src.core.circuit_breaker import CircuitBreaker
 from src.core.config import Settings
-from src.core.exceptions import ServiceUnavailableError
+from src.core.exceptions import AppError, ServiceUnavailableError
 from src.main import lifespan
 from src.services.base import ChatMessage
 from src.services.llm_service import (
@@ -395,3 +396,127 @@ async def test_async_stream_generate_429_retry_and_budget_guard(
         assert exc_info.value.headers == {"Retry-After": "46"}
     finally:
         await http_long.aclose()
+
+
+async def test_async_stream_generate_rejects_premature_eof_without_done_or_stop() -> None:
+    """[DONE] veya finish_reason='stop' gelmeden kesilen SSE akışı hata yükseltmelidir."""
+    partial_sse = 'data: {"choices": [{"delta": {"content": "Yarım kalan "}}]}\n\n'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=200,
+            text=partial_sse,
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    service = AsyncOpenAICompatibleLLMClient(
+        base_url="http://test-ai:11434/v1",
+        client=http_client,
+    )
+    collected: list[str] = []
+    try:
+        with pytest.raises(ServiceUnavailableError, match="closed before completion"):
+            async for token in service.stream_generate(
+                messages=[ChatMessage(role="user", content="Soru")]
+            ):
+                collected.append(token)
+        assert collected == ["Yarım kalan "]
+    finally:
+        await http_client.aclose()
+
+
+async def test_async_stream_generate_handles_finish_reasons_and_sse_error_frames() -> None:
+    """stop dışındaki finish_reason değerleri ve SSE error çerçeveleri akışı hata ile kesmelidir."""
+    # 1. Yalnızca finish_reason='stop' ile temiz kapanış ([DONE] olmadan)
+    stop_only_sse = "\n".join(
+        [
+            'data: {"choices": [{"delta": {"content": "Tam yanıt"}}]}',
+            'data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}',
+            "",
+        ]
+    )
+    http_stop = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _req: httpx.Response(
+                status_code=200,
+                text=stop_only_sse,
+                headers={"Content-Type": "text/event-stream"},
+            )
+        )
+    )
+    svc_stop = AsyncOpenAICompatibleLLMClient(base_url="http://test-ai:11434/v1", client=http_stop)
+    try:
+        tokens = [
+            t
+            async for t in svc_stop.stream_generate(
+                messages=[ChatMessage(role="user", content="Soru")]
+            )
+        ]
+        assert tokens == ["Tam yanıt"]
+    finally:
+        await http_stop.aclose()
+
+    # 2. content_filter / length akışı erken sonlandırır ancak devre kesiciyi açmaz
+    breaker = CircuitBreaker(name="llm-finish-reason", failure_threshold=1)
+    filtered_sse = "\n".join(
+        [
+            'data: {"choices": [{"delta": {"content": "İlk parça"}}]}',
+            'data: {"choices": [{"delta": {}, "finish_reason": "content_filter"}]}',
+            "data: [DONE]",
+        ]
+    )
+    http_filtered = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _req: httpx.Response(
+                status_code=200,
+                text=filtered_sse,
+                headers={"Content-Type": "text/event-stream"},
+            )
+        )
+    )
+    svc_filtered = AsyncOpenAICompatibleLLMClient(
+        base_url="http://test-ai:11434/v1",
+        client=http_filtered,
+        circuit_breaker=breaker,
+    )
+    filtered_tokens: list[str] = []
+    try:
+        with pytest.raises(AppError) as exc_info:
+            async for t in svc_filtered.stream_generate(
+                messages=[ChatMessage(role="user", content="Soru")]
+            ):
+                filtered_tokens.append(t)
+        assert filtered_tokens == ["İlk parça"]
+        assert exc_info.value.code == "content_filtered"
+        assert exc_info.value.status_code == 422
+        assert breaker.state == "closed"
+        assert breaker.failure_count == 0
+    finally:
+        await http_filtered.aclose()
+
+    # 3. SSE veri satırı içindeki yukarı akış error nesnesi 503 döndürmelidir
+    error_sse = "\n".join(
+        [
+            'data: {"choices": [{"delta": {"content": "Parça"}}]}',
+            'data: {"error": {"message": "stream aborted upstream", "type": "server_error"}}',
+        ]
+    )
+    http_err = httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda _req: httpx.Response(
+                status_code=200,
+                text=error_sse,
+                headers={"Content-Type": "text/event-stream"},
+            )
+        )
+    )
+    svc_err = AsyncOpenAICompatibleLLMClient(base_url="http://test-ai:11434/v1", client=http_err)
+    try:
+        with pytest.raises(ServiceUnavailableError, match="reported an error during streaming"):
+            async for _ in svc_err.stream_generate(
+                messages=[ChatMessage(role="user", content="Soru")]
+            ):
+                pass
+    finally:
+        await http_err.aclose()
