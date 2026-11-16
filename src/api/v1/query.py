@@ -60,8 +60,12 @@ _SHORT_FOLLOWUP_VERB_RE = re.compile(
     flags=re.IGNORECASE,
 )
 _AFFIRMATIVE_FOLLOWUP_RE = re.compile(
-    r"^(?:evet|tamam|olur|tabi|tabii|lütfen|inceleyelim|anlat|devam|"
-    r"yes|sure|ok|okay|please|go\s+ahead|continue)[!.,?\s]*$",
+    r"^(?:(?:evet|tamam|olur|tabi|tabii|lütfen)(?:\s*,\s*|\s+)?)?"
+    r"(?:evet|tamam|olur|tabi|tabii|lütfen|yapalım|isterim|inceleyelim|anlat|"
+    r"paylaş(?:ır\s+mısın|abilir\s+misin)?|açıkla(?:r\s+mısın)?|detaylandır|özetle|"
+    r"karşılaştıralım|öğrenmek\s+isterim|devam(?:\s+edelim)?|"
+    r"yes(?:,\s*let'?s\s+(?:do\s+that|compare)|,\s*please\s+summarize)?|"
+    r"sure|ok|okay|please|go\s+ahead|continue)[!.,?\s]*$",
     flags=re.IGNORECASE,
 )
 _TRIVIAL_GREETING_RE = re.compile(

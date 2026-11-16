@@ -886,6 +886,28 @@ async def test_query_multi_turn_history_window_sanitizes_and_contextualizes_foll
     assert independent_resp.status_code == 200
     assert recorded_embeddings[-1] == "uzaktan çalışma kurallarını kısaca anlat"
 
+    affirm_resp = await client.post(
+        "/api/v1/query",
+        json={
+            "query": "Evet, öğrenmek isterim",
+            "tenant_id": "tenant_hr",
+            "history": [
+                {"role": "user", "content": "Bitcoin çift harcama sorunu nasıl çözülüyor?"},
+                {
+                    "role": "assistant",
+                    "content": (
+                        "İş kanıtıyla çözülür.\n\n"
+                        "Zaman damgası sunucusu hakkında detay öğrenmek ister misiniz?"
+                    ),
+                },
+            ],
+            "stream": False,
+        },
+    )
+    assert affirm_resp.status_code == 200
+    assert "Bitcoin çift harcama" in recorded_embeddings[-1]
+    assert "Zaman damgası sunucusu" in recorded_embeddings[-1]
+
 
 async def test_query_and_stream_respect_document_ids_scope_and_emit_citation_header(
     app: FastAPI,

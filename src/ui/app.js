@@ -1913,46 +1913,38 @@
       return null;
     }
 
-    let topic = questionSentence.slice(0, -1).trim();
-    topic = topic
-      .replace(
-        /\s+(?:hakkında|konusunda|konularını|konusunu|üzerine|ile\s+ilgili)\s+(?:daha\s+(?:fazla|detaylı|yakından)\s+)?(?:(?:bilgi|detay(?:ları|lar)?)\s*)?(?:edinmek|paylaşmamı|vermemi|almak|incelememizi|incelemek|açıklamamı|öğrenmek|gözden\s+geçirmek|bakmamızı|keşfetmek)?\s*(?:ister\s+misiniz|istiyorsanız|merak\s+ediyor\s+musunuz)?$/i,
-        ""
+    if (
+      /başka\s+(?:bir\s+)?(?:soru|yardım|konu)|yardımcı\s+olabilir\s+miyim|anything\s+else/i.test(
+        questionSentence
       )
-      .replace(
-        /\s+(?:konularını|konusunu)\s+(?:daha\s+(?:fazla|yakından|detaylı)\s+)?(?:incelememizi|incelemek|öğrenmek|keşfetmek)\s*(?:ister\s+misiniz)?$/i,
-        ""
-      )
-      .replace(
-        /\s+(?:hakkında|üzerine|ile\s+ilgili)?\s*(?:incelememizi|öğrenmemizi|açıklamamı|paylaşmamı|anlatmamı)\s+ister\s+misiniz$/i,
-        ""
-      )
-      .replace(
-        /^(?:would you like(?:\s+me)?\s+to|do you want(?:\s+me)?\s+to|shall\s+i)\s+(?:explore|explain|examine|compare|discuss|elaborate on|learn more about)\s+/i,
-        ""
-      )
-      .replace(/\s+in more detail$/i, "")
-      .replace(/^(?:bu\s+belgelerdeki|bu\s+konuda|isterseniz|ayrıca|peki)\s+/i, "")
-      .trim();
-
-    if (!topic || topic.length < 4) {
-      topic = questionSentence.slice(0, -1).trim();
+    ) {
+      return null;
     }
 
-    const cappedTopic =
-      topic.length > 52
-        ? `${topic.slice(0, 49).replace(/\s+\S*$/, "").trim()}...`
-        : topic;
-    const formattedTopic = cappedTopic.charAt(0).toUpperCase() + cappedTopic.slice(1);
-    const isEnglish = /[?]/.test(questionSentence) && /would you|do you|shall i/i.test(questionSentence);
-    const prompt = isEnglish
-      ? `Please explain ${topic} in more detail.`
-      : `${topic} hakkında daha detaylı bilgi verir misin?`;
+    const rules = [
+      { re: /öğrenmek\s+ister\s+misiniz/i, text: "Evet, öğrenmek isterim" },
+      { re: /incelememizi|incelemek\s+ister\s+misiniz/i, text: "Evet, inceleyelim" },
+      { re: /karşılaştırmamızı|kıyaslamamızı/i, text: "Evet, karşılaştıralım" },
+      { re: /özetlememi|özet\s+geçmemi/i, text: "Evet, özetle" },
+      {
+        re: /detaylandırmamı|detaylı\s+(?:anlatmamı|bakmamızı|görmek)/i,
+        text: "Evet, detaylandır",
+      },
+      { re: /paylaşmamı|görmek\s+ister\s+misiniz/i, text: "Evet, paylaşır mısın" },
+      { re: /açıklamamı|anlatmamı/i, text: "Evet, açıklar mısın" },
+      { re: /ister\s+misiniz|istiyorsanız|merak\s+ediyor\s+musunuz/i, text: "Evet, isterim" },
+      { re: /would\s+you\s+like.*compare/i, text: "Yes, let's compare" },
+      { re: /would\s+you\s+like.*summarize/i, text: "Yes, please summarize" },
+      { re: /would\s+you\s+like|shall\s+i|do\s+you\s+want/i, text: "Yes, let's do that" },
+    ];
 
-    return {
-      label: `${formattedTopic} →`,
-      prompt,
-    };
+    for (const rule of rules) {
+      if (rule.re.test(questionSentence)) {
+        return { label: `${rule.text} →`, prompt: rule.text };
+      }
+    }
+
+    return { label: "Evet, yapalım →", prompt: "Evet, yapalım" };
   }
 
   function renderTurnActions(actionsBar, answerText, citations, showFollowup = true) {
