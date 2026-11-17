@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import uuid
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from qdrant_client import AsyncQdrantClient, QdrantClient, models
 from qdrant_client.conversions.common_types import PointId
@@ -63,23 +63,61 @@ def _to_point_struct(point: VectorPoint) -> models.PointStruct:
     )
 
 
-def _to_scored_chunk(point: models.ScoredPoint) -> ScoredChunk:
-    """Qdrant ScoredPoint sonucunu servis katmanı ScoredChunk nesnesine çevirir."""
-    payload = point.payload or {}
+def _payload_to_scored_chunk(
+    *,
+    point_id: PointId,
+    score: float,
+    payload: Mapping[str, Any] | None,
+) -> ScoredChunk:
+    """Qdrant payload sözlüğünü servis katmanı ScoredChunk nesnesine dönüştürür."""
+    data = payload or {}
     chunk = DocumentChunk(
-        document_id=str(payload.get("document_id", "")),
-        tenant_id=str(payload.get("tenant_id", "")),
-        page_number=int(payload.get("page_number", 1)),
-        chunk_index=int(payload.get("chunk_index", 0)),
-        text=str(payload.get("text", "")),
-        file_type=str(payload.get("file_type", "pdf")),
-        filename=str(payload.get("filename") or ""),
+        document_id=str(data.get("document_id", "")),
+        tenant_id=str(data.get("tenant_id", "")),
+        page_number=int(data.get("page_number", 1)),
+        chunk_index=int(data.get("chunk_index", 0)),
+        text=str(data.get("text", "")),
+        file_type=str(data.get("file_type", "pdf")),
+        filename=str(data.get("filename") or ""),
     )
     return ScoredChunk(
-        point_id=str(point.id),
-        score=float(point.score),
+        point_id=str(point_id),
+        score=float(score),
         chunk=chunk,
     )
+
+
+def _compute_document_quotas(
+    by_doc: Mapping[str, Sequence[ScoredChunk]],
+    limit: int,
+) -> dict[str, int]:
+    """Belgeler arasında dengeli dağıtım yapar, kalan bütçeyi daha uzun belgelere aktarır."""
+    quotas = {doc_key: 0 for doc_key in by_doc}
+    remaining = limit
+
+    while remaining > 0:
+        eligible = [doc_key for doc_key, chunks in by_doc.items() if quotas[doc_key] < len(chunks)]
+        if not eligible:
+            break
+        step, rem = divmod(remaining, len(eligible))
+        if step == 0:
+            for doc_key in eligible[:rem]:
+                quotas[doc_key] += 1
+            break
+        progressed = 0
+        for doc_key in eligible:
+            capacity = len(by_doc[doc_key]) - quotas[doc_key]
+            take = min(step, capacity)
+            quotas[doc_key] += take
+            progressed += take
+        remaining -= progressed
+
+    return quotas
+
+
+def _to_scored_chunk(point: models.ScoredPoint) -> ScoredChunk:
+    """Qdrant ScoredPoint sonucunu servis katmanı ScoredChunk nesnesine çevirir."""
+    return _payload_to_scored_chunk(point_id=point.id, score=point.score, payload=point.payload)
 
 
 def _build_tenant_filter(
@@ -232,6 +270,78 @@ class AsyncQdrantService(BaseVectorDB):
             score_threshold=score_threshold,
             document_ids=document_ids,
         )
+
+    async def sample_document_chunks(
+        self,
+        *,
+        tenant_id: str,
+        document_ids: Sequence[str] | None = None,
+        limit: int = 12,
+    ) -> list[ScoredChunk]:
+        """Dokümanların başından sonuna tüm sayfalardan dengeli chunk örneklemi döndürür."""
+        if limit <= 0:
+            return []
+
+        async def _op() -> list[ScoredChunk]:
+            scroll_filter = _build_tenant_filter(tenant_id=tenant_id, document_ids=document_ids)
+            collected: list[ScoredChunk] = []
+            offset: PointId | None = None
+            max_scan = 2000
+
+            while len(collected) < max_scan:
+                records, next_offset = await self._client.scroll(
+                    collection_name=self._collection_name,
+                    scroll_filter=scroll_filter,
+                    limit=256,
+                    offset=offset,
+                    with_payload=True,
+                    with_vectors=False,
+                )
+                for record in records:
+                    scored_item = _payload_to_scored_chunk(
+                        point_id=record.id,
+                        score=0.8,
+                        payload=record.payload,
+                    )
+                    if scored_item.chunk.document_id and scored_item.chunk.text.strip():
+                        collected.append(scored_item)
+                if next_offset is None or not records:
+                    break
+                offset = next_offset
+
+            if not collected:
+                return []
+
+            collected.sort(
+                key=lambda item: (
+                    item.chunk.document_id,
+                    item.chunk.page_number,
+                    item.chunk.chunk_index,
+                )
+            )
+            by_doc: dict[str, list[ScoredChunk]] = {}
+            for item in collected:
+                by_doc.setdefault(item.chunk.document_id, []).append(item)
+
+            quotas = _compute_document_quotas(by_doc, limit)
+            sampled: list[ScoredChunk] = []
+            for doc_key, doc_chunks in by_doc.items():
+                quota = quotas[doc_key]
+                if quota <= 0:
+                    continue
+                if len(doc_chunks) <= quota:
+                    sampled.extend(doc_chunks)
+                elif quota == 1:
+                    sampled.append(doc_chunks[0])
+                else:
+                    indices = sorted(
+                        {round(step * (len(doc_chunks) - 1) / (quota - 1)) for step in range(quota)}
+                    )
+                    sampled.extend(doc_chunks[pos] for pos in indices)
+
+            return sampled[:limit]
+
+        return await self._run_guarded(_op)
 
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm chunk vektörlerini siler."""

@@ -1,5 +1,8 @@
 import json
 from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -62,7 +65,9 @@ def test_prompt_security_boundaries_and_context_tag_sanitization() -> None:
     assert "<context>...</context>" in system_prompt
     assert "untrusted" in system_prompt.lower()
     assert "do not know" in system_prompt.lower()
-    assert "corerag" in system_prompt.lower()
+    assert "askdocs" in system_prompt.lower()
+    assert "sağlanan belgelere göre" in system_prompt.lower()
+    assert "depth & length adaptation" in system_prompt.lower()
     assert "conversational & identity exception" in system_prompt.lower()
 
     assert user_prompt.startswith("<context>\n")
@@ -1008,3 +1013,220 @@ async def test_query_and_stream_respect_document_ids_scope_and_emit_citation_hea
             await stream_resp.aread()
     finally:
         await vector_db.close()
+
+
+@dataclass
+class _MultiDocLongFormEnv:
+    vector_db: AsyncQdrantService
+    captured_embeddings: list[str]
+    captured_messages: list[ChatMessage]
+
+
+@asynccontextmanager
+async def _multi_doc_long_form_env(app: FastAPI) -> AsyncIterator[_MultiDocLongFormEnv]:
+    """Çok belgeli uzun anlatım ve workspace tarama testleri için ortak Qdrant/LLM ortamı kurar."""
+    qdrant_client = AsyncQdrantClient(location=":memory:")
+    vector_db = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=qdrant_client,
+    )
+    await vector_db.ensure_collection()
+
+    # Sayfa 16 yalnızca semantik skoru yakalasa bile 1..16 tüm sayfalar örneklenebilmelidir
+    points = [
+        VectorPoint(
+            point_id=build_chunk_point_id("doc-crag", idx),
+            vector=[1.0, 0.0, 0.0, 0.0] if idx == 15 else [0.8, 0.6, 0.0, 0.0],
+            chunk=DocumentChunk(
+                document_id="doc-crag",
+                tenant_id="tenant_long",
+                page_number=idx + 1,
+                chunk_index=idx,
+                text=f"CRAG teknik bölüm sayfa {idx + 1} açıklaması.",
+                file_type="pdf",
+                filename="crag_2401_15884.pdf",
+            ),
+        )
+        for idx in range(16)
+    ]
+    points.append(
+        VectorPoint(
+            point_id=build_chunk_point_id("doc-other", 0),
+            vector=[1.0, 0.0, 0.0, 0.0],
+            chunk=DocumentChunk(
+                document_id="doc-other",
+                tenant_id="tenant_long",
+                page_number=1,
+                chunk_index=0,
+                text="Self-RAG yansıtma token mekanizmaları intro bölümü.",
+                file_type="pdf",
+                filename="selfrag_2310_11511.pdf",
+            ),
+        )
+    )
+    await vector_db.upsert(points=points)
+
+    captured_embeddings: list[str] = []
+    captured_messages: list[ChatMessage] = []
+
+    class _LongFormLLM(BaseLLMClient):
+        async def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
+            captured_embeddings.extend(texts)
+            return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+        async def generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> str:
+            captured_messages.extend(messages)
+            return "Detaylı CRAG açıklaması [Source 1]."
+
+        async def stream_generate(
+            self,
+            *,
+            messages: Sequence[ChatMessage],
+            temperature: float = 0.0,
+            max_tokens: int | None = None,
+        ) -> AsyncIterator[str]:
+            yield "ok"
+
+        async def close(self) -> None:
+            return None
+
+    app.dependency_overrides[get_llm_client] = _LongFormLLM
+    app.dependency_overrides[get_vector_db] = lambda: vector_db
+    try:
+        yield _MultiDocLongFormEnv(
+            vector_db=vector_db,
+            captured_embeddings=captured_embeddings,
+            captured_messages=captured_messages,
+        )
+    finally:
+        await vector_db.close()
+
+
+async def test_long_form_and_overview_queries_sample_full_document_and_resolve_filenames(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """Uzun anlatım/özet sorgularında tam sayfa örneklemi ve dosya adı eşlemesi çalışmalıdır."""
+    async with _multi_doc_long_form_env(app) as env:
+        # 1) Belge adı geçen özet sorgusu (checkbox seçilmese dahi crag_2401_15884.pdf'e kilitlenir)
+        summary_resp = await client.post(
+            "/api/v1/query",
+            json={
+                "query": "crag_2401_15884.pdf belgesindeki temel konuları özetle",
+                "tenant_id": "tenant_long",
+                "stream": False,
+            },
+        )
+        assert summary_resp.status_code == 200
+        summary_citations = summary_resp.json()["citations"]
+        assert len(summary_citations) == 12
+        assert {cit["document_id"] for cit in summary_citations} == {"doc-crag"}
+        pages = [cit["page_number"] for cit in summary_citations]
+        assert pages[0] == 1
+        assert pages[-1] == 16
+
+        # 2) "bu belgeyi" anaforası içeren uzun anlatım takip sorusu önceki konuyu bağlamalı
+        env.captured_embeddings.clear()
+        env.captured_messages.clear()
+        long_resp = await client.post(
+            "/api/v1/query",
+            json={
+                "query": "en az 50 satırda anlat bana bu belgeyi",
+                "tenant_id": "tenant_long",
+                "document_ids": ["doc-crag"],
+                "history": [
+                    {"role": "user", "content": "CRAG değerlendiricisi nasıl çalışır?"},
+                    {"role": "assistant", "content": "Evaluator skoru kullanır."},
+                ],
+                "stream": False,
+            },
+        )
+        assert long_resp.status_code == 200
+        assert "CRAG değerlendiricisi" in env.captured_embeddings[-1]
+        assert "EXTENDED DEPTH: Write a thorough, multi-section explanation" in (
+            env.captured_messages[0].content
+        )
+        assert len(long_resp.json()["citations"]) == 12
+
+
+async def test_workspace_wide_overview_affirmative_followup_and_greeting_short_circuit(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+) -> None:
+    """Çoklu belge özeti, onay takip sorusu odaklanması ve selamlama kısa devresi çalışmalıdır."""
+    async with _multi_doc_long_form_env(app) as env:
+        # 1) Checkbox seçilmeden tüm belgeleri soran özet tek makaleye çökmemelidir
+        multi_resp = await client.post(
+            "/api/v1/query",
+            json={
+                "query": "bu 6 döküman genel olarak ne anlatıyor",
+                "tenant_id": "tenant_long",
+                "stream": False,
+            },
+        )
+        assert multi_resp.status_code == 200
+        multi_citations = multi_resp.json()["citations"]
+        assert len(multi_citations) == 12
+        assert {cit["document_id"] for cit in multi_citations} == {"doc-crag", "doc-other"}
+        assert "MULTI-DOCUMENT OVERVIEW" in env.captured_messages[0].content
+
+        # 2) Kısa onay yanıtı eski tur yerine son asistan kapanış sorusuna odaklanmalıdır
+        env.captured_embeddings.clear()
+        env.captured_messages.clear()
+        follow_resp = await client.post(
+            "/api/v1/query",
+            json={
+                "query": "Evet, isterim",
+                "tenant_id": "tenant_long",
+                "history": [
+                    {"role": "user", "content": "bu 6 döküman genel olarak ne anlatıyor"},
+                    {
+                        "role": "assistant",
+                        "content": (
+                            "Genel özet tamamlandı. "
+                            "Llama2-7B eğitim verisi ölçekleme detaylarını incelemek ister misiniz?"
+                        ),
+                    },
+                    {"role": "user", "content": "ISREL nedir?"},
+                    {
+                        "role": "assistant",
+                        "content": (
+                            "ISREL pasaj ilgililik değerlendirmesidir. "
+                            "ISREL, ISSUP ve ISUSE token ağırlıklarının "
+                            "etkisini incelemek ister misiniz?"
+                        ),
+                    },
+                ],
+                "stream": False,
+            },
+        )
+        assert follow_resp.status_code == 200
+        assert "ISREL, ISSUP ve ISUSE token ağırlıklarının etkisini" in env.captured_embeddings[-1]
+        assert "Llama2-7B eğitim verisi" not in env.captured_embeddings[-1]
+        assert "ISREL, ISSUP ve ISUSE token ağırlıklarının etkisini" in (
+            env.captured_messages[0].content
+        )
+
+        # 3) Basit selamlama ("merhaba") embedding veya vektör araması tetiklememelidir
+        env.captured_embeddings.clear()
+        env.captured_messages.clear()
+        with patch.object(env.vector_db, "search", wraps=env.vector_db.search) as search_spy:
+            greet_resp = await client.post(
+                "/api/v1/query",
+                json={
+                    "query": "merhaba",
+                    "tenant_id": "tenant_long",
+                    "stream": False,
+                },
+            )
+        assert greet_resp.status_code == 200
+        assert greet_resp.json()["citations"] == []
+        assert env.captured_embeddings == []
+        assert search_spy.call_count == 0

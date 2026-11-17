@@ -177,6 +177,17 @@ class BaseVectorDB(ABC):
             score_threshold=score_threshold,
         )
 
+    async def sample_document_chunks(
+        self,
+        *,
+        tenant_id: str,
+        document_ids: Sequence[str] | None = None,
+        limit: int = 12,
+    ) -> list[ScoredChunk]:
+        """Özet veya kapsamlı anlatım için doküman sayfalarından dengeli örneklem döner."""
+        del tenant_id, document_ids, limit
+        return []
+
     @abstractmethod
     async def delete_by_document(self, *, tenant_id: str, document_id: str) -> None:
         """Belirtilen tenant_id ve document_id'ye ait tüm vektör kayıtlarını siler."""

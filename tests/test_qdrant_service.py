@@ -479,3 +479,47 @@ async def test_qdrant_search_scoped_restricts_to_document_ids_within_tenant() ->
         assert [hit.chunk.document_id for hit in hits] == ["doc-a2"]
     finally:
         await service.close()
+
+
+async def test_sample_document_chunks_balances_pages_and_respects_tenant() -> None:
+    """Özet örneklemesi seçili tenant altında ilk/orta/son sayfaları dengeli biçimde seçmelidir."""
+    client = AsyncQdrantClient(location=":memory:")
+    service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=4,
+        client=client,
+    )
+    try:
+        await service.ensure_collection()
+        points = [
+            _make_point(
+                document_id="doc-main",
+                tenant_id="tenant_sample",
+                chunk_index=idx,
+                page_number=idx + 1,
+                text=f"Bölüm {idx + 1}",
+                vector=[1.0, 0.0, 0.0, 0.0],
+            )
+            for idx in range(10)
+        ] + [
+            _make_point(
+                document_id="doc-other-tenant",
+                tenant_id="other_tenant",
+                chunk_index=0,
+                page_number=1,
+                text="İzole kiracı dışı içerik",
+                vector=[1.0, 0.0, 0.0, 0.0],
+            )
+        ]
+        await service.upsert(points=points)
+
+        sampled = await service.sample_document_chunks(
+            tenant_id="tenant_sample",
+            document_ids=["doc-main"],
+            limit=4,
+        )
+        assert len(sampled) == 4
+        assert [item.chunk.page_number for item in sampled] == [1, 4, 7, 10]
+        assert all(item.chunk.tenant_id == "tenant_sample" for item in sampled)
+    finally:
+        await service.close()

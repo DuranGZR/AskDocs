@@ -1825,17 +1825,29 @@
     renderInspectorView();
   }
 
+  function isTrivialGreetingText(queryText) {
+    return /^(?:merhaba|selam|slm|hi|hello|hey|günaydın|iyi akşamlar|teşekkürler|sağ ol)[!.\s]*$/i.test(
+      String(queryText || "").trim()
+    );
+  }
+
   function renderCitations(citationsWrap, citations, queryText = "") {
     citationsWrap.replaceChildren();
-    citationsWrap.classList.remove("hidden");
 
     if (!citations || citations.length === 0) {
+      if (isTrivialGreetingText(queryText)) {
+        citationsWrap.classList.add("hidden");
+        return null;
+      }
+      citationsWrap.classList.remove("hidden");
       const note = document.createElement("div");
       note.className = "no-citations-note";
       note.textContent = "Yüklü dokümanlarda eşik üzerinde eşleşen kaynak bulunamadı.";
       citationsWrap.appendChild(note);
       return null;
     }
+
+    citationsWrap.classList.remove("hidden");
 
     const groups = groupCitationsByPage(citations);
     const pillsCol = document.createElement("div");

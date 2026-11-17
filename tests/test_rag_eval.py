@@ -439,8 +439,9 @@ async def test_evaluate_rag_dataset_batches_embeddings_and_resolves_live_filenam
 
 
 def test_is_abstention_answer_detects_is_not_mentioned_phrasing() -> None:
-    """Kapsam dışı sorularda 'is not mentioned' kalıbı geçerli ret olarak sayılmalıdır."""
+    """Kapsam dışı sorularda İngilizce/Türkçe doğal ret kalıpları geçerli sayılmalıdır."""
     assert is_abstention_answer(
         "Based on the provided documents, the WMT-19 BLEU-4 score is not mentioned."
     )
+    assert is_abstention_answer("Bu bilgi mevcut kaynaklarda yer almamaktadır.")
     assert not is_abstention_answer("Table 1 reports that FiD achieves 51.4 EM on NQ.")

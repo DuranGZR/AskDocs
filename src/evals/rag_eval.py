@@ -26,7 +26,10 @@ _WHITESPACE_RE = re.compile(r"\s+")
 _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", flags=re.IGNORECASE)
 
 _ABSTENTION_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"\bbilgi\s+(?:bulunmamaktadır|bulunmuyor|yer\s+almamaktadır|mevcut\s+değil)"),
+    re.compile(
+        r"\b(?:bilgi|veri|detay|rakam)\w*(?:\s+\S+){0,4}\s+"
+        r"(?:bulunmamaktadır|bulunmuyor|yer\s+almamaktadır|mevcut\s+değil)"
+    ),
     re.compile(r"\byeterli\s+bilgi(?:ye)?\s+(?:yok|sahip\s+değil|bulunmamaktadır)"),
     re.compile(r"\bbelgelerde\b.*\bbulunmamaktadır\b"),
     re.compile(r"\bbilmiyorum\b"),
