@@ -1,7 +1,7 @@
 [project]
 name = "corerag-engine"
 version = "0.1.0"
-description = "Production-grade asynchronous RAG engine built with FastAPI, Celery, Qdrant, Langfuse, and a Rust (PyO3) text-processing core."
+description = "Production-grade asynchronous multi-tenant RAG platform built with FastAPI, Celery, Qdrant, Langfuse, and a Cupertino Light Web UI."
 requires-python = ">=3.11"
 dependencies = [
     "aiofiles>=25.1.0",

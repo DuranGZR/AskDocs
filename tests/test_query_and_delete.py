@@ -580,7 +580,7 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     root_resp = await client.get("/")
     assert root_resp.status_code == 200
     assert root_resp.headers["content-type"].startswith("text/html")
-    assert "CoreRAG" in root_resp.text
+    assert "AskDocs" in root_resp.text
     assert "window-controls" not in root_resp.text
     assert 'id="workspace-menu"' in root_resp.text
     assert 'id="inspector-drawer"' in root_resp.text

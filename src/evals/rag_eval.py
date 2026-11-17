@@ -35,6 +35,7 @@ _ABSTENTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\b(?:not\s+enough|insufficient|no)\s+information\b"),
     re.compile(r"\bcannot\s+(?:be\s+)?answer(?:ed)?\s+based\s+on\b"),
     re.compile(r"\bnot\s+mentioned\s+in\s+the\s+provided\b"),
+    re.compile(r"\b(?:is|are)\s+not\s+(?:mentioned|stated|specified|reported|included)\b"),
 )
 
 _LLM_JUDGE_SYSTEM_PROMPT = (

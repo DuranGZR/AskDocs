@@ -29,5 +29,6 @@ logs/
 .DS_Store
 Thumbs.db
 
-# --- Yerel Planlama Notları ---
+# --- Yerel Planlama Notları & Lisans Kayıtları ---
 oku.txt
+.licenses/

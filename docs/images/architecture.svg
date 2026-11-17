@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 612" width="1120" height="612" role="img" aria-label="AskDocs System Architecture">
+  <!-- Outer Warm Canvas Frame -->
+  <rect x="6" y="6" width="1108" height="600" rx="20" fill="#F8F6F0" stroke="#E2DCD0" stroke-width="1.5" />
+
+  <!-- Header -->
+  <text x="34" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="20" font-weight="700" fill="#1D1D1F">
+    AskDocs System Architecture
+  </text>
+  <text x="34" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#6E6B64">
+    Async API separated from Sync Workers · Isolated Workspace Search · Verifiable SSE Streaming
+  </text>
+  <rect x="866" y="28" width="220" height="28" rx="14" fill="#EFECE4" stroke="#DFD9CB" />
+  <text x="976" y="46" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="600" fill="#4A4842">
+    WRITE PATH + READ PATH
+  </text>
+
+  <!-- ==================== LANE 1: WRITE PATH ==================== -->
+  <rect x="28" y="88" width="1064" height="170" rx="14" fill="#FDFCF9" stroke="#E6E1D6" stroke-width="1.2" />
+  <rect x="46" y="102" width="234" height="24" rx="12" fill="#E8F2FF" />
+  <text x="163" y="118" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="700" fill="#0066CC">
+    1 · UPLOAD &amp; INDEX (WRITE)
+  </text>
+
+  <!-- Node 1.1: Web UI / Client -->
+  <rect x="46" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.3" />
+  <text x="138" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Web UI / Client</text>
+  <text x="138" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Upload PDF or TXT file</text>
+  <text x="138" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">202 Accepted right away</text>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="230" y1="191" x2="251" y2="191" stroke="#0071E3" stroke-width="2" />
+  <polygon points="257,191 249,186.5 249,195.5" fill="#0071E3" />
+
+  <!-- Node 1.2: FastAPI Async Edge -->
+  <rect x="257" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
+  <text x="349" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">FastAPI Async Edge</text>
+  <text x="349" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Checks auth, limit &amp; header</text>
+  <text x="349" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#0066CC">Streams UUID file to disk</text>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="441" y1="191" x2="462" y2="191" stroke="#475569" stroke-width="2" />
+  <polygon points="468,191 460,186.5 460,195.5" fill="#475569" />
+
+  <!-- Node 1.3: Redis + Shared Disk -->
+  <rect x="468" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#D97706" stroke-width="1.6" />
+  <text x="560" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Redis &amp; Shared Disk</text>
+  <text x="560" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Task queue &amp; upload volume</text>
+  <text x="560" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#B45309">Plus rate-limit windows</text>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="652" y1="191" x2="673" y2="191" stroke="#475569" stroke-width="2" />
+  <polygon points="679,191 671,186.5 671,195.5" fill="#475569" />
+
+  <!-- Node 1.4: Celery Sync Worker -->
+  <rect x="679" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#334155" stroke-width="1.6" />
+  <text x="771" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Celery Sync Worker</text>
+  <text x="771" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">PyMuPDF · 1200/150 chunks</text>
+  <text x="771" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#334155">Batch-32 embed · 3x retry</text>
+
+  <!-- Arrow 4 -> 5 -->
+  <line x1="863" y1="191" x2="884" y2="191" stroke="#16A34A" stroke-width="2" />
+  <polygon points="890,191 882,186.5 882,195.5" fill="#16A34A" />
+
+  <!-- Node 1.5: Qdrant Vector DB -->
+  <rect x="890" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
+  <text x="982" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Qdrant Vector DB</text>
+  <text x="982" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Tenant-isolated HNSW index</text>
+  <text x="982" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">UUID5 = 0 duplicate chunks</text>
+
+  <!-- ==================== LANE 2: READ PATH ==================== -->
+  <rect x="28" y="294" width="1064" height="170" rx="14" fill="#FDFCF9" stroke="#E6E1D6" stroke-width="1.2" />
+  <rect x="46" y="308" width="214" height="24" rx="12" fill="#E8F2FF" />
+  <text x="153" y="324" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="700" fill="#0066CC">
+    2 · ASK &amp; VERIFY (READ)
+  </text>
+
+  <!-- ==================== BRIDGE ARROW (WRITE -> READ) ==================== -->
+  <polyline points="982,244 982,276 427,276 427,338" fill="none" stroke="#16A34A" stroke-width="2" stroke-dasharray="6,4" />
+  <polygon points="427,344 422.5,335.5 431.5,335.5" fill="#16A34A" />
+  <rect x="586" y="265" width="238" height="22" rx="11" fill="#ECFDF5" stroke="#BBF7D0" stroke-width="1" />
+  <text x="705" y="279.5" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="600" fill="#15803D">
+    Indexed chunks searched by workspace
+  </text>
+
+  <!-- Node 2.1: Multi-Turn Query -->
+  <rect x="46" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.3" />
+  <text x="162" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Multi-Turn Query</text>
+  <text x="162" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Workspace, history &amp; selected files</text>
+  <text x="162" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#0066CC">Expands short follow-ups</text>
+
+  <!-- Arrow 2.1 -> 2.2 -->
+  <line x1="278" y1="397" x2="305" y2="397" stroke="#0071E3" stroke-width="2" />
+  <polygon points="311,397 303,392.5 303,401.5" fill="#0071E3" />
+
+  <!-- Node 2.2: Tenant-Isolated Search -->
+  <rect x="311" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
+  <text x="427" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Tenant-Isolated Search</text>
+  <text x="427" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Top-5 cosine search inside workspace</text>
+  <text x="427" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">0.70 cutoff (0.58 fallback)</text>
+
+  <!-- Arrow 2.2 -> 2.3 -->
+  <line x1="543" y1="397" x2="570" y2="397" stroke="#0071E3" stroke-width="2" />
+  <polygon points="576,397 568,392.5 568,401.5" fill="#0071E3" />
+
+  <!-- Node 2.3: Context Guard & LLM -->
+  <rect x="576" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
+  <text x="692" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Context Guard &amp; LLM</text>
+  <text x="692" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Context fence + strict abstention</text>
+  <text x="692" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#475569">Gemini / OpenAI-Compatible API</text>
+
+  <!-- Arrow 2.3 -> 2.4 -->
+  <line x1="808" y1="397" x2="835" y2="397" stroke="#0071E3" stroke-width="2" />
+  <polygon points="841,397 833,392.5 833,401.5" fill="#0071E3" />
+
+  <!-- Node 2.4: Verified SSE + Web UI -->
+  <rect x="841" y="344" width="233" height="106" rx="12" fill="#1D1D1F" stroke="#1D1D1F" stroke-width="1.5" />
+  <text x="957.5" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#FFFFFF">Verified SSE → Web UI</text>
+  <text x="957.5" y="395" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.8" fill="#60A5FA">token → citations → [DONE]</text>
+  <text x="957.5" y="419" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#E5E7EB">[N] badges · Source Inspector</text>
+
+  <!-- ==================== LANE 3: PLATFORM SAFEGUARDS ==================== -->
+  <rect x="28" y="480" width="1064" height="114" rx="14" fill="#F2EFE7" stroke="#DFD9CB" stroke-width="1.2" />
+  <text x="46" y="500" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="700" fill="#57534E">
+    PLATFORM SAFEGUARDS &amp; TELEMETRY (SHARED ACROSS API + WORKER)
+  </text>
+
+  <!-- Card A: Circuit Breakers -->
+  <rect x="46" y="510" width="326" height="72" rx="10" fill="#FFFFFF" stroke="#E2DCD0" stroke-width="1.2" />
+  <text x="209" y="532" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12.5" font-weight="700" fill="#1D1D1F">3-State Circuit Breakers</text>
+  <text x="209" y="551" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Closed → Open (5 fails / 30s) → Half-Open</text>
+  <text x="209" y="569" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.2" fill="#0066CC">Isolates Qdrant &amp; LLM outages cleanly</text>
+
+  <!-- Card B: Langfuse Telemetry -->
+  <rect x="397" y="510" width="326" height="72" rx="10" fill="#FFFFFF" stroke="#E2DCD0" stroke-width="1.2" />
+  <text x="560" y="532" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12.5" font-weight="700" fill="#1D1D1F">Fail-Open Langfuse Observability</text>
+  <text x="560" y="551" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Tracks TTFT, tokens &amp; eval runs in Postgres</text>
+  <text x="560" y="569" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.2" fill="#15803D">Observability outages never block queries</text>
+
+  <!-- Card C: Security & Health -->
+  <rect x="748" y="510" width="326" height="72" rx="10" fill="#FFFFFF" stroke="#E2DCD0" stroke-width="1.2" />
+  <text x="911" y="532" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12.5" font-weight="700" fill="#1D1D1F">Security &amp; Request Tracing</text>
+  <text x="911" y="551" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">SHA-256 API Key · 100 MiB cap · X-Request-ID</text>
+  <text x="911" y="569" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.2" fill="#475569">nosniff / X-Frame DENY · /health probes</text>
+</svg>

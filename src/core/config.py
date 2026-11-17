@@ -54,17 +54,17 @@ class Settings(BaseSettings):
         max_length=64,
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    QDRANT_VECTOR_SIZE: int = Field(default=768, ge=1, le=8192)
+    QDRANT_VECTOR_SIZE: int = Field(default=3072, ge=1, le=8192)
     RAG_TOP_K: int = Field(default=5, ge=1, le=20)
     RAG_SCORE_THRESHOLD: float = Field(default=0.7, ge=0.0, le=1.0)
     RAG_FALLBACK_SCORE_THRESHOLD: float = Field(default=0.58, ge=0.0, le=1.0)
     RAG_MAX_HISTORY_MESSAGES: int = Field(default=10, ge=0, le=20)
 
-    # --- AI / LLM & Embedding (Ollama / vLLM / OpenAI-Compatible) ---
-    LLM_BASE_URL: str = "http://localhost:11434/v1"
-    LLM_API_KEY: SecretStr = SecretStr("ollama")
-    LLM_MODEL: str = Field(default="llama3.2:3b", min_length=1, max_length=128)
-    EMBEDDING_MODEL: str = Field(default="nomic-embed-text", min_length=1, max_length=128)
+    # --- AI / LLM & Embedding (OpenAI-Compatible API) ---
+    LLM_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai"
+    LLM_API_KEY: SecretStr = SecretStr("your-llm-api-key")
+    LLM_MODEL: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=128)
+    EMBEDDING_MODEL: str = Field(default="gemini-embedding-001", min_length=1, max_length=128)
     EMBEDDING_BATCH_SIZE: int = Field(default=32, ge=1, le=512)
     LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
 

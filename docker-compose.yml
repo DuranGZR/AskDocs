@@ -45,26 +45,6 @@ services:
     networks:
       - corerag-net
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: corerag-ollama
-    restart: unless-stopped
-    environment:
-      OLLAMA_CONTEXT_LENGTH: "2048"
-      OLLAMA_KEEP_ALIVE: "30m"
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - corerag-net
-
   postgres:
     image: postgres:16-alpine
     container_name: corerag-postgres
@@ -94,6 +74,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     environment:
+      HOSTNAME: "0.0.0.0"
       DATABASE_URL: postgresql://${LANGFUSE_PG_USER:-langfuse}:${LANGFUSE_PG_PASSWORD:-langfuse}@postgres:5432/${LANGFUSE_PG_DB:-langfuse}
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-corerag-local-dev-nextauth-secret}
@@ -140,7 +121,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     ports:
@@ -196,7 +177,7 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://ollama:11434/v1}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
       LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
@@ -232,7 +213,6 @@ volumes:
   uploads_data:
   redis_data:
   qdrant_data:
-  ollama_data:
   postgres_data:
 
 networks:
