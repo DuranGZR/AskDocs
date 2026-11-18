@@ -1,7 +1,29 @@
 # syntax=docker/dockerfile:1
 
 # ==============================================================================
-# Stage 1: Builder — Bağımlılıkları izole şekilde /app/.venv içine kurar
+# Stage 1: Rust Builder — text_processor native Python wheel (.whl) üretir
+# ==============================================================================
+FROM rust:1-slim-trixie AS rust-builder
+
+COPY --from=ghcr.io/astral-sh/uv:0.13.8 /uv /uvx /bin/
+
+ENV UV_CACHE_DIR=/root/.cache/uv \
+    CARGO_HOME=/usr/local/cargo
+
+WORKDIR /build/text_processor
+
+# Yalnızca Rust crate dosyaları: src/ içindeki Python değişikliklerinde yeniden derlenmez
+COPY text_processor/Cargo.toml text_processor/Cargo.lock text_processor/pyproject.toml text_processor/text_processor.pyi ./
+COPY text_processor/src ./src
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/text_processor/target \
+    uvx --python 3.11 --from "maturin>=1.7,<2.0" maturin build --release --locked --strip --compatibility off --out /wheels
+
+
+# ==============================================================================
+# Stage 2: Python Builder — Bağımlılıkları ve Rust wheel paketini /app/.venv içine kurar
 # ==============================================================================
 FROM python:3.11-slim AS builder
 
@@ -20,9 +42,15 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project
 
+COPY --from=rust-builder /wheels /wheels
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --python /app/.venv/bin/python --no-deps /wheels/*.whl \
+    && rm -rf /wheels
+
 
 # ==============================================================================
-# Stage 2: Runtime — Yalnızca çalışma zamanı dosyaları ve yetkisiz kullanıcı
+# Stage 3: Runtime — Yalnızca çalışma zamanı dosyaları ve yetkisiz kullanıcı (derleyicisiz)
 # ==============================================================================
 FROM python:3.11-slim AS runtime
 
