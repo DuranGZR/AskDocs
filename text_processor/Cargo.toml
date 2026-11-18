@@ -1,0 +1,26 @@
+[package]
+name = "text_processor"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "Zero-unsafe Rust + PyO3 text cleaning and sentence-aligned chunking engine for CoreRAG-Engine"
+
+[lib]
+name = "text_processor"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["abi3-py311"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = "symbols"
