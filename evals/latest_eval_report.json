@@ -1,875 +1,110 @@
 {
-  "eval_run_id": "eval-20261117-183520",
-  "dataset_version": "2.0",
-  "tenant_id": "test-user",
+  "eval_run_id": "eval-20261118-193027",
+  "dataset_version": "3.0",
+  "tenant_id": "rag-research",
   "llm_model": "gemini-3.5-flash-lite",
   "embedding_model": "gemini-embedding-001",
   "top_k": 5,
   "score_threshold": 0.7,
   "judge_mode": "citation_grounded",
-  "total_questions": 44,
-  "answerable_questions": 38,
+  "total_questions": 24,
+  "answerable_questions": 18,
   "unanswerable_questions": 6,
   "mean_recall_at_k": 1.0,
-  "mean_mrr": 0.8969,
-  "mean_faithfulness": 0.9591,
-  "mean_keyword_coverage": 0.9386,
+  "mean_mrr": 0.7824,
+  "mean_faithfulness": 0.9729,
+  "mean_keyword_coverage": 0.9398,
   "abstention_accuracy": 1.0,
-  "recommended_threshold": 0.7,
+  "recommended_threshold": 0.75,
   "threshold_sweep": [
     {
       "score_threshold": 0.3,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
+      "mrr": 0.7824,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 1.0
     },
     {
       "score_threshold": 0.4,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
+      "mrr": 0.7824,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 1.0
     },
     {
       "score_threshold": 0.5,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
+      "mrr": 0.7824,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 1.0
     },
     {
       "score_threshold": 0.6,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
-      "avg_retrieved_chunks": 4.97,
-      "negative_noise_rate": 1.0
+      "mrr": 0.7824,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 0.8333
     },
     {
       "score_threshold": 0.65,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
-      "avg_retrieved_chunks": 4.61,
-      "negative_noise_rate": 1.0
+      "mrr": 0.7824,
+      "avg_retrieved_chunks": 5.0,
+      "negative_noise_rate": 0.6667
     },
     {
       "score_threshold": 0.7,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.8969,
-      "avg_retrieved_chunks": 4.11,
+      "mrr": 0.7824,
+      "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 0.6667
     },
     {
       "score_threshold": 0.75,
       "top_k": 5,
-      "answerable_queries": 38,
+      "answerable_queries": 18,
       "unanswerable_queries": 6,
-      "recall_at_k": 0.9211,
-      "mrr": 0.818,
-      "avg_retrieved_chunks": 3.11,
+      "recall_at_k": 1.0,
+      "mrr": 0.7824,
+      "avg_retrieved_chunks": 4.44,
       "negative_noise_rate": 0.1667
     }
   ],
   "results": [
     {
       "id": "q01",
-      "category": "hr_policy",
-      "question": "Şirkette standart haftalık çalışma süresi kaç saattir ve temel çalışma ile öğle arası saatleri nedir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        1,
-        1
-      ],
-      "top_score": 0.8474,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Şirkette standart haftalık çalışma süresi 40 saattir. Temel çalışma saatleri hafta içi 09:00 ile 18:00 arasında olup, öğle arası 12:30 ile 13:30 arasında 1 saat olarak uygulanmaktadır [Source 1]. \n\nBu çalışma saatleri ve esnek mesai uygulamaları hakkında daha fazla detay incelememizi ister misiniz?",
-      "latency_ms": 1912.15
-    },
-    {
-      "id": "q02",
-      "category": "hr_policy",
-      "question": "Esnek mesai kapsamında çalışanlar saat kaçlar arasında işe başlayıp çıkış yapabilir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "retrieved_count": 4,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        1,
-        1,
-        2,
-        2
-      ],
-      "top_score": 0.7971,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Çalışanlar, ekip toplantılarını aksatmamak koşuluyla 08:30 ile 10:00 arasında esnek başlangıç yapabilir ve buna bağlı olarak 17:30 ile 19:00 arasında esnek çıkış yapabilir. [Source 1]\n\nStandart çalışma saatleri, öğle arası veya hibrit çalışma düzeni hakkında detayları incelemek ister misiniz?",
-      "latency_ms": 888.83
-    },
-    {
-      "id": "q03",
-      "category": "hr_policy",
-      "question": "Şirket kıdemine göre yıllık ücretli izin hakları kaç iş günü olarak belirlenmiştir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "retrieved_count": 4,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        1,
-        1,
-        1,
-        2
-      ],
-      "top_score": 0.8621,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Şirket kıdemine göre yıllık ücretli izin süreleri şu şekildedir:\n\n* **1 yıldan 5 yıla kadar (5. yıl dahil):** Yılda 16 iş günü [Source 1, Source 2]\n* **5 yıldan fazla 10 yıla kadar:** Yılda 22 iş günü [Source 1]\n* **10 yıl ve üzeri:** Yılda 26 iş günü [Source 1]\n\nİzinlerin onay süreci veya standart çalışma saatleri hakkında bilgi vermemi ister misiniz?",
-      "latency_ms": 4442.62
-    },
-    {
-      "id": "q04",
-      "category": "hr_policy",
-      "question": "Planlı yıllık izin talepleri en az kaç iş günü önce sunulmalıdır ve doğum günü izni kaç iş günüdür?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        1,
-        1
-      ],
-      "top_score": 0.8105,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Planlı yıllık izin taleplerinin, izin başlangıç tarihinden en az 10 iş günü önce İK Portalı üzerinden doğrudan yönetici onayına sunulması gerekmektedir [Source 1]. Doğum günü izni ise her çalışanın doğum gününün bulunduğu hafta içinde kullanabileceği 1 iş günüdür [Source 2].\n\nYıllık izin süreleri, izin onay süreci veya doğum günü izni detayları hakkında başka bir konuda yardımcı olabilir miyim?",
-      "latency_ms": 1504.18
-    },
-    {
-      "id": "q05",
-      "category": "hr_policy",
-      "question": "Hibrit çalışma düzeninde hangi günler merkez ofisten katılım zorunludur ve hangi günler uzaktan çalışılabilir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        2,
-        2
-      ],
-      "top_score": 0.8519,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Hibrit çalışma modeline göre Salı ve Çarşamba günleri merkez ofisten katılım zorunludur. Pazartesi, Perşembe ve Cuma günleri ise çalışanlar istedikleri takdirde uzaktan çalışabilirler [Source 1]. \n\nİsterseniz bu düzen kapsamındaki \"İstediğin Yerden Çalış\" hakkı veya ev ofisi kurulum desteği detayları hakkında da bilgi verebilirim.",
-      "latency_ms": 4262.45
-    },
-    {
-      "id": "q06",
-      "category": "hr_policy",
-      "question": "Work From Anywhere (İstediğin Yerden Çalış) hakkı yılda kaç iş günüdür ve çekirdek iletişim saatleri nedir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "retrieved_count": 4,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        2,
-        2,
-        1,
-        1
-      ],
-      "top_score": 0.7868,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Work From Anywhere (İstediğin Yerden Çalış) hakkı, yöneticinin onayını almak kaydıyla takvim yılı içinde toplam 30 iş günüdür. Bu kapsamda, saat dilimi farkı olması durumunda çekirdek iletişim saatleri 11:00 ile 16:00 (TSİ) arasıdır. [Source 1, Source 2]\n\nBu hak veya hibrit çalışma düzeninin diğer detayları hakkında bilgi vermemi ister misiniz?",
-      "latency_ms": 1788.0
-    },
-    {
-      "id": "q07",
-      "category": "hr_policy",
-      "question": "Ev ofisi kurulum desteği ve aylık internet/enerji faturası katkısı tutarları nedir, şirket dizüstü bilgisayarları kaç yılda bir yenilenir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "retrieved_count": 3,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        2,
-        2,
-        2
-      ],
-      "top_score": 0.8381,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "İşe yeni başlayan her çalışana ergonomik çalışma masası ve koltuk temini için tek seferlik 15.000 TL Ev Ofisi Kurulum Desteği verilmektedir. Ayrıca tüm çalışanlara maaşla birlikte aylık net 1.250 TL internet ve enerji faturası katkısı ödenmekte ve şirket dizüstü bilgisayarları 3 yılda bir yenilenmektedir [Source 1, Source 2]. \n\nİsterseniz hibrit çalışma düzeni veya uzaktan çalışma kuralları hakkında detayları da inceleyebiliriz.",
-      "latency_ms": 3604.15
-    },
-    {
-      "id": "q08",
-      "category": "hr_security",
-      "question": "Veri saklama süreleri kapsamında müşteri sözleşmeleri ile sistem erişim logları ne kadar süre tutulur ve olası veri ihlali kaç saat içinde hangi adrese bildirilmelidir?",
-      "answerable": true,
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        3
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        3,
-        3
-      ],
-      "top_score": 0.7697,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Müşteri sözleşmeleri yasal mevzuat gereğince şifreli arşivlerde 10 yıl boyunca muhafaza edilirken, sistem erişim logları ve geçici işlem kayıtları 90 gün sonra otomatik olarak imha edilmektedir. Olası bir veri ihlali veya siber güvenlik şüphesi durumunda ise bu durum en geç 2 saat içinde guvenlik@sirket.example adresine raporlanmalıdır [Source 1, Source 2].\n\nVeri saklama süreleri veya olay bildirim prosedürleri ile ilgili daha fazla detay incelememizi ister misiniz?",
-      "latency_ms": 3809.43
-    },
-    {
-      "id": "q09",
-      "category": "bitcoin",
-      "question": "Bitcoin whitepaper'a göre güvenilir bir merkezi otorite olmadan çift harcama (double-spending) problemi nasıl çözülür?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        1,
-        2
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        2,
-        8,
-        1,
-        2,
-        2
-      ],
-      "top_score": 0.7485,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        2,
-        3
-      ],
-      "keyword_coverage": 0.6667,
-      "abstained": false,
-      "faithfulness": 0.8,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.67"
-      ],
-      "answer": "Güvenilir bir merkezi otoriteye ihtiyaç duymadan çift harcama problemini çözmek için, işlemlerin halka açık bir geçmişini kaydeden ve iş kanıtı (proof-of-work) kullanan eşler arası (peer-to-peer) bir ağ önerilmektedir [Source 2, Source 3]. Bu ağda işlemler, hash tabanlı bir iş kanıtı zincirine eklenerek zaman damgasıyla mühürlenir; böylece dürüst düğümler CPU gücünün çoğunluğunu kontrol ettiği sürece bu kayıtların bir saldırgan tarafından değiştirilmesi hesaplamalı olarak imkansız hale gelir [Source 2, Source 3]. \n\nBu çözüme ve kullanılan eşler arası ağ yapısına daha yakından bakmamı ister misiniz?",
-      "latency_ms": 2267.94
-    },
-    {
-      "id": "q10",
-      "category": "bitcoin",
-      "question": "How does Bitcoin's Proof-of-Work mechanism operate and which existing system is it similar to?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        3
-      ],
-      "retrieved_count": 1,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        3
-      ],
-      "top_score": 0.7261,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 0.75,
-      "abstained": false,
-      "faithfulness": 0.85,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.75"
-      ],
-      "answer": "Proof-of-work operates by scanning for a value that, when hashed (such as with SHA-256), produces a hash beginning with a certain number of zero bits [Source 1]. This system is similar to Adam Back's Hashcash [Source 1]. \n\nWould you like to explore more details about the distributed timestamp server or Hashcash from the documents?",
-      "latency_ms": 909.46
-    },
-    {
-      "id": "q11",
-      "category": "bitcoin",
-      "question": "What is the size of a Bitcoin block header without transactions and how much annual storage is estimated for headers when blocks are generated every 10 minutes?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        4,
-        4
-      ],
-      "top_score": 0.8015,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "A block header with no transactions is about 80 bytes in size [Source 1, Source 2]. Assuming blocks are generated every 10 minutes, the estimated annual storage required for these headers is 4.2 megabytes per year (calculated as 80 bytes multiplied by 6 per hour, 24 hours a day, and 365 days a year) [Source 1, Source 2].\n\nWould you like to explore more details about how transactions are hashed in a Merkle Tree or how old blocks can be compacted to save disk space?",
-      "latency_ms": 3113.62
-    },
-    {
-      "id": "q12",
-      "category": "bitcoin",
-      "question": "How does Bitcoin's incentive mechanism reward block creators initially and once a predetermined number of coins enter circulation?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        4,
-        4
-      ],
-      "top_score": 0.7269,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Initially, block creators are rewarded with a special transaction that starts a new coin owned by the creator of the block, which helps distribute coins into circulation and provides an incentive for nodes to support the network [Source 1]. Additionally, incentives can be funded with transaction fees, where the difference between a transaction's input value and output value is added as a fee to the block's incentive [Source 1, Source 2]. \n\nOnce a predetermined number of coins have entered circulation, the incentive can transition entirely to transaction fees, making it completely inflation-free, and the incentive may also help encourage nodes to stay honest [Source 2].\n\nWould you like to know more about how transaction fees are calculated or the role of CPU time and electricity in this process?",
-      "latency_ms": 3807.7
-    },
-    {
-      "id": "q13",
-      "category": "bitcoin",
-      "question": "What is Simplified Payment Verification (SPV) in Bitcoin and what does a user need to verify a payment without running a full network node?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        5
-      ],
-      "retrieved_count": 1,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        5
-      ],
-      "top_score": 0.8258,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Simplified Payment Verification (SPV) is a method that allows users to verify payments without running a full network node [Source 1]. To do this, a user needs to keep a copy of the block headers of the longest proof-of-work chain—obtained by querying network nodes until convinced they have the longest chain—and obtain the Merkle branch that links the transaction to the block in which it is timestamped [Source 1]. \n\nWould you like to explore more details about block headers or proof-of-work chains from the documents?",
-      "latency_ms": 1954.96
-    },
-    {
-      "id": "q14",
-      "category": "bitcoin",
-      "question": "How do Bitcoin transactions combine and split value instead of sending individual coins?",
-      "answerable": true,
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        5
-      ],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "b39f1205-31b8-470e-a439-775be3849b86",
-        "b39f1205-31b8-470e-a439-775be3849b86"
-      ],
-      "retrieved_pages": [
-        5,
-        5
-      ],
-      "top_score": 0.7553,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Transactions achieve this by containing multiple inputs and outputs [Source 1, Source 2]. Normally, a transaction consists of either a single input from a larger previous transaction or multiple inputs combining smaller amounts, along with at most two outputs: one for the payment and another to return any change back to the sender [Source 1]. \n\nWould you like to explore more details about how transactions handle fan-out or node security?",
-      "latency_ms": 1635.13
-    },
-    {
-      "id": "q15",
-      "category": "rag_paper",
-      "question": "In the RAG paper by Lewis et al., what are the parametric memory and non-parametric memory components?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        1,
-        2
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        2,
-        2,
-        1,
-        19,
-        19
-      ],
-      "top_score": 0.7965,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        2,
-        3
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "In RAG models, the parametric memory consists of a pre-trained sequence-to-sequence (seq2seq) model, such as a pre-trained seq2seq transformer or BART [Source 2, 3]. The non-parametric memory consists of a dense vector index of Wikipedia that is accessed using a pre-trained neural retriever (specifically, the Dense Passage Retriever) [Source 2, 3]. \n\nWould you like to explore how these two components are combined or look at the different RAG formulations mentioned in the documents?",
-      "latency_ms": 1322.48
-    },
-    {
-      "id": "q16",
-      "category": "rag_paper",
-      "question": "What is the key architectural difference between the RAG-Sequence and RAG-Token models?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        1,
-        2,
-        3
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        3,
-        3,
-        3,
-        2,
-        2
-      ],
-      "top_score": 0.7789,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        3,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "The key architectural difference lies in how each model handles retrieved documents during text generation:\n\n* **RAG-Sequence Model:** Uses the same retrieved document to generate the complete target sequence, treating the retrieved document as a single latent variable that is marginalized via a top-K approximation [Source 1, Source 3].\n* **RAG-Token Model:** Can draw a different latent document for each target token and marginalize accordingly, allowing the generator to choose content from several different documents when producing an answer [Source 2, Source 3].\n\nWould you like to explore how these models calculate their respective probabilities or learn more about the retriever component?",
-      "latency_ms": 4171.08
-    },
-    {
-      "id": "q17",
-      "category": "rag_paper",
-      "question": "Which retriever and generator models are used in the RAG paper, and how many parameters does the generator have?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        2,
-        3
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        2,
-        2,
-        1,
-        18,
-        3
-      ],
-      "top_score": 0.8191,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [],
-      "keyword_coverage": 0.6667,
-      "abstained": false,
-      "faithfulness": 0.4,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Missing [Source N] citation in generated answer",
-        "Keyword coverage=0.67"
-      ],
-      "answer": "The RAG models utilize a Dense Passage Retriever (DPR) as the retriever, which is based on a bi-encoder architecture using BERT-base encoders. For the generator, the models use BART (specifically BART-large), which serves as the pre-trained seq2seq parametric memory. The generator contains 406M trainable parameters. \n\nWould you like to know more about the specific parameters or components of the retriever encoder as well?",
-      "latency_ms": 1923.67
-    },
-    {
-      "id": "q18",
-      "category": "rag_paper",
-      "question": "During RAG fine-tuning, why do the authors keep the document encoder BERT_d fixed instead of updating it?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        4,
-        5,
-        7,
-        5,
-        8
-      ],
-      "top_score": 0.7883,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Updating the document encoder BERT_d during training is costly because it requires the document index to be periodically updated, much like REALM does during pre-training. Since strong performance can be achieved without this expensive step, the authors keep both the document encoder and its index fixed, choosing to fine-tune only the query encoder BERT_q and the BART generator instead. [Source 1]\n\nWould you like to know more about how the query encoder or other components are trained, or explore details about RAG's decoding methods?",
-      "latency_ms": 1097.08
-    },
-    {
-      "id": "q19",
-      "category": "rag_paper",
-      "question": "Which Wikipedia dump and passage splitting setup does the RAG paper use to build its FAISS index?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        4,
-        4,
-        17,
-        2,
-        8
-      ],
-      "top_score": 0.7997,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 0.6667,
-      "abstained": false,
-      "faithfulness": 0.8,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.67"
-      ],
-      "answer": "The RAG setup uses the December 2018 Wikipedia dump. Each article is pre-processed to remove semi-structured data like tables, infoboxes, lists, and disambiguation pages, and then split into disjoint 100-word passages (resulting in a total of 21 million documents) [Source 1, Source 2]. Additionally, each passage is prepended with its Wikipedia article title and an [SEP] token [Source 2].\n\nWould you like to know more about how these document embeddings and the FAISS index are configured?",
-      "latency_ms": 1550.71
-    },
-    {
-      "id": "q20",
-      "category": "rag_paper",
-      "question": "For RAG-Sequence decoding at test time, how does Thorough Decoding differ from Fast Decoding?",
-      "answerable": true,
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
-      ],
-      "retrieved_pages": [
-        4,
-        4,
-        3,
-        3,
-        2
-      ],
-      "top_score": 0.7824,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "For RAG-Sequence decoding at test time, Thorough Decoding and Fast Decoding differ in how they handle hypotheses that do not appear in the beams of all documents [Source 1]. \n\n* **Thorough Decoding** estimates the probability of a hypothesis by running an additional forward pass for each document where that hypothesis did not appear in the beam, multiplying the generator probability with the retriever probability, and then summing the probabilities across the beams for the marginals [Source 1]. While comprehensive, this can require many forward passes for longer output sequences [Source 1].\n* **Fast Decoding** makes an approximation that assumes the probability is approximately zero where a hypothesis was not generated during beam search from a given document and input [Source 1]. This avoids the need to run any additional forward passes once the candidate hypothesis set has been generated [Source 1].\n\nWould you like to explore more details about how RAG-Sequence and RAG-Token models are structured or trained?",
-      "latency_ms": 2430.94
-    },
-    {
-      "id": "q21",
-      "category": "negative_control",
-      "question": "Şirkette yemek kartı olarak aylık kaç TL veriliyor?",
-      "answerable": false,
-      "expected_document_id": null,
-      "expected_pages": [],
-      "retrieved_count": 0,
-      "retrieved_document_ids": [],
-      "retrieved_pages": [],
-      "top_score": null,
-      "recall_at_k": null,
-      "mrr": null,
-      "cited_indices": [],
-      "keyword_coverage": null,
-      "abstained": true,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Correctly abstained on unanswerable query"
-      ],
-      "answer": "Yüklenen belgelerde şirket tarafından verilen yemek kartı ücretine dair herhangi bir bilgi bulunmamaktadır. Bu nedenle, sağlanan belgelere dayanarak bu soruya cevap veremiyorum.",
-      "latency_ms": 769.4
-    },
-    {
-      "id": "q22",
-      "category": "negative_control",
-      "question": "Şirketin yıllık kişi başı eğitim ve konferans bütçesi kaç dolardır?",
-      "answerable": false,
-      "expected_document_id": null,
-      "expected_pages": [],
-      "retrieved_count": 0,
-      "retrieved_document_ids": [],
-      "retrieved_pages": [],
-      "top_score": null,
-      "recall_at_k": null,
-      "mrr": null,
-      "cited_indices": [],
-      "keyword_coverage": null,
-      "abstained": true,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Correctly abstained on unanswerable query"
-      ],
-      "answer": "Yüklenen belgelerde şirketin yıllık kişi başı eğitim ve konferans bütçesine dair herhangi bir bilgi bulunmamaktadır. Bu nedenle, sağlanan belgelere dayanarak bu soruya cevap veremiyorum.",
-      "latency_ms": 876.91
-    },
-    {
-      "id": "q23",
       "category": "realm_paper",
       "question": "How does REALM avoid recomputing document embeddings on every gradient step during asynchronous MIPS pre-training?",
       "answerable": true,
-      "expected_document_id": "b3ac1310-b9c9-43b2-b117-5610b210a535",
+      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
       "expected_pages": [
         5
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535"
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
       ],
       "retrieved_pages": [
         5,
@@ -882,34 +117,35 @@
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
+        1,
         2,
-        3,
-        1
+        4,
+        3
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "REALM avoids recomputing document embeddings on every single gradient step by asynchronously refreshing the MIPS index every several hundred training steps [Source 2, Source 3]. \n\nDuring this process, the primary trainer job continues training while sending a snapshot of its parameters to a secondary index builder job in the background [Source 1, Source 3]. The index builder uses these parameters to construct a new index, and once finished, sends it back to the trainer [Source 1]. Between these refreshes, the MIPS index is slightly stale but is only used to select the top k documents, after which p(z | x) and its gradient are recomputed using fresh parameters [Source 2, Source 3]. \n\nWould you like to know more about how the trainer and index builder jobs run in parallel, or explore how fine-tuning handles the MIPS index differently?",
-      "latency_ms": 1225.19
+      "answer": "REALM addresses the high computational cost of re-embedding and re-indexing millions of candidate documents on every gradient step by decoupling the training process from index construction through asynchronous MIPS refreshes [Source 1, Source 2, Source 4]. \n\nThe implementation and mechanics of this approach involve the following key components:\n\n* **Parallel Jobs:** The system runs two jobs simultaneously: a primary trainer job that performs gradient updates on the model parameters, and a secondary index builder job that handles document embedding and indexing [Source 3].\n* **Parameter Snapshots and Background Building:** During pre-training, the trainer periodically sends a snapshot of its parameters (`θ′`) to the index builder. While the trainer continues its training steps, the index builder uses these snapshot parameters to construct a new search index in the background [Source 1].\n* **Asynchronous Index Swapping:** Once the index builder completes the new index, it sends it back to the trainer to replace the old one, and the cycle repeats every several hundred training steps [Source 1, Source 2].\n* **Handling Staleness:** Between refreshes, the MIPS index is technically \"stale\" because the trainer's parameters (`θ`) continue to update [Source 2]. However, because the index is used solely to select the approximate top `k` documents, the model handles this by recomputing `p(z | x)` and its gradient using the fresh parameters (`θ`) specifically for those retrieved top `k` documents after selection [Source 2, Source 3].\n* **Fine-Tuning Approach:** For fine-tuning phases, the MIPS index is built only once using pre-trained parameters without updating `Embeddoc`, though `Embedinput` is still fine-tuned so that the query-side retrieval function continues to update [Source 1].\n\nHangi tür sorgular için MIPS indeksinin güncellenme sıklığının artırılması gerekebilir?",
+      "latency_ms": 3611.26
     },
     {
-      "id": "q24",
+      "id": "q02",
       "category": "realm_paper",
       "question": "In REALM Open-QA experiments (Table 1), what exact match scores does REALM achieve on NaturalQuestions when pre-trained on Wikipedia versus CC-News, and how many parameters does it have?",
       "answerable": true,
-      "expected_document_id": "b3ac1310-b9c9-43b2-b117-5610b210a535",
+      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
       "expected_pages": [
         7
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535"
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
       ],
       "retrieved_pages": [
         7,
@@ -929,26 +165,26 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "REALM achieves exact match scores of 39.2 on NaturalQuestions when using the Wikipedia pre-training corpus (X = Wikipedia, Z = Wikipedia) and 40.4 when using the CC-News pre-training corpus (X = CC-News, Z = Wikipedia) [Source 2]. The model contains 330 million parameters [Source 2].\n\nWould you like to explore the results for other benchmarks like WebQuestions (WQ) or CuratedTrec (CT) from Table 1?",
-      "latency_ms": 1498.34
+      "answer": "In REALM Open-QA experiments (Table 1), the model achieves the following exact match scores on NaturalQuestions (`NQ`):\n\n- When pre-trained on Wikipedia (`X = Wikipedia, Z = Wikipedia`), REALM achieves an exact match score of `39.2` [Source 2].\n- When pre-trained on CC-News (`X = CC-News, Z = Wikipedia`), REALM achieves an exact match score of `40.4` [Source 2].\n\nIn both configurations, the model has `330m` parameters [Source 2].\n\nWould you like to explore the ablation experiment results or the performance of other models compared to REALM on the Open-QA benchmarks?",
+      "latency_ms": 2062.38
     },
     {
-      "id": "q25",
+      "id": "q03",
       "category": "realm_paper",
       "question": "REALM modelinde geri getirici (retriever), denetimsiz ön eğitim sırasında hangi öğrenme sinyaliyle eğitilir ve amaç fonksiyonu nedir?",
       "answerable": true,
-      "expected_document_id": "b3ac1310-b9c9-43b2-b117-5610b210a535",
+      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
       "expected_pages": [
         1,
         2
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535",
-        "b3ac1310-b9c9-43b2-b117-5610b210a535"
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
       ],
       "retrieved_pages": [
         2,
@@ -962,7 +198,7 @@
       "mrr": 1.0,
       "cited_indices": [
         1,
-        4
+        3
       ],
       "keyword_coverage": 0.6667,
       "abstained": false,
@@ -971,25 +207,25 @@
       "reasons": [
         "Keyword coverage=0.67"
       ],
-      "answer": "REALM modelinde geri getirici (retriever), denetimsiz ön eğitim sırasında denetimsiz metinlerden elde edilen performans tabanlı bir sinyalle eğitilir [Source 1]. Modelin dil modellemesi perplexity değerini (başarımını) iyileştiren bir bilgi getirme işlemi ödüllendirilirken, bilgilendirici olmayan bir getirme işlemi cezalandırılır [Source 1]. \n\nÖn eğitim ve ince ayar süreçlerinde amaç, üretken sürecin olasılığını maksimize etmektir [Source 4]. Ön eğitim aşamasında görev maskelenmiş dil modellemesidir (masked language modeling); model, girdideki eksik belirteçleri (token) tahmin etmeyi öğrenir [Source 4].\n\nGetiricinin eğitimi ve genel çerçeve hakkında daha fazla bilgi edinmek ister misiniz?",
-      "latency_ms": 1762.53
+      "answer": "REALM modelinde bilgi geri getiricisi (retriever), denetimsiz ön eğitim sırasında performans tabanlı bir sinyal ile eğitilir. Bu yaklaşımda, dil modelinin perplexity (şaşkınlık) değerini iyileştiren bir bilgi getirme işlemi faydalı olarak değerlendirilir ve ödüllendirilirken, bilgilendirici olmayan bir getirme işlemi cezalandırılır [Source 1]. \n\nÖn eğitim aşamasında görev maskelenmiş dil modellemesidir (`MLM`). Model, bir giriş `x` (ön eğitim derleminden bazı belirteçleri maskelenmiş bir cümle) ve getirilen bir `z` belgesi verildiğinde, maskelenen `yj` belirteçlerini tahmin etmek için `p(yj | z, x)` olasılığını optimize eder. `MLM` kayıp fonksiyonu şu şekilde ifade edilir:\n\n`p(y | z, x) = ∏_{j=1}^{Jx} p(yj | z, x)`\n\nburada `p(yj | z, x) ∝ exp(w⊤_j BERTMASK(j)(joinBERT(x, zbody)))` şeklinde tanımlanır. Bu denklemde `BERTMASK(j)` `j`inci maskelenmiş belirtece karşılık gelen Transformer çıkış vektörünü, `Jx` toplam maskelenmiş belirteç sayısını ve `wj` ise `yj` belirteci için öğrenilmiş bir kelime gömmesini (word embedding) ifade eder [Source 3].\n\nREALM pre-training aşaması ve fine-tuning süreci hakkında daha detaylı bilgi istiyor musunuz?",
+      "latency_ms": 2882.19
     },
     {
-      "id": "q26",
+      "id": "q04",
       "category": "dpr_paper",
       "question": "How does Dense Passage Retriever (DPR) define the similarity function between a question and a passage, and which encoders are used?",
       "answerable": true,
-      "expected_document_id": "5ce9858f-8098-4052-9d68-2922530bcbb4",
+      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
       "expected_pages": [
         3
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4"
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982"
       ],
       "retrieved_pages": [
         3,
@@ -1003,6 +239,7 @@
       "mrr": 1.0,
       "cited_indices": [
         1,
+        3,
         2
       ],
       "keyword_coverage": 1.0,
@@ -1010,25 +247,25 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Dense Passage Retriever (DPR) measures the similarity between a question ($q$) and a passage ($p$) using the dot product of their respective vectors, defined as $\\text{sim}(q, p) = E_Q(q)^\\top E_P(p)$. [Source 1]\n\nFor the encoders, DPR uses two independent BERT (base, uncased) networks—one for the question ($E_Q$) and one for the passage ($E_P$)—and takes the representation at the [CLS] token as the output, resulting in a vector dimension of $d = 768$. [Source 2]\n\nWould you like to explore how these encoders are indexed using FAISS or learn more about the training process?",
-      "latency_ms": 2219.3
+      "answer": "Dense Passage Retriever (DPR) defines the similarity between a question `q` and a passage `p` using the dot product of their respective d-dimensional vectors [Source 1]:\n\n`sim(q, p) = EQ(q)⊺EP (p)`\n\nIn this formulation, `EQ(·)` maps the input question to a vector, and `EP(·)` maps any text passage to a real-valued vector [Source 1, Source 3]. \n\nRegarding the encoders, DPR uses two independent BERT (base, uncased) networks—one for the question encoder and one for the passage encoder—and takes the representation at the `[CLS]` token as the output, resulting in `d = 768` [Source 2].\n\nWould you like to explore how these encoders are indexed offline using FAISS during inference time?",
+      "latency_ms": 1841.83
     },
     {
-      "id": "q27",
+      "id": "q05",
       "category": "dpr_paper",
       "question": "In DPR's run-time efficiency evaluation (Section 5.4), how many questions per second does DPR with FAISS process compared to BM25/Lucene, and how long does building the FAISS index take?",
       "answerable": true,
-      "expected_document_id": "5ce9858f-8098-4052-9d68-2922530bcbb4",
+      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
       "expected_pages": [
         7
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4"
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982"
       ],
       "retrieved_pages": [
         7,
@@ -1049,25 +286,25 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "DPR combined with the FAISS in-memory index processes 995.0 questions per second while returning the top 100 passages per question [Source 1]. In contrast, BM25/Lucene (implemented in Java using a file index) processes 23.7 questions per second per CPU thread [Source 1]. Additionally, building the FAISS index on 21 million vectors on a single server takes 8.5 hours [Source 2].\n\nWould you like to explore the details regarding how long it takes to build an inverted index using Lucene or how dense embeddings are computed for the passages?",
-      "latency_ms": 1422.77
+      "answer": "DPR utilizes a FAISS in-memory index for real-valued vectors to achieve high run-time efficiency, processing 995.0 questions per second while returning the top 100 passages per question [Source 1]. In contrast, BM25/Lucene processes 23.7 questions per second per CPU thread [Source 1]. \n\nRegarding the index construction time, building the FAISS index on 21 million vectors on a single server takes 8.5 hours [Source 2].\n\nHangi diğer metin içi arama yöntemleri veya performans metrikleri hakkında bilgi almak istersiniz?",
+      "latency_ms": 5108.93
     },
     {
-      "id": "q28",
+      "id": "q06",
       "category": "dpr_paper",
       "question": "In DPR Table 2, what Top-20 passage retrieval accuracy does Multi DPR achieve on Natural Questions (NQ) and TREC compared to BM25 alone?",
       "answerable": true,
-      "expected_document_id": "5ce9858f-8098-4052-9d68-2922530bcbb4",
+      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
       "expected_pages": [
         5
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4",
-        "5ce9858f-8098-4052-9d68-2922530bcbb4"
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982"
       ],
       "retrieved_pages": [
         5,
@@ -1082,30 +319,32 @@
       "cited_indices": [
         1
       ],
-      "keyword_coverage": 1.0,
+      "keyword_coverage": 0.5,
       "abstained": false,
-      "faithfulness": 1.0,
+      "faithfulness": 0.7,
       "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Multi DPR achieves a Top-20 passage retrieval accuracy of 79.4% on Natural Questions (NQ) and 89.1% on TREC, whereas BM25 alone achieves 59.1% on NQ and 70.9% on TREC. [Source 1]\n\nWould you like to explore the Top-100 retrieval accuracies for these datasets or examine the results for other training schemes from the documents?",
-      "latency_ms": 2110.53
+      "reasons": [
+        "Keyword coverage=0.50"
+      ],
+      "answer": "Based on Table 2, the Top-20 passage retrieval accuracy for Multi DPR compared to BM25 alone across the specified datasets is as follows:\n\n- **Natural Questions (NQ):** Multi DPR achieves a Top-20 accuracy of 79.4%, whereas BM25 alone achieves 59.1% [Source 1].\n- **TREC:** Multi DPR achieves a Top-20 accuracy of 82.9%, whereas BM25 alone achieves 71.1% [Source 1].\n\nWould you like to explore how Single DPR or combined BM25 + DPR models perform on these specific datasets?",
+      "latency_ms": 2471.94
     },
     {
-      "id": "q29",
+      "id": "q07",
       "category": "fid_paper",
       "question": "How does the Fusion-in-Decoder (FiD) architecture process multiple retrieved passages across its encoder and decoder?",
       "answerable": true,
-      "expected_document_id": "e70ba43b-caf5-4973-9e2a-3dc53d104235",
+      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
       "expected_pages": [
         2
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235"
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186"
       ],
       "retrieved_pages": [
         3,
@@ -1126,32 +365,32 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The Fusion-in-Decoder architecture processes passages independently in the encoder and jointly in the decoder [Source 1]. \n\n* **Encoder:** Each retrieved passage along with the question is processed independently by performing self-attention over only one context at a time [Source 1, Source 2]. This linear scaling allows the model to handle a large number of contexts efficiently [Source 1]. Special tokens such as question:, title:, and context: are added before the question, title, and text of each passage [Source 1].\n* **Decoder:** The decoder performs attention over the concatenation of the resulting representations from all the retrieved passages to jointly aggregate evidence and generate the final answer [Source 1, Source 2].\n\nWould you like to explore the empirical evaluation results or datasets used with this method?",
-      "latency_ms": 2195.41
+      "answer": "The Fusion-in-Decoder (FiD) architecture processes multiple retrieved passages by dividing the computation between its encoder and decoder stages to balance scalability and evidence aggregation [Source 1]. \n\n* **Encoder Stage (Independent Processing):** The encoder processes each retrieved passage independently alongside the question [Source 1, Source 2]. Special tokens such as `question:`, `title:`, and `context:` are added before the question, title, and text of each passage [Source 1]. Because self-attention is performed over only one context at a time, the computation time grows linearly rather than quadratically with the number of passages, allowing the model to scale efficiently to a large number of contexts [Source 1].\n* **Decoder Stage (Joint Aggregation):** The decoder performs attention over the concatenation of the resulting representations from all the retrieved passages simultaneously, executing evidence fusion exclusively in this phase [Source 1]. A sequence-to-sequence model then generates the final answer by taking these retrieved passages and the question as input [Source 2].\n\nWould you like to explore how the performance of Fusion-in-Decoder changes when varying the number of retrieved passages across different datasets?",
+      "latency_ms": 2165.9
     },
     {
-      "id": "q30",
+      "id": "q08",
       "category": "fid_paper",
       "question": "In Fusion-in-Decoder Table 1, what Exact Match scores do FiD (base) and FiD (large) achieve on Natural Questions (NQ) and TriviaQA open test sets compared to RAG?",
       "answerable": true,
-      "expected_document_id": "e70ba43b-caf5-4973-9e2a-3dc53d104235",
+      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
       "expected_pages": [
         3
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "5b062820-d5e1-4e11-8406-20074e0e17e0"
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186"
       ],
       "retrieved_pages": [
         3,
         3,
         4,
         4,
-        6
+        2
       ],
       "top_score": 0.8393,
       "recall_at_k": 1.0,
@@ -1164,25 +403,25 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "In Table 1, the Fusion-in-Decoder models achieve the following Exact Match (EM) scores compared to RAG:\n\n- **Fusion-in-Decoder (base):** Scores 48.2 on Natural Questions (NQ) and 65.0 on the TriviaQA open test set [Source 1].\n- **Fusion-in-Decoder (large):** Scores 51.4 on Natural Questions (NQ) and 67.6 on the TriviaQA open test set [Source 1].\n- **RAG (Lewis et al., 2020):** Scores 44.5 on Natural Questions (NQ) and 56.1 on the TriviaQA open test set [Source 1].\n\nWould you like to explore how performance changes as the number of retrieved passages increases for Fusion-in-Decoder?",
-      "latency_ms": 3778.83
+      "answer": "In Table 1, the Exact Match (EM) scores achieved by Fusion-in-Decoder (FiD) compared to RAG on the NaturalQuestions (NQ) and TriviaQA open test sets are as follows:\n\n- **NaturalQuestions (NQ) EM Scores:**\n  - **Fusion-in-Decoder (base):** 48.2 [Source 1]\n  - **Fusion-in-Decoder (large):** 51.4 [Source 1]\n  - **RAG:** 44.5 [Source 1]\n\n- **TriviaQA Open Test Set EM Scores:**\n  - **Fusion-in-Decoder (base):** 65.0 [Source 1]\n  - **Fusion-in-Decoder (large):** 67.6 [Source 1]\n  - **RAG:** 56.1 [Source 1]\n\nHow does scaling the number of retrieved passages impact the exact match performance of Fusion-in-Decoder across these datasets?",
+      "latency_ms": 2270.12
     },
     {
-      "id": "q31",
+      "id": "q09",
       "category": "fid_paper",
       "question": "In Fusion-in-Decoder Section 4, how much do TriviaQA and NaturalQuestions accuracies improve when increasing the number of retrieved passages from 10 to 100?",
       "answerable": true,
-      "expected_document_id": "e70ba43b-caf5-4973-9e2a-3dc53d104235",
+      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
       "expected_pages": [
         5
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235"
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186"
       ],
       "retrieved_pages": [
         4,
@@ -1202,26 +441,26 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Increasing the number of retrieved passages from 10 to 100 leads to a 6 percent improvement on TriviaQA and a 3.5 percent improvement on NaturalQuestions [Source 3]. \n\nWould you like to explore the impact of the number of training passages or review the performance details for other datasets like SQuAD?",
-      "latency_ms": 2331.29
+      "answer": "Increasing the number of retrieved passages from 10 to 100 leads to a 6% improvement in accuracy on TriviaQA and a 3.5% improvement on NaturalQuestions [Source 3]. \n\nWould you like to explore how the number of training passages affects the exact match scores on the development sets for these benchmarks [Source 3]?",
+      "latency_ms": 1360.58
     },
     {
-      "id": "q32",
+      "id": "q10",
       "category": "hyde_paper",
       "question": "What two main steps does Hypothetical Document Embeddings (HyDE) decompose zero-shot dense retrieval into?",
       "answerable": true,
-      "expected_document_id": "89ac7800-2fa4-4030-bdd4-241115654701",
+      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
       "expected_pages": [
         1,
         2
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701"
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
       ],
       "retrieved_pages": [
         3,
@@ -1235,33 +474,33 @@
       "mrr": 0.5,
       "cited_indices": [
         2,
-        3,
-        4
+        4,
+        3
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Hyothetical Document Embeddings (HyDE) decomposes zero-shot dense retrieval into two main steps [Source 2, Source 3]:\n\n1. **Generating a Hypothetical Document:** Given a query, an instruction-following language model (such as InstructGPT) is used to generate a hypothetical document that captures relevance patterns, even though it is unreal and may contain false details [Source 2].\n2. **Encoding and Grounding with an Unsupervised Encoder:** An unsupervised contrastively learned encoder (such as Contriever) encodes this hypothetical document into an embedding vector [Source 2, Source 3]. This vector identifies a neighborhood in the corpus embedding space to retrieve similar real documents based on vector similarity, with the encoder's dense bottleneck filtering out incorrect or hallucinated details [Source 2, Source 3, Source 4].\n\nWould you like to explore how the encoder's dense bottleneck functions as a lossy compressor, or examine the formal definition of zero-shot dense retrieval provided in the documents?",
-      "latency_ms": 1369.19
+      "answer": "Hypothetical Document Embeddings (HyDE) decomposes zero-shot dense retrieval into two main steps:\n\n1. **Hypothetical Document Generation:** Given a query, an instruction-following language model (such as InstructGPT) is zero-shot instructed to generate a hypothetical document [Source 2]. Although this document is unreal and may contain false or hallucinated details, it successfully captures the underlying relevance patterns of the query [Source 2, Source 4].\n2. **Unsupervised Encoding and Retrieval:** An unsupervised contrastively learned encoder (such as Contriever) encodes the generated hypothetical document into an embedding vector [Source 2]. This vector identifies a neighborhood within the corpus embedding space where similar real documents can be retrieved based on vector similarity [Source 2, Source 3]. During this process, the encoder's dense bottleneck acts as a lossy compressor that filters out incorrect or hallucinated details, grounding the generated text to the actual corpus [Source 3, Source 4]. \n\nWould you like to explore how the similarity measurement is mathematically formulated or learn more about the encoder's dense bottleneck mechanism?",
+      "latency_ms": 1853.04
     },
     {
-      "id": "q33",
+      "id": "q11",
       "category": "hyde_paper",
       "question": "How does HyDE compute the aggregated query representation vector when sampling N hypothetical documents and optionally combining the original query vector?",
       "answerable": true,
-      "expected_document_id": "89ac7800-2fa4-4030-bdd4-241115654701",
+      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
       "expected_pages": [
         4
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701"
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
       ],
       "retrieved_pages": [
         4,
@@ -1274,35 +513,34 @@
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
-        1
+        1,
+        3
       ],
-      "keyword_coverage": 0.5,
+      "keyword_coverage": 1.0,
       "abstained": false,
-      "faithfulness": 0.7,
+      "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.50"
-      ],
-      "answer": "HyDE estimates the query representation vector by sampling $N$ documents from $g$ to compute the average vector [Source 1]. Specifically, it calculates:\n\n- **Sampling $N$ documents:** $\\hat{v}_{qij} = \\frac{1}{N} \\sum_{k=1}^{N} f(\\hat{d}_k)$, where $\\hat{d}_1, \\hat{d}_2, ..., \\hat{d}_N$ are sampled from $g(q_{ij}, \\text{INST}_i)$ [Source 1].\n- **Including the query as a hypothesis:** Alternatively, it can consider the query itself as an additional hypothesis, computed as $\\hat{v}_{qij} = \\frac{1}{N + 1} \\left[ \\sum_{k=1}^{N} f(\\hat{d}_k) + f(q_{ij}) \\right]$ [Source 1].\n\nWould you like to explore how the encoder functions as a lossy compressor or learn more about the methodology details?",
-      "latency_ms": 1922.55
+      "reasons": [],
+      "answer": "HyDE computes the aggregated query representation vector (`vqij`) by mapping queries to hypothetical documents using an instruction-following language model and then encoding and averaging them [Source 1, Source 3]. \n\nThe process is structured through the following mathematical formulations and mechanisms:\n\n* **Sampling Hypothetical Documents:** The method samples `N` documents from the generation model `g` for a given query `qij` and instruction `INSTi`, represented as `[` `d̂1`, `d̂2`, ..., `d̂N` `]` [Source 1].\n* **Averaging Encoded Vectors:** The aggregated query vector `vqij` is estimated by taking the average of the encoder function `f` applied to each sampled hypothetical document `d̂k`:\n  `vqij = (1 / N) * sum_{k=1}^{N} f(d̂k)` [Source 1]\n* **Incorporating the Query as a Hypothesis:** Alternatively, the system can also consider the query itself as an additional possible hypothesis. In this variation, the query `qij` is included alongside the sampled documents, and the formulation is adjusted as:\n  `vqij = (1 / (N + 1)) * [sum_{k=1}^{N} f(d̂k) + f(qij)]` [Source 1]\n\nOnce this aggregated hypothetical vector is computed, an inner product is calculated between `vqij` and the set of all document vectors in the corpus to retrieve the most similar real documents [Source 1]. \n\nWould you like to explore how the encoder function `f` acts as a lossy compressor to filter out hallucinated details during this retrieval process?",
+      "latency_ms": 2144.63
     },
     {
-      "id": "q34",
+      "id": "q12",
       "category": "hyde_paper",
       "question": "HyDE yaklaşımında dil modelinin ürettiği hayali belgenin olgusal açıdan yanlış detaylar içermesi neden gerçek belgelerin getirilmesini bozmaz?",
       "answerable": true,
-      "expected_document_id": "89ac7800-2fa4-4030-bdd4-241115654701",
+      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
       "expected_pages": [
         1,
         4
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701",
-        "89ac7800-2fa4-4030-bdd4-241115654701"
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
       ],
       "retrieved_pages": [
         1,
@@ -1324,25 +562,25 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "HyDE yaklaşımında üretilen hayali belge olgusal hatalar veya fazladan hayali detaylar içerebilse bile, ikinci adımda kullanılan kodlayıcının (encoder) yoğun dar boğazı (dense bottleneck) kayıplı bir sıkıştırıcı görevi görerek bu yanlış ve fazla detayların gömümden (embedding) filtrelenip ayıklanmasını sağlar [Source 1, Source 2, Source 5]. Bu süreç, üretilen belgenin gerçek corpus'a dayanmasını sağlar ve doğru belgelerin getirilmesine engel olmaz [Source 1].\n\nHyDE modelinin işleyişi veya bu yöntemin kullanım alanları hakkında daha fazla bilgi edinmek ister misiniz?",
-      "latency_ms": 1257.27
+      "answer": "HyDE yaklaşımında dil modelinin ürettiği hayali belge olgusal açıdan yanlış veya hayali (hallucinated) detaylar içerse bile, bu durum gerçek belgelerin getirilmesini engellemez; çünkü süreç şu mekanizmalarla çalışır:\n\n* **Kodlayıcının Dar Boğazı (Dense Bottleneck):** İkinci aşamada, üretilen hayali belge denetimsiz bir kontrastif kodlayıcı (contrastive encoder) aracılığıyla bir gömme vektörüne (`vector`) dönüştürülür. Kodlayıcının sahip olduğu yoğun dar boğaz, bir kayıplı sıkıştırıcı (lossy compressor) görevi görür ve fazladan eklenen hayali detayları gömme vektöründen filtreleyerek ayıklar [Source 1, Source 2, Source 5].\n* **Kürsüleme ve Benzerlik Eşleşmesi:** Elde edilen bu vektör, derlem (corpus) gömmeleriyle karşılaştırılarak aranır. Bu sayede benzer gerçek belgeler corpus içerisinden başarılı bir şekilde geri getirilir [Source 1, Source 2].\n* **Görevlerin Ayrıştırılması:** Bu faktörizasyon sayesinde sorgu-belge benzerliği puanı açık bir şekilde modellenmez veya hesaplanmaz; bunun yerine retrieval görevi bir NLU (Doğal Dil Anlama) ve NLG (Doğal Dil Üretimi) görevine dönüştürülerek, üretilen belgenin biçimsel ve içeriksel ipuçlarından yararlanılır [Source 2].\n\nHyDE modelinin bu mekanizması hakkında merak ettiğiniz başka bir detay var mı?",
+      "latency_ms": 2851.16
     },
     {
-      "id": "q35",
+      "id": "q13",
       "category": "selfrag_paper",
       "question": "What are the four reflection token types used in Self-RAG (Table 1) and what does each evaluate?",
       "answerable": true,
-      "expected_document_id": "2c5c0861-5c42-4ee1-bae7-11101a435701",
+      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
       "expected_pages": [
         4
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701"
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
       ],
       "retrieved_pages": [
         4,
@@ -1363,26 +601,26 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The four types of reflection tokens used in SELF-RAG, along with what each evaluates based on Table 1, are:\n\n* **Retrieve (Retrieval-on-demand):** Decides when to retrieve with R, determining whether the continuation requires factual grounding using output values such as yes, no, or continue. [Source 1, Source 2]\n* **ISREL (Relevant):** Evaluates whether the retrieved knowledge or passage is relevant to the input, with output values of relevant or irrelevant. [Source 1, Source 2]\n* **ISSUP (Supported):** Evaluates whether all of the verification-worthy statements in the output are supported by the retrieved passage, using values such as fully supported, partially supported, or no support. [Source 1]\n* **ISUSE (Utility):** Evaluates whether the output is a useful response to the input, using a scale from 5 down to 1. [Source 1]\n\nWould you like to explore how these reflection tokens are used during inference or training?",
-      "latency_ms": 1171.77
+      "answer": "SELF-RAG framework utilizes four primary types of reflection tokens, divided into a retrieval decision type and three types of critique tokens. Each type evaluates specific aspects of the generation and retrieval process as follows:\n\n- **Retrieve**: Decides when the model needs to perform retrieval given an input `x` and previous-step generation. Its output values include `{yes, no, continue}` [Source 1]. A value of `no` indicates retrieval is unnecessary, `yes` indicates retrieval is necessary, and `continue` allows the model to continue using evidence retrieved previously [Source 2].\n- **ISREL (Relevant)**: Evaluated as `{relevant, irrelevant}`, this token assesses whether a retrieved passage `d` provides useful information to solve the input `x` [Source 1].\n- **ISSUP (Support)**: Evaluated as `{fully supported, partially supported, no support}`, this token checks whether all verification-worthy statements in the generated output segment `y` are supported by the retrieved passage `d` [Source 1].\n- **ISUSE (Utility)**: Evaluated on a scale from 1 to 5 (`{5, 4, 3, 2, 1}`), this token evaluates overall whether the output `y` is a useful response to the input `x` [Source 1].\n\nWould you like to explore how these reflection tokens are trained or used during inference to control generation quality?",
+      "latency_ms": 2171.07
     },
     {
-      "id": "q36",
+      "id": "q14",
       "category": "selfrag_paper",
       "question": "Why does Self-RAG generate and insert offline GPT-4 critique reflection tokens directly into the training corpus instead of using PPO with separate reward models?",
       "answerable": true,
-      "expected_document_id": "2c5c0861-5c42-4ee1-bae7-11101a435701",
+      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
       "expected_pages": [
         5,
         6
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701"
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
       ],
       "retrieved_pages": [
         2,
@@ -1406,25 +644,25 @@
       "reasons": [
         "Keyword coverage=0.75"
       ],
-      "answer": "Generating and inserting offline critique reflection tokens directly into the training corpus significantly reduces training costs and overhead compared to using Proximal Policy Optimization (PPO) with separate reward models [Source 1, Source 2, Source 3]. Specifically, this offline approach eliminates the need to host a critic model during training and avoids the higher expenses associated with standard reinforcement learning from human feedback (RLHF) techniques like PPO [Source 1, Source 2, Source 3]. \n\nWould you like to explore how the critic model is trained or how reflection tokens are used during inference?",
-      "latency_ms": 992.84
+      "answer": "SELF-RAG generates and inserts critique reflection tokens offline into the training corpus instead of using Proximal Policy Optimization (PPO) with separate reward models for several key reasons:\n\n- **Reduced Overhead and Cost:** Computing critiques offline and inserting them directly into the corpus allows the generator language model to be trained using a standard language modeling objective. This approach eliminates the need to host and maintain a separate critic model during training [Source 1] and significantly lowers training costs compared to PPO and RLHF [Source 2, Source 3].\n- **Controllability at Inference:** While reinforcement learning approaches like PPO focus primarily on aligning models with human preferences during training, generating reflection tokens enables SELF-RAG to be controllable during the inference phase [Source 3]. This allows the model to evaluate its own predictions after each generated segment and adapt its behavior to diverse task requirements [Source 2, Source 3].\n\nWould you like to explore how the critic model is supervised or how reflection tokens are used during the inference phase?",
+      "latency_ms": 1859.81
     },
     {
-      "id": "q37",
+      "id": "q15",
       "category": "selfrag_paper",
       "question": "In Self-RAG Section 4.1, how is the PopQA evaluation subset constructed and which metrics evaluate long-form ALCE-ASQA citations?",
       "answerable": true,
-      "expected_document_id": "2c5c0861-5c42-4ee1-bae7-11101a435701",
+      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
       "expected_pages": [
         7
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701"
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
       ],
       "retrieved_pages": [
         8,
@@ -1445,15 +683,15 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The PopQA evaluation subset consists of a long-tail subset of 1,399 rare entity queries where monthly Wikipedia page views are less than 100 [Source 2]. For long-form ALCE-ASQA generations, citation precision and citation recall are used as evaluation metrics [Source 1]. \n\nWould you like to explore more details about the other datasets or evaluation metrics mentioned in the documents?",
-      "latency_ms": 966.26
+      "answer": "The PopQA evaluation subset is constructed specifically as a long-tail subset consisting of 1,399 rare entity queries where monthly Wikipedia page views are less than 100 [Source 2]. For evaluating long-form ALCE-ASQA tasks, citation precision and citation recall are used as key metrics to measure whether model-generated claims are fully supported by cited evidence [Source 1, Source 2]. \n\nWould you like to explore how other datasets like TriviaQA or PubHealth are evaluated within this framework?",
+      "latency_ms": 1712.37
     },
     {
-      "id": "q38",
+      "id": "q16",
       "category": "crag_paper",
       "question": "What three confidence states trigger corrective actions in CRAG, and which pretrained model initializes CRAG's retrieval evaluator?",
       "answerable": true,
-      "expected_document_id": "6aab155f-2437-4e95-bca3-b587952bb051",
+      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
       "expected_pages": [
         2,
         4,
@@ -1461,11 +699,11 @@
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051"
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330"
       ],
       "retrieved_pages": [
         3,
@@ -1479,6 +717,7 @@
       "mrr": 0.5,
       "cited_indices": [
         1,
+        2,
         5
       ],
       "keyword_coverage": 1.0,
@@ -1486,26 +725,26 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The three confidence degrees that trigger actions in CRAG are Correct, Incorrect, and Ambiguous [Source 1, Source 5]. The retrieval evaluator is initialized using the T5-large model [Source 5]. \n\nWould you like to know more about how each of these confidence actions handles knowledge refinement or web searches?",
-      "latency_ms": 1514.98
+      "answer": "CRAG (Corrective Retrieval-Augmented Generation) sisteminde düzeltici eylemleri tetikleyen üç güven derecesi (confidence states) **Correct** (Doğru), **Incorrect** (Yanlış) ve **Ambiguous** (Belirsiz) olarak belirlenmiştir [Source 1, Source 2]. \n\nSistemin model çıkarımı aşamasında, giriş sorusu ile alınan belgelerin ilgisini değerlendirmek üzere kurulan retrieval evaluator (erişim değerlendiricisi) bileşeni **T5-large** modeli ile başlatılmakta ve ince ayardan (fine-tuned) geçirilmektedir [Source 1, Source 5].\n\nCRAG modelinin mimarisinde kullanılan bilgi arıtma (knowledge refinement) adımları veya web araması entegrasyonu hakkında daha fazla detay öğrenmek ister misiniz?",
+      "latency_ms": 1838.72
     },
     {
-      "id": "q39",
+      "id": "q17",
       "category": "crag_paper",
       "question": "How does CRAG's decompose-then-recompose knowledge refinement algorithm refine a retrieved document?",
       "answerable": true,
-      "expected_document_id": "6aab155f-2437-4e95-bca3-b587952bb051",
+      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
       "expected_pages": [
         4,
         6
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051"
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330"
       ],
       "retrieved_pages": [
         2,
@@ -1518,34 +757,35 @@
       "recall_at_k": 1.0,
       "mrr": 0.25,
       "cited_indices": [
+        1,
         4,
-        1
+        3
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "CRAG's decompose-then-recompose knowledge refinement algorithm processes a retrieved relevant document by segmenting it into internal strips to achieve fine-grained results [Source 4]. If a document is as short as one or two sentences, it is treated as an individual strip; otherwise, longer documents are split into smaller units generally consisting of a few sentences based on their total length [Source 4]. \n\nOnce segmented, the fine-tuned retrieval evaluator calculates the relevance score of each individual knowledge strip [Source 4]. This process optimizes the extraction of key insights and filters out irrelevant elements, ensuring that non-essential information is minimized and the retrieved data is utilized more effectively [Source 1]. \n\nWould you like to know more about how confidence degrees trigger different retrieval actions in CRAG?",
-      "latency_ms": 1486.37
+      "answer": "CRAG's decompose-then-recompose knowledge refinement algorithm processes retrieved documents through a structured series of steps designed to extract the most critical information and eliminate irrelevant elements [Source 1, Source 4]:\n\n* **Segmentation into Strips:** Retrieved documents are split into smaller internal units to achieve fine-grained results [Source 4]. If a document is only one or two sentences long, it is treated as an individual strip; otherwise, longer documents are divided into smaller segments consisting of a few sentences based on their total length, with each scale designed to contain an independent piece of information [Source 4].\n* **Relevance Scoring:** The fine-tuned retrieval evaluator is used to calculate the relevance score for each individual knowledge strip [Source 4].\n* **Filtering and Recomposition:** The algorithm selectively focuses on key information and filters out non-essential or irrelevant elements from the segments, refining the data into more precise knowledge strips to optimize utilization [Source 1, Source 3].\n\nWould you like to explore how CRAG triggers different actions based on confidence degrees during model inference?",
+      "latency_ms": 1789.35
     },
     {
-      "id": "q40",
+      "id": "q18",
       "category": "crag_paper",
       "question": "In CRAG Table 1, what PopQA accuracy and Biography FactScore does Self-CRAG achieve on SelfRAG-LLaMA2-7b compared to Self-RAG?",
       "answerable": true,
-      "expected_document_id": "6aab155f-2437-4e95-bca3-b587952bb051",
+      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
       "expected_pages": [
         7,
         8
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051"
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330"
       ],
       "retrieved_pages": [
         8,
@@ -1565,30 +805,20 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Based on Table 1 for the SelfRAG-LLaMA2-7b generator, Self-CRAG achieves a PopQA accuracy of 61.8 and a Biography FactScore of 86.2 [Source 3]. In comparison, Self-RAG achieves a PopQA accuracy of 54.9 and a Biography FactScore of 81.2 [Source 3].\n\nWould you like to explore the performance results of these methods on other datasets like PubHealth or Arc-Challenge from Table 1?",
-      "latency_ms": 914.18
+      "answer": "On the SelfRAG-LLaMA2-7b model configuration within Table 1, the performance metrics for Self-CRAG compared to Self-RAG are as follows:\n\n* **PopQA Accuracy:** Self-CRAG achieves an accuracy of `61.8`, whereas Self-RAG achieves `54.9`. [Source 3]\n* **Biography FactScore:** Self-CRAG achieves a FactScore of `86.2`, whereas Self-RAG achieves `81.2`. [Source 3]\n\nWould you like to explore how these methods perform on other datasets like PubHealth or Arc-Challenge from the evaluation results?",
+      "latency_ms": 2243.81
     },
     {
-      "id": "q41",
-      "category": "adversarial_negative",
-      "question": "Şirket el kitabına göre doğum günü iznini kullanmayan çalışanlara yıl sonunda kaç TL nakit ödeme yapılır?",
+      "id": "q19",
+      "category": "negative_control",
+      "question": "Türkiye İş Kanunu'na göre 2026 yılı kıdem tazminatı tavanı kaç TL olarak belirlenmiştir?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
-      "retrieved_count": 4,
-      "retrieved_document_ids": [
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-        "3655c2ed-7ed5-466e-825c-a0f2a04f156c"
-      ],
-      "retrieved_pages": [
-        1,
-        1,
-        2,
-        1
-      ],
-      "top_score": 0.7531,
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
       "recall_at_k": null,
       "mrr": null,
       "cited_indices": [],
@@ -1599,11 +829,35 @@
       "reasons": [
         "Correctly abstained on unanswerable query"
       ],
-      "answer": "Yüklenen şirket politikası belgelerinde doğum günü izninin kullanılmaması durumunda yıl sonunda nakit ödeme yapılacağına dair herhangi bir bilgi yer almamaktadır; bu nedenle bu soruya dayanarak net bir yanıt veremiyorum. \n\nİzin süreleri, kıdeme göre yıllık ücretli izin hakları veya doğum günü izninin kullanım koşulları hakkında bilgi vermemi ister misiniz?",
-      "latency_ms": 1247.99
+      "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
+      "latency_ms": 1345.6
     },
     {
-      "id": "q42",
+      "id": "q20",
+      "category": "negative_control",
+      "question": "What exact quarterly AWS cloud GPU billing expense did Anthropic report in Q3 2025?",
+      "answerable": false,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
+      "recall_at_k": null,
+      "mrr": null,
+      "cited_indices": [],
+      "keyword_coverage": null,
+      "abstained": true,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Correctly abstained on unanswerable query"
+      ],
+      "answer": "This specific detail is not mentioned in the available knowledge base.",
+      "latency_ms": 1815.99
+    },
+    {
+      "id": "q21",
       "category": "adversarial_negative",
       "question": "According to the CRAG paper, what cosine similarity cutoff and HNSW ef_construct parameter are configured in Qdrant for its retrieval evaluator?",
       "answerable": false,
@@ -1611,11 +865,11 @@
       "expected_pages": [],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051",
-        "6aab155f-2437-4e95-bca3-b587952bb051"
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330",
+        "c72b0489-8932-5667-96ae-61e198987330"
       ],
       "retrieved_pages": [
         4,
@@ -1635,11 +889,11 @@
       "reasons": [
         "Correctly abstained on unanswerable query"
       ],
-      "answer": "Based on the provided documents, there is no mention of a cosine similarity cutoff or an HNSW ef_construct parameter configured in Qdrant for the retrieval evaluator. I do not know the answer based on the uploaded documents.",
-      "latency_ms": 833.63
+      "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
+      "latency_ms": 2127.41
     },
     {
-      "id": "q43",
+      "id": "q22",
       "category": "adversarial_negative",
       "question": "In Fusion-in-Decoder Table 1, what BLEU-4 score did FiD (large) achieve on the WMT-19 German-to-English machine translation benchmark?",
       "answerable": false,
@@ -1647,8 +901,8 @@
       "expected_pages": [],
       "retrieved_count": 2,
       "retrieved_document_ids": [
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-        "e70ba43b-caf5-4973-9e2a-3dc53d104235"
+        "89e9b735-709a-574e-963b-2bf83eb15186",
+        "89e9b735-709a-574e-963b-2bf83eb15186"
       ],
       "retrieved_pages": [
         4,
@@ -1665,11 +919,11 @@
       "reasons": [
         "Correctly abstained on unanswerable query"
       ],
-      "answer": "Yüklenen belgelerde Fusion-in-Decoder (büyük) modelinin WMT-19 Almanca-İngilizce çeviri benchmarkındaki BLEU-4 puanına dair herhangi bir bilgi bulunmamaktadır. Bu spesifik bilgi sağlanan belgelerde yer almamaktadır.",
-      "latency_ms": 1085.99
+      "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
+      "latency_ms": 1524.11
     },
     {
-      "id": "q44",
+      "id": "q23",
       "category": "adversarial_negative",
       "question": "What exact API price per million reflection tokens does OpenAI charge to run Self-RAG 13B inference according to the Self-RAG paper?",
       "answerable": false,
@@ -1677,11 +931,11 @@
       "expected_pages": [],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701",
-        "2c5c0861-5c42-4ee1-bae7-11101a435701"
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
       ],
       "retrieved_pages": [
         1,
@@ -1701,9 +955,45 @@
       "reasons": [
         "Correctly abstained on unanswerable query"
       ],
-      "answer": "The provided documents do not contain information about OpenAI's API prices or charges for running Self-RAG 13B inference. \n\nWould you like to know more about how reflection tokens are defined and used in the SELF-RAG framework?",
-      "latency_ms": 1253.13
+      "answer": "This specific detail is not mentioned in the available knowledge base. \n\nWould you like to explore how reflection tokens function or how the inference-time algorithm customizes model behavior using segment-level beam search?",
+      "latency_ms": 1842.93
+    },
+    {
+      "id": "q24",
+      "category": "adversarial_negative",
+      "question": "DPR makalesindeki Tablo 2'de BM25 + ColBERTv2 hibrit modelinin MS-MARCO üzerindeki MRR@10 skoru nedir?",
+      "answerable": false,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+        "642b8860-6f3e-5f33-947f-bda82852e982",
+        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
+      ],
+      "retrieved_pages": [
+        5,
+        8,
+        5,
+        12,
+        4
+      ],
+      "top_score": 0.7733,
+      "recall_at_k": null,
+      "mrr": null,
+      "cited_indices": [],
+      "keyword_coverage": null,
+      "abstained": true,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Correctly abstained on unanswerable query"
+      ],
+      "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
+      "latency_ms": 1335.76
     }
   ],
-  "evaluated_at": "2026-11-17T18:39:24.015930+00:00"
+  "evaluated_at": "2026-11-18T19:35:18.070055+00:00"
 }

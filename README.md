@@ -23,12 +23,14 @@
 <p>
   <sub>
     <code>Python 3.11+</code> ·
+    <code>Rust (PyO3)</code> ·
     <code>FastAPI</code> ·
     <code>Celery &amp; Redis</code> ·
     <code>Qdrant</code> ·
-    <code>Gemini API</code> ·
+    <code>Gemini / OpenAI-Compat</code> ·
     <code>Langfuse</code> ·
-    <code>136 Tests Passing</code>
+    <code>169 Tests (163 Py + 6 Rust)</code> ·
+    <code>88.6% Branch Cov</code>
   </sub>
 </p>
 
@@ -66,7 +68,7 @@ Switch workspaces at the bottom left, drag and drop multiple PDFs or text files,
 
 ### `#2` / Stream Grounded Markdown & Inline Citations
 
-Ask a cross-paper comparison question and watch structured Markdown stream word-by-word with clickable citation pills, a clean copy button that strips citation markers, contextual follow-up actions, and per-page relevance badges underneath.
+Ask a cross-paper comparison question (English or Turkish—here queried in Turkish across English arXiv papers) and watch structured Markdown stream word-by-word with clickable citation pills, a clean copy button that strips citation markers, contextual follow-up actions (`Evet, öğrenmek isterim →`), and per-page relevance badges underneath.
 
 <div align="center">
   <img src="docs/images/ui-chat-citations.png" alt="AskDocs — Grounded Streaming Answer &amp; Citations" width="96%" />
@@ -74,7 +76,7 @@ Ask a cross-paper comparison question and watch structured Markdown stream word-
 
 ### `#3` / Verify Claims in the Source Inspector
 
-Click citation `[1]` to slide out the Cupertino Source Inspector right to page 15 of `crag_2401_15884.pdf`, displaying the `73%` similarity match and highlighted terms so every answer can be verified in seconds.
+Click citation `[1]` to slide out the Cupertino Source Inspector right to page 2 of `crag_2401_15884.pdf`, displaying the `78%` similarity match and highlighted terms (`CRAG`, `Self-RAG`) so every claim can be verified in seconds.
 
 <div align="center">
   <img src="docs/images/ui-source-inspector.png" alt="AskDocs — Slide-out Source Inspector Drawer" width="96%" />
@@ -90,16 +92,16 @@ Click citation `[1]` to slide out the Cupertino Source Inspector right to page 1
 
 AskDocs splits heavy ingestion (**Write Path**) from low-latency conversational streaming (**Read Path**):
 
-1. **Upload & Index (Write Path):** FastAPI checks authentication, sliding-window rate limits, and file headers (`%PDF-` or UTF-8), streams bytes to shared disk via UUID paths, dispatches a Celery task to Redis, and replies with `202 Accepted`. Workers read pages incrementally with PyMuPDF, clean formatting noise, split prose into `1200`-character overlapping chunks (`150` overlap), generate embeddings in batches of `32`, and write idempotent points into Qdrant.
-2. **Ask & Verify (Read Path):** A query enters with optional document scope IDs and chat history. Short follow-up confirmations resolve against the prior assistant prompt, Qdrant fetches top-5 tenant-isolated matches at a `0.70` similarity threshold (falling back to `0.58` if empty), context snippets are fenced and sanitized, and verified SSE frames stream tokens, citations, and completion markers cleanly to the browser.
+1. **Upload & Index (Write Path):** FastAPI checks SHA-256 API-Key auth, sliding-window Redis Lua rate limits, and file headers (`%PDF-` or UTF-8), streams bytes to a shared volume via UUID paths, dispatches a Celery task to Redis, and replies with `202 Accepted`. Prefork Celery workers stream pages incrementally with PyMuPDF (`fitz`), offload CPU-intensive ligature/hyphen/whitespace cleaning and sentence-aligned chunking (`1200/150`) to the **GIL-free Rust (`PyO3`) `text_processor` engine** (`py.allow_threads`), generate embeddings in batches of `32`, and write idempotent `UUID5` points into Qdrant.
+2. **Ask & Verify (Read Path):** A query enters with optional document scope IDs and chat history. Short follow-up confirmations resolve against the prior assistant prompt, Qdrant fetches top-5 tenant-isolated matches at a `0.70` similarity threshold (falling back to `0.58` if empty), context snippets are fenced and sanitized, and verified SSE frames stream tokens, citations, and `[DONE]` markers cleanly to the browser.
 
 ### Stack Breakdown
 
 | Layer | Choice | Why It Is Here |
 | :--- | :--- | :--- |
 | **API & Web UI** | FastAPI + Vanilla JS | Async REST/SSE delivery, SHA-256 API-Key auth, security middlewares, and zero-framework Cupertino UI |
-| **Queue & Workers** | Celery + Redis | Isolates CPU/network indexing bursts from FastAPI's event loop and tracks sliding-window rate limits |
-| **PDF Engine** | PyMuPDF + Custom Chunker | Streaming page-by-page extraction, ligature/hyphen normalization, and sentence-aligned overlapping chunks |
+| **Queue & Workers** | Celery + Redis | Isolates CPU/network indexing bursts from FastAPI's event loop and tracks atomic sliding-window rate limits |
+| **PDF & Rust Core** | PyMuPDF + Rust (`PyO3`) Engine | Streaming page extraction plus `#![forbid(unsafe_code)]` Rust `text_processor` (`abi3-py311`) with automatic pure-Python fallback |
 | **Vector Store** | Qdrant | Tenant-indexed HNSW vector search with document filtering and deterministic `UUID5` upserts |
 | **LLM & Embeddings** | Gemini (`OpenAI-Compat` via `httpx`) | Powers `gemini-3.5-flash-lite` generation and `gemini-embedding-001` (`3072`-dim) over pooled connections |
 | **Telemetry** | Langfuse + PostgreSQL | Fail-open traces for retrieval scores, TTFT latency, token accounting, and evaluation runs |
@@ -126,8 +128,11 @@ Every handoff between web upload and background indexing handles crash points ex
 ### Circuit Breakers Without Cross-Tenant Blast Radius
 Dual `3-state` circuit breakers (`src/core/circuit_breaker.py`) fail fast (`503`) during real Qdrant or LLM outages without starving healthy routes. Crucially, abnormal user-level stream stops (`length`, `content_filter`) map cleanly to HTTP `422` without tripping the shared LLM circuit breaker—ensuring one truncated prompt never blocks service for other tenants.
 
+### Native Rust (`PyO3`) Text Core & Multi-Stage Packaging
+Normalizing PDF artifacts and slicing overlapping chunks across multi-megabyte documents is pure CPU work where Python's regular-expression engine allocates hundreds of megabytes of transient strings while holding the GIL. Extracting `clean_text` and `chunk_text` into a dedicated **`text_processor` Rust crate** (`text_processor/src/lib.rs`, `#![forbid(unsafe_code)]`) releases the GIL via `py.allow_threads(...)`, normalizes HTML/scripts/ligatures/hyphenation in linear passes, and aligns sentence boundaries with an `O(chunk_size)` lookback window (`100%` character-for-character parity verified against Python). Built as an `abi3-py311` wheel inside Stage 1 (`rust:1-slim-trixie`) of the 3-stage `Dockerfile`, the final non-root runtime image (`UID 10001`) carries zero Rust compiler bloat and transparently falls back to pure Python only if the compiled module is unavailable—with `.pyi` type stubs enforced by strict `mypy`.
+
 ### Calibrated Retrieval & Verifiable Stream Boundaries
-Empirical evaluation tuned both context cost and safety boundaries: `1200/150` sentence-aligned chunks preserve full policy clauses while cutting embedding calls 3x; the `0.70` similarity cutoff (`0.58` gentle fallback) removes noise cleanly; `<context>` sanitization defeats indirect prompt injection; and both server and UI verify `finish_reason` plus `[DONE]` boundaries before saving responses to browser history.
+Empirical evaluation tuned both context cost and safety boundaries: `1200/150` sentence-aligned chunks preserve full technical explanations while cutting embedding calls 3x; the `0.70` similarity cutoff (`0.58` gentle fallback) removes noise cleanly (with `0.75` shedding `83.3%` of negative trap noise in dense academic corpora); `<context>` sanitization defeats indirect prompt injection; and both server and UI verify `finish_reason` plus `[DONE]` boundaries before saving responses to browser history.
 
 ---
 
@@ -135,51 +140,62 @@ Empirical evaluation tuned both context cost and safety boundaries: `1200/150` s
 
 All numbers below come directly from reproducible evaluation, load, and microbenchmark harnesses committed in this repository.
 
-### 1. RAG Retrieval & Grounding Quality
+### 1. RAG Retrieval & Grounding Quality (`rag-research` · 6 PDFs)
 
-To measure precision under heavy terminology overlap, AskDocs is evaluated against a **44-question Golden Dataset** ([`evals/golden_dataset.json`](evals/golden_dataset.json)) spanning **9 PDFs (`535` chunks)**—seven competing RAG research papers (`RAG`, `REALM`, `DPR`, `FiD`, `HyDE`, `Self-RAG`, `CRAG`), the Bitcoin whitepaper, and a Turkish HR handbook—alongside **6 unanswerable traps** (four reusing exact paper terminology).
+To measure semantic disambiguation under intense terminology overlap, AskDocs is evaluated against a **24-question Golden Dataset** ([`evals/golden_dataset.json`](evals/golden_dataset.json), `v3.0`) scoped strictly to the **`rag-research` workspace** containing **6 competing arXiv RAG papers (`385` chunks total)**—`REALM` (`56`), `DPR` (`64`), `FiD` (`25`), `HyDE` (`48`), `Self-RAG` (`122`), and `CRAG` (`70`)—including cross-lingual Turkish prompts (`q03`, `q12`) and **6 unanswerable / adversarial traps** (`q19`–`q24`, with four reusing exact paper terminology).
 
 | Metric | Measured Result | Interpretation |
 | :--- | :---: | :--- |
-| **Mean Recall@5** | **`1.0000`** (`38 / 38`) | Expected source page landed in Top-5 across every answerable question |
-| **Mean MRR** | **`0.8969`** | High first-rank accuracy despite seven overlapping retrieval papers in one tenant |
-| **Mean Faithfulness** | **`0.9591`** | Valid `[Source N]` grounding with zero fabricated or out-of-range references |
-| **Keyword Coverage** | **`0.9386`** | Core technical terms and numeric facts captured across Turkish and English |
+| **Mean Recall@5** | **`1.0000`** (`18 / 18`) | Expected source page landed in Top-5 across every answerable query in all 6 papers |
+| **Mean MRR** | **`0.7824`** | Strong first-rank precision despite six closely overlapping retrieval papers in one tenant |
+| **Mean Faithfulness** | **`0.9729`** | Valid `[Source N]` citations with zero fabricated or out-of-range references |
+| **Keyword Coverage** | **`0.9398`** | Key architectural terms, benchmarks, and numeric facts captured across EN & TR |
 | **Abstention Accuracy** | **`1.0000`** (`6 / 6`) | All off-topic and adversarial near-miss queries declined without hallucination |
 
 <div align="center">
-  <img src="docs/images/eval-threshold-chart.svg" alt="Data-Driven Threshold Calibration Sweep" width="100%" />
+  <img src="docs/images/eval-threshold-chart.svg" alt="6-Paper RAG Calibration Sweep" width="100%" />
 </div>
 
 <details>
 <summary><strong>Threshold sweep (0.30–0.75) &amp; run configuration</strong></summary>
 
-Run `eval-20261117-183520` · `gemini-3.5-flash-lite` + `gemini-embedding-001` · `top_k=5` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json) · [`evals/README.md`](evals/README.md)
+Run `eval-20261118-193027` · Workspace `rag-research` (`6` PDFs / `385` chunks) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · `top_k=5` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json) · [`evals/README.md`](evals/README.md)
 
 | `score_threshold` | `Recall@5` | `MRR` | `AvgChunks` (Sent to LLM) | `NegNoise` (6 Trap Queries) |
 | :---: | :---: | :---: | :---: | :---: |
-| `0.30` | `1.0000` | `0.8969` | `5.00` | `1.0000` |
-| `0.40` | `1.0000` | `0.8969` | `5.00` | `1.0000` |
-| `0.50` | `1.0000` | `0.8969` | `5.00` | `1.0000` |
-| `0.60` | `1.0000` | `0.8969` | `4.97` | `1.0000` |
-| `0.65` | `1.0000` | `0.8969` | `4.61` | `1.0000` |
-| **`0.70` (Selected)** | **`1.0000`** | **`0.8969`** | **`4.11` (-17.8%)** | **`0.6667`** |
-| `0.75` | `0.9211` | `0.8180` | `3.11` | `0.1667` |
+| `0.30` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
+| `0.40` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
+| `0.50` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
+| `0.60` | `1.0000` | `0.7824` | `5.00` | `0.8333` |
+| `0.65` | `1.0000` | `0.7824` | `5.00` | `0.6667` |
+| `0.70` (Default) | `1.0000` | `0.7824` | `5.00` | `0.6667` |
+| **`0.75` (Recommended)** | **`1.0000`** | **`0.7824`** | **`4.44` (-11.2%)** | **`0.1667` (-83.3%)** |
 
-At `0.70`, average context chunks sent to the model drop `17.8%` (`5.00 -> 4.11`) with zero loss in `Recall@5` or `MRR`, while pushing to `0.75` drops `Recall@5` by `7.9%` (`0.9211`). Meanwhile, the grounded system prompt declines `100%` of both off-topic and near-miss domain traps (`6/6`).
+Under high intra-domain competition (`385` chunks from six RAG papers), keeping `0.70` cuts negative trap noise by `33.3%` with `100%` Recall@5, while calibrating to `0.75` sheds **`83.3%` of trap noise** (`1.0000 -> 0.1667`) and trims LLM context tokens by `11.2%` (`5.00 -> 4.44`) with **zero loss** in `Recall@5` (`1.0000`) or `MRR` (`0.7824`).
 
 </details>
 
-### 2. Concurrency Load & Parser Throughput
+### 2. Rust (`PyO3`) vs. Pure Python CPU & Memory Microbenchmark
 
-Backend concurrency (`20` users, `30s`, `--with-mock-ai` isolating orchestration from upstream API latency) and Python 3.11 single-core CPU benchmarks for [`src/services/pdf_parser.py`](src/services/pdf_parser.py):
+To quantify the impact of moving text normalization and chunking into compiled Rust (`text_processor v0.1.0`, `opt-level = 3`, GIL released), [`scripts/benchmark_text_processor.py`](scripts/benchmark_text_processor.py) benchmarks both engines on an isolated **`50.00 MiB` (`52,428,800` bytes / `49,585,446` chars)** multilingual HTML/PDF-noise corpus (`chunk_size=1200`, `chunk_overlap=150`, `3`-run median, zero network/GPU I/O):
+
+| Stage | Pure Python Median | Rust (`PyO3`) Median | Speedup | Python Heap Peak | Rust Py-Heap Peak | Parity |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`clean_text`** | `4,890.17 ms` (`10.22 MiB/s`) | **`294.06 ms` (`170.03 MiB/s`)** | **`16.63x`** (`-94.0%`) | `749.51 MiB` | `301.59 MiB` (`2.49x` lower) | `True` (`100%`) |
+| **`chunk_text`** (`69,349` chunks) | `4,934.83 ms` (`10.13 MiB/s`) | **`507.37 ms` (`98.55 MiB/s`)** | **`9.73x`** (`-89.7%`) | `749.51 MiB` | **`202.12 MiB` (`3.71x` lower)** | `True` (`100%`) |
+
+> **Why Rust Matters Here:** Pure Python's chained `re.sub` passes allocate intermediate Unicode strings on the Python heap while holding the GIL (`~750 MiB` peak, `~4.9s` per stage). Rust performs a linear, zero-`unsafe` scan off the Python heap inside `py.allow_threads(...)`, eliminating GIL stalls inside Celery prefork workers and cutting chunking RAM overhead by **`3.71x`** with verified exact output parity ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)).
+
+### 3. Concurrency Load & PDF Stream Throughput
+
+Backend concurrency (`20` users, `30s`, `--with-mock-ai` isolating orchestration from upstream API latency) and PyMuPDF page-streaming benchmarks:
 
 | Benchmark | Workload | Result | Takeaway |
 | :--- | :--- | :--- | :--- |
 | **Locust Load Mix** | `1,260` reqs across all 8 endpoints | **`43.21 RPS` · `0.0%` errors** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
 | **Container Memory** | `api`, `worker`, `qdrant`, `redis` (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | `0` OOMs, `0` restarts under mixed traffic |
-| **Text Cleaner & Chunker** | `5.33 MiB` (`5.59M` chars), `1200 / 150` | **`495.8 ms` (`10.7 MiB/s`)** | `6,167` chunks vs `18,500` on `500 / 75` (**3x fewer** embeddings) |
 | **PyMuPDF PDF Stream** | `100-page` PDF (`82.1 KiB`), `1200 / 150` | **`172.9 ms` (`578 pages/s`)** | 5-run median throughput |
+| **Chunk Ratio (`1200/150`)** | `5.33 MiB` (`5.59M` chars) corpus | **`6,167` chunks** | **3x fewer** embedding calls vs `500 / 75` (`18,500`) |
 
 <details>
 <summary><strong>Per-endpoint Locust breakdown &amp; Docker container RAM table</strong></summary>
@@ -322,19 +338,25 @@ data: [DONE]
 
 ## Quality Gates & Project Layout
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs formatting, linting, strict `mypy` type checking, and `136` network-isolated unit/integration tests on every push and pull request:
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) enforces Rust lint/safety checks, Python formatting/linting, strict `mypy` type checking, JS syntax validation, `pytest-cov` (`>= 85%` branch coverage gate across `163` Python + `6` Rust tests), and multi-stage non-root Docker Buildx verification on every push and pull request:
 
 ```bash
-# Format, lint, static types, JS syntax & isolated tests (136 passing)
+# Rust checks (inside text_processor/)
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+
+# Python & JS formatting, lint, static types, syntax & isolated test suite (163 Py + 6 Rust = 169 passing)
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src tests scripts locustfile.py
 node --check src/ui/app.js
-uv run pytest -q
+uv run pytest -v --cov=src --cov-report=term-missing
 
-# Live concurrency, RAG quality & Locust load scripts
+# Live concurrency, 6-PDF RAG quality, Rust vs Python microbenchmark & Locust load scripts
 uv run python scripts/test_queue_concurrency.py --count 10
-uv run python scripts/evaluate_rag.py --delay-seconds 3.5
+uv run python scripts/evaluate_rag.py --score-threshold 0.70 --thresholds "0.30,0.40,0.50,0.60,0.65,0.70,0.75" --delay-seconds 5.0
+uv run --no-sync python scripts/benchmark_text_processor.py --size-mb 50 --iterations 3
 uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s --with-mock-ai
 ```
 
@@ -343,14 +365,16 @@ uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s 
 
 ```text
 AskDocs/
-├── .github/workflows/ci.yml       # Ruff, Mypy & Pytest CI pipeline
+├── .github/workflows/ci.yml       # Rust, Ruff, Mypy, Pytest-cov (85%+ branch) & Docker CI pipeline
 ├── docs/images/                   # Hero SVG, architecture SVG, eval chart & UI screenshots
 ├── evals/
-│   ├── golden_dataset.json        # 44-question 9-PDF + adversarial trap eval set
+│   ├── golden_dataset.json        # 24-question 6-PDF (rag-research) + adversarial trap eval set
 │   ├── latest_eval_report.json    # Latest calibration run (Recall@5, MRR, Faithfulness)
 │   ├── load_test_report.json      # 20-user Locust latency & Docker container RAM report
-│   └── README.md                  # Hyperparameter calibration notes
+│   ├── text_processor_benchmark.json # 50 MiB Rust vs. Python CPU & heap microbenchmark report
+│   └── README.md                  # Hyperparameter calibration & Rust benchmark notes
 ├── scripts/
+│   ├── benchmark_text_processor.py # 50 MiB clean/chunk CPU & tracemalloc parity harness
 │   ├── evaluate_rag.py            # Golden Dataset runner + threshold sweep + Langfuse logging
 │   ├── run_load_test.py           # Locust orchestrator + docker stats memory sampler
 │   └── test_queue_concurrency.py  # Concurrent upload & retry verification harness
@@ -359,15 +383,20 @@ AskDocs/
 │   ├── core/                      # Config, circuit breakers, logging, middleware & Langfuse
 │   ├── evals/                     # Metric calculators (Recall@K, MRR, Faithfulness, Locust)
 │   ├── schemas/                   # Pydantic v2 request/response & SSE schemas
-│   ├── services/                  # ABC contracts, storage, PyMuPDF parser, Qdrant & LLM clients
+│   ├── services/                  # ABC contracts, storage, PyMuPDF + Rust loader, Qdrant & LLM
 │   ├── tasks/                     # Celery app & idempotent indexing worker task
 │   ├── ui/                        # Cupertino Light Web UI (HTML, CSS, vanilla JS)
 │   └── main.py                    # FastAPI lifespan, security middlewares & UI mount
-├── tests/                         # 136 isolated unit & integration tests
-├── Dockerfile                     # Multi-stage non-root runtime (UID/GID 10001)
+├── text_processor/
+│   ├── python/text_processor/     # Typed .pyi stubs & Python package wrapper
+│   ├── src/lib.rs                 # #![forbid(unsafe_code)] PyO3 cleaner & O(chunk_size) chunker
+│   ├── Cargo.toml                 # abi3-py311 release/dev-opt crate manifest
+│   └── pyproject.toml             # Maturin PEP 517 build configuration
+├── tests/                         # 163 isolated Python unit/integration tests + 6 Rust tests
+├── Dockerfile                     # 3-stage Rust wheel + Python builder -> non-root UID 10001 runtime
 ├── docker-compose.yml             # API, Celery Worker, Redis, Qdrant, Postgres, Langfuse
 ├── locustfile.py                  # Locust traffic mix across upload, poll, query, stream, delete
-└── pyproject.toml                 # Dependencies, uv lock & Ruff/Mypy/Pytest configuration
+└── pyproject.toml                 # Dependencies, uv lock & Ruff/Mypy/Pytest/Coverage config
 ```
 
 </details>

@@ -1,393 +1,17 @@
 {
-  "version": "2.0",
-  "tenant_id": "test-user",
+  "version": "3.0",
+  "tenant_id": "rag-research",
   "documents": {
-    "sirket_el_kitabi_tr.pdf": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-    "bitcoin_whitepaper.pdf": "b39f1205-31b8-470e-a439-775be3849b86",
-    "rag_paper_2005_11401.pdf": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-    "realm_2002_08909.pdf": "b3ac1310-b9c9-43b2-b117-5610b210a535",
-    "dpr_2004_04906.pdf": "5ce9858f-8098-4052-9d68-2922530bcbb4",
-    "fid_2007_01282.pdf": "e70ba43b-caf5-4973-9e2a-3dc53d104235",
-    "hyde_2212_10496.pdf": "89ac7800-2fa4-4030-bdd4-241115654701",
-    "selfrag_2310_11511.pdf": "2c5c0861-5c42-4ee1-bae7-11101a435701",
-    "crag_2401_15884.pdf": "6aab155f-2437-4e95-bca3-b587952bb051"
+    "realm_2002_08909.pdf": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+    "dpr_2004_04906.pdf": "642b8860-6f3e-5f33-947f-bda82852e982",
+    "fid_2007_01282.pdf": "89e9b735-709a-574e-963b-2bf83eb15186",
+    "hyde_2212_10496.pdf": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+    "selfrag_2310_11511.pdf": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
+    "crag_2401_15884.pdf": "c72b0489-8932-5667-96ae-61e198987330"
   },
   "items": [
     {
       "id": "q01",
-      "category": "hr_policy",
-      "question": "Şirkette standart haftalık çalışma süresi kaç saattir ve temel çalışma ile öğle arası saatleri nedir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "reference_answer": "Standart haftalık çalışma süresi 40 saattir; temel çalışma saatleri hafta içi 09:00-18:00, öğle arası ise 12:30-13:30 arasında 1 saattir.",
-      "expected_keywords": [
-        "40",
-        "09:00",
-        "18:00",
-        "12:30",
-        "13:30"
-      ]
-    },
-    {
-      "id": "q02",
-      "category": "hr_policy",
-      "question": "Esnek mesai kapsamında çalışanlar saat kaçlar arasında işe başlayıp çıkış yapabilir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "reference_answer": "Çalışanlar ekip toplantılarını aksatmamak koşuluyla 08:30-10:00 arasında esnek başlangıç ve 17:30-19:00 arasında esnek çıkış yapabilir.",
-      "expected_keywords": [
-        "08:30",
-        "10:00",
-        "17:30",
-        "19:00"
-      ]
-    },
-    {
-      "id": "q03",
-      "category": "hr_policy",
-      "question": "Şirket kıdemine göre yıllık ücretli izin hakları kaç iş günü olarak belirlenmiştir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "reference_answer": "1-5 yıl (dahil) çalışanlar 16 iş günü, 5-10 yıl arası 22 iş günü, 10 yıl ve üzeri çalışanlar yılda 26 iş günü ücretli izin hakkına sahiptir.",
-      "expected_keywords": [
-        "16",
-        "22",
-        "26"
-      ]
-    },
-    {
-      "id": "q04",
-      "category": "hr_policy",
-      "question": "Planlı yıllık izin talepleri en az kaç iş günü önce sunulmalıdır ve doğum günü izni kaç iş günüdür?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        1
-      ],
-      "reference_answer": "Planlı yıllık izin talepleri en az 10 iş günü önce İK Portalı üzerinden yönetici onayına sunulmalıdır; doğum günü izni ise 1 iş günüdür.",
-      "expected_keywords": [
-        "10",
-        "1"
-      ]
-    },
-    {
-      "id": "q05",
-      "category": "hr_policy",
-      "question": "Hibrit çalışma düzeninde hangi günler merkez ofisten katılım zorunludur ve hangi günler uzaktan çalışılabilir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "reference_answer": "Salı ve Çarşamba günleri merkez ofisten katılım zorunludur; Pazartesi, Perşembe ve Cuma günleri uzaktan çalışılabilir.",
-      "expected_keywords": [
-        "salı",
-        "çarşamba",
-        "pazartesi",
-        "perşembe",
-        "cuma"
-      ]
-    },
-    {
-      "id": "q06",
-      "category": "hr_policy",
-      "question": "Work From Anywhere (İstediğin Yerden Çalış) hakkı yılda kaç iş günüdür ve çekirdek iletişim saatleri nedir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "reference_answer": "Takvim yılı içinde toplam 30 iş gününe kadar kullanılabilir ve saat dilimi farkı varsa 11:00-16:00 (TSİ) arasında çevrimiçi olunması beklenir.",
-      "expected_keywords": [
-        "30",
-        "11:00",
-        "16:00"
-      ]
-    },
-    {
-      "id": "q07",
-      "category": "hr_policy",
-      "question": "Ev ofisi kurulum desteği ve aylık internet/enerji faturası katkısı tutarları nedir, şirket dizüstü bilgisayarları kaç yılda bir yenilenir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        2
-      ],
-      "reference_answer": "İşe yeni başlayanlara tek seferlik 15.000 TL Ev Ofisi Kurulum Desteği ve tüm çalışanlara aylık net 1.250 TL internet/enerji katkısı verilir; dizüstü bilgisayarlar 3 yılda bir yenilenir.",
-      "expected_keywords": [
-        "15.000",
-        "1.250",
-        "3"
-      ]
-    },
-    {
-      "id": "q08",
-      "category": "hr_security",
-      "question": "Veri saklama süreleri kapsamında müşteri sözleşmeleri ile sistem erişim logları ne kadar süre tutulur ve olası veri ihlali kaç saat içinde hangi adrese bildirilmelidir?",
-      "answerable": true,
-      "source_file": "sirket_el_kitabi_tr.pdf",
-      "expected_document_id": "3655c2ed-7ed5-466e-825c-a0f2a04f156c",
-      "expected_pages": [
-        3
-      ],
-      "reference_answer": "Müşteri sözleşmeleri ve faturalar 10 yıl muhafaza edilir, erişim logları 90 gün sonra imha edilir ve veri ihlali şüphesi 2 saat içinde guvenlik@sirket.example adresine bildirilmelidir.",
-      "expected_keywords": [
-        "10",
-        "90",
-        "2",
-        "guvenlik@sirket.example"
-      ]
-    },
-    {
-      "id": "q09",
-      "category": "bitcoin",
-      "question": "Bitcoin whitepaper'a göre güvenilir bir merkezi otorite olmadan çift harcama (double-spending) problemi nasıl çözülür?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        1,
-        2
-      ],
-      "reference_answer": "İşlemler halka açık duyurulur ve ağdaki katılımcıların hash tabanlı bir proof-of-work (iş kanıtı) ve dağıtık zaman damgası sunucusu ile en uzun zincir üzerinde tek bir işlem sırası üzerinde uzlaşması sağlanır.",
-      "expected_keywords": [
-        "zaman damgası|timestamp",
-        "iş kanıtı|proof-of-work|proof of work",
-        "en uzun zincir|longest chain"
-      ]
-    },
-    {
-      "id": "q10",
-      "category": "bitcoin",
-      "question": "How does Bitcoin's Proof-of-Work mechanism operate and which existing system is it similar to?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        3
-      ],
-      "reference_answer": "Bitcoin's Proof-of-Work is similar to Adam Back's Hashcash and increments a nonce in a block until its SHA-256 hash begins with a required number of zero bits.",
-      "expected_keywords": [
-        "Hashcash",
-        "SHA-256",
-        "nonce",
-        "zero"
-      ]
-    },
-    {
-      "id": "q11",
-      "category": "bitcoin",
-      "question": "What is the size of a Bitcoin block header without transactions and how much annual storage is estimated for headers when blocks are generated every 10 minutes?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        4
-      ],
-      "reference_answer": "A block header without transactions is about 80 bytes, which equals roughly 4.2 MB per year when blocks are generated every 10 minutes.",
-      "expected_keywords": [
-        "80",
-        "4.2",
-        "10"
-      ]
-    },
-    {
-      "id": "q12",
-      "category": "bitcoin",
-      "question": "How does Bitcoin's incentive mechanism reward block creators initially and once a predetermined number of coins enter circulation?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        4
-      ],
-      "reference_answer": "The first transaction in a block creates a new coin owned by the block creator alongside transaction fees; once a predetermined number of coins circulate, the incentive transitions entirely to transaction fees.",
-      "expected_keywords": [
-        "new coin|new coins",
-        "transaction fee|transaction fees|fees"
-      ]
-    },
-    {
-      "id": "q13",
-      "category": "bitcoin",
-      "question": "What is Simplified Payment Verification (SPV) in Bitcoin and what does a user need to verify a payment without running a full network node?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        5
-      ],
-      "reference_answer": "SPV allows verifying payments without running a full node by keeping block headers of the longest proof-of-work chain and obtaining the Merkle branch linking the transaction to its block.",
-      "expected_keywords": [
-        "block headers",
-        "longest",
-        "Merkle"
-      ]
-    },
-    {
-      "id": "q14",
-      "category": "bitcoin",
-      "question": "How do Bitcoin transactions combine and split value instead of sending individual coins?",
-      "answerable": true,
-      "source_file": "bitcoin_whitepaper.pdf",
-      "expected_document_id": "b39f1205-31b8-470e-a439-775be3849b86",
-      "expected_pages": [
-        5
-      ],
-      "reference_answer": "Transactions contain multiple inputs and at most two outputs: one for the payment and one returning any change back to the sender.",
-      "expected_keywords": [
-        "inputs",
-        "outputs",
-        "change"
-      ]
-    },
-    {
-      "id": "q15",
-      "category": "rag_paper",
-      "question": "In the RAG paper by Lewis et al., what are the parametric memory and non-parametric memory components?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        1,
-        2
-      ],
-      "reference_answer": "The parametric memory is a pre-trained seq2seq transformer (BART), and the non-parametric memory is a dense vector index of Wikipedia accessed via a pre-trained neural retriever (DPR).",
-      "expected_keywords": [
-        "seq2seq|BART",
-        "Wikipedia",
-        "retriever|DPR"
-      ]
-    },
-    {
-      "id": "q16",
-      "category": "rag_paper",
-      "question": "What is the key architectural difference between the RAG-Sequence and RAG-Token models?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        1,
-        2,
-        3
-      ],
-      "reference_answer": "RAG-Sequence uses the same retrieved document to generate the entire output sequence, whereas RAG-Token can use a different latent retrieved document for each target token.",
-      "expected_keywords": [
-        "RAG-Sequence",
-        "RAG-Token",
-        "same",
-        "token"
-      ]
-    },
-    {
-      "id": "q17",
-      "category": "rag_paper",
-      "question": "Which retriever and generator models are used in the RAG paper, and how many parameters does the generator have?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        2,
-        3
-      ],
-      "reference_answer": "The retriever is based on Dense Passage Retriever (DPR) with BERT-base encoders, and the generator is BART-large with 400M parameters.",
-      "expected_keywords": [
-        "DPR",
-        "BART",
-        "400M"
-      ]
-    },
-    {
-      "id": "q18",
-      "category": "rag_paper",
-      "question": "During RAG fine-tuning, why do the authors keep the document encoder BERT_d fixed instead of updating it?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "reference_answer": "Updating the document encoder BERT_d during training is costly because it requires periodically rebuilding/updating the document index as REALM does, and keeping it fixed still yields strong performance.",
-      "expected_keywords": [
-        "index",
-        "REALM",
-        "costly|expensive"
-      ]
-    },
-    {
-      "id": "q19",
-      "category": "rag_paper",
-      "question": "Which Wikipedia dump and passage splitting setup does the RAG paper use to build its FAISS index?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "reference_answer": "They use the December 2018 Wikipedia dump split into disjoint 100-word chunks, resulting in a total of 21M documents indexed in FAISS.",
-      "expected_keywords": [
-        "2018",
-        "100",
-        "21M"
-      ]
-    },
-    {
-      "id": "q20",
-      "category": "rag_paper",
-      "question": "For RAG-Sequence decoding at test time, how does Thorough Decoding differ from Fast Decoding?",
-      "answerable": true,
-      "source_file": "rag_paper_2005_11401.pdf",
-      "expected_document_id": "5b062820-d5e1-4e11-8406-20074e0e17e0",
-      "expected_pages": [
-        4
-      ],
-      "reference_answer": "Thorough Decoding runs additional forward passes for hypotheses missing from a document's beam to sum exact marginals, while Fast Decoding approximates missing beam probabilities as zero to avoid extra forward passes.",
-      "expected_keywords": [
-        "Thorough Decoding|Thorough",
-        "Fast Decoding|Fast",
-        "forward pass|forward passes"
-      ]
-    },
-    {
-      "id": "q21",
-      "category": "negative_control",
-      "question": "Şirkette yemek kartı olarak aylık kaç TL veriliyor?",
-      "answerable": false,
-      "source_file": null,
-      "expected_document_id": null,
-      "expected_pages": [],
-      "reference_answer": "Sağlanan belgelerde şirket tarafından aylık yemek kartı tutarına dair bir bilgi yer almamaktadır.",
-      "expected_keywords": []
-    },
-    {
-      "id": "q22",
-      "category": "negative_control",
-      "question": "Şirketin yıllık kişi başı eğitim ve konferans bütçesi kaç dolardır?",
-      "answerable": false,
-      "source_file": null,
-      "expected_document_id": null,
-      "expected_pages": [],
-      "reference_answer": "Sağlanan belgelerde yıllık kişi başı eğitim ve konferans bütçesine dair bir bilgi yer almamaktadır.",
-      "expected_keywords": []
-    },
-    {
-      "id": "q23",
       "category": "realm_paper",
       "question": "How does REALM avoid recomputing document embeddings on every gradient step during asynchronous MIPS pre-training?",
       "answerable": true,
@@ -403,7 +27,7 @@
       ]
     },
     {
-      "id": "q24",
+      "id": "q02",
       "category": "realm_paper",
       "question": "In REALM Open-QA experiments (Table 1), what exact match scores does REALM achieve on NaturalQuestions when pre-trained on Wikipedia versus CC-News, and how many parameters does it have?",
       "answerable": true,
@@ -419,7 +43,7 @@
       ]
     },
     {
-      "id": "q25",
+      "id": "q03",
       "category": "realm_paper",
       "question": "REALM modelinde geri getirici (retriever), denetimsiz ön eğitim sırasında hangi öğrenme sinyaliyle eğitilir ve amaç fonksiyonu nedir?",
       "answerable": true,
@@ -436,7 +60,7 @@
       ]
     },
     {
-      "id": "q26",
+      "id": "q04",
       "category": "dpr_paper",
       "question": "How does Dense Passage Retriever (DPR) define the similarity function between a question and a passage, and which encoders are used?",
       "answerable": true,
@@ -452,7 +76,7 @@
       ]
     },
     {
-      "id": "q27",
+      "id": "q05",
       "category": "dpr_paper",
       "question": "In DPR's run-time efficiency evaluation (Section 5.4), how many questions per second does DPR with FAISS process compared to BM25/Lucene, and how long does building the FAISS index take?",
       "answerable": true,
@@ -468,7 +92,7 @@
       ]
     },
     {
-      "id": "q28",
+      "id": "q06",
       "category": "dpr_paper",
       "question": "In DPR Table 2, what Top-20 passage retrieval accuracy does Multi DPR achieve on Natural Questions (NQ) and TREC compared to BM25 alone?",
       "answerable": true,
@@ -485,7 +109,7 @@
       ]
     },
     {
-      "id": "q29",
+      "id": "q07",
       "category": "fid_paper",
       "question": "How does the Fusion-in-Decoder (FiD) architecture process multiple retrieved passages across its encoder and decoder?",
       "answerable": true,
@@ -502,7 +126,7 @@
       ]
     },
     {
-      "id": "q30",
+      "id": "q08",
       "category": "fid_paper",
       "question": "In Fusion-in-Decoder Table 1, what Exact Match scores do FiD (base) and FiD (large) achieve on Natural Questions (NQ) and TriviaQA open test sets compared to RAG?",
       "answerable": true,
@@ -519,7 +143,7 @@
       ]
     },
     {
-      "id": "q31",
+      "id": "q09",
       "category": "fid_paper",
       "question": "In Fusion-in-Decoder Section 4, how much do TriviaQA and NaturalQuestions accuracies improve when increasing the number of retrieved passages from 10 to 100?",
       "answerable": true,
@@ -528,10 +152,13 @@
         5
       ],
       "reference_answer": "Increasing the number of passages from 10 to 100 yields a 6% improvement on TriviaQA and a 3.5% improvement on NaturalQuestions.",
-      "expected_keywords": ["6%|6 percent", "3.5%|3.5 percent"]
+      "expected_keywords": [
+        "6%|6 percent",
+        "3.5%|3.5 percent"
+      ]
     },
     {
-      "id": "q32",
+      "id": "q10",
       "category": "hyde_paper",
       "question": "What two main steps does Hypothetical Document Embeddings (HyDE) decompose zero-shot dense retrieval into?",
       "answerable": true,
@@ -548,7 +175,7 @@
       ]
     },
     {
-      "id": "q33",
+      "id": "q11",
       "category": "hyde_paper",
       "question": "How does HyDE compute the aggregated query representation vector when sampling N hypothetical documents and optionally combining the original query vector?",
       "answerable": true,
@@ -563,7 +190,7 @@
       ]
     },
     {
-      "id": "q34",
+      "id": "q12",
       "category": "hyde_paper",
       "question": "HyDE yaklaşımında dil modelinin ürettiği hayali belgenin olgusal açıdan yanlış detaylar içermesi neden gerçek belgelerin getirilmesini bozmaz?",
       "answerable": true,
@@ -580,7 +207,7 @@
       ]
     },
     {
-      "id": "q35",
+      "id": "q13",
       "category": "selfrag_paper",
       "question": "What are the four reflection token types used in Self-RAG (Table 1) and what does each evaluate?",
       "answerable": true,
@@ -597,7 +224,7 @@
       ]
     },
     {
-      "id": "q36",
+      "id": "q14",
       "category": "selfrag_paper",
       "question": "Why does Self-RAG generate and insert offline GPT-4 critique reflection tokens directly into the training corpus instead of using PPO with separate reward models?",
       "answerable": true,
@@ -615,7 +242,7 @@
       ]
     },
     {
-      "id": "q37",
+      "id": "q15",
       "category": "selfrag_paper",
       "question": "In Self-RAG Section 4.1, how is the PopQA evaluation subset constructed and which metrics evaluate long-form ALCE-ASQA citations?",
       "answerable": true,
@@ -631,7 +258,7 @@
       ]
     },
     {
-      "id": "q38",
+      "id": "q16",
       "category": "crag_paper",
       "question": "What three confidence states trigger corrective actions in CRAG, and which pretrained model initializes CRAG's retrieval evaluator?",
       "answerable": true,
@@ -650,7 +277,7 @@
       ]
     },
     {
-      "id": "q39",
+      "id": "q17",
       "category": "crag_paper",
       "question": "How does CRAG's decompose-then-recompose knowledge refinement algorithm refine a retrieved document?",
       "answerable": true,
@@ -667,7 +294,7 @@
       ]
     },
     {
-      "id": "q40",
+      "id": "q18",
       "category": "crag_paper",
       "question": "In CRAG Table 1, what PopQA accuracy and Biography FactScore does Self-CRAG achieve on SelfRAG-LLaMA2-7b compared to Self-RAG?",
       "answerable": true,
@@ -685,18 +312,29 @@
       ]
     },
     {
-      "id": "q41",
-      "category": "adversarial_negative",
-      "question": "Şirket el kitabına göre doğum günü iznini kullanmayan çalışanlara yıl sonunda kaç TL nakit ödeme yapılır?",
+      "id": "q19",
+      "category": "negative_control",
+      "question": "Türkiye İş Kanunu'na göre 2026 yılı kıdem tazminatı tavanı kaç TL olarak belirlenmiştir?",
       "answerable": false,
       "source_file": null,
       "expected_document_id": null,
       "expected_pages": [],
-      "reference_answer": "Sağlanan belgelerde kullanılmayan doğum günü izni için nakit ödeme yapıldığına dair bir bilgi bulunmamaktadır.",
+      "reference_answer": "Sağlanan belgelerde 2026 yılı kıdem tazminatı tavanına dair bir bilgi yer almamaktadır.",
       "expected_keywords": []
     },
     {
-      "id": "q42",
+      "id": "q20",
+      "category": "negative_control",
+      "question": "What exact quarterly AWS cloud GPU billing expense did Anthropic report in Q3 2025?",
+      "answerable": false,
+      "source_file": null,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "reference_answer": "The provided documents do not contain any information about Anthropic's Q3 2025 AWS cloud GPU billing expenses.",
+      "expected_keywords": []
+    },
+    {
+      "id": "q21",
       "category": "adversarial_negative",
       "question": "According to the CRAG paper, what cosine similarity cutoff and HNSW ef_construct parameter are configured in Qdrant for its retrieval evaluator?",
       "answerable": false,
@@ -707,7 +345,7 @@
       "expected_keywords": []
     },
     {
-      "id": "q43",
+      "id": "q22",
       "category": "adversarial_negative",
       "question": "In Fusion-in-Decoder Table 1, what BLEU-4 score did FiD (large) achieve on the WMT-19 German-to-English machine translation benchmark?",
       "answerable": false,
@@ -718,7 +356,7 @@
       "expected_keywords": []
     },
     {
-      "id": "q44",
+      "id": "q23",
       "category": "adversarial_negative",
       "question": "What exact API price per million reflection tokens does OpenAI charge to run Self-RAG 13B inference according to the Self-RAG paper?",
       "answerable": false,
@@ -726,6 +364,17 @@
       "expected_document_id": null,
       "expected_pages": [],
       "reference_answer": "The provided documents do not specify any OpenAI API price per million reflection tokens for running Self-RAG 13B.",
+      "expected_keywords": []
+    },
+    {
+      "id": "q24",
+      "category": "adversarial_negative",
+      "question": "DPR makalesindeki Tablo 2'de BM25 + ColBERTv2 hibrit modelinin MS-MARCO üzerindeki MRR@10 skoru nedir?",
+      "answerable": false,
+      "source_file": null,
+      "expected_document_id": null,
+      "expected_pages": [],
+      "reference_answer": "Sağlanan belgelerde DPR Tablo 2 içinde BM25 + ColBERTv2 modelinin MS-MARCO MRR@10 skoruna dair bir bilgi bulunmamaktadır.",
       "expected_keywords": []
     }
   ]

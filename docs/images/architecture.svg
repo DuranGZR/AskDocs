@@ -7,7 +7,7 @@
     AskDocs System Architecture
   </text>
   <text x="34" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12.5" fill="#6E6B64">
-    Async API separated from Sync Workers · Isolated Workspace Search · Verifiable SSE Streaming
+    Async API separated from Sync Workers · Rust (PyO3) Text Engine · Isolated Workspace Search · Verifiable SSE
   </text>
   <rect x="866" y="28" width="220" height="28" rx="14" fill="#EFECE4" stroke="#DFD9CB" />
   <text x="976" y="46" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="600" fill="#4A4842">
@@ -22,50 +22,60 @@
   </text>
 
   <!-- Node 1.1: Web UI / Client -->
-  <rect x="46" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.3" />
-  <text x="138" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Web UI / Client</text>
-  <text x="138" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Upload PDF or TXT file</text>
-  <text x="138" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">202 Accepted right away</text>
+  <rect x="46" y="138" width="154" height="106" rx="12" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="1.3" />
+  <text x="123" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">Web UI / Client</text>
+  <text x="123" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">Upload PDF or TXT file</text>
+  <text x="123" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#15803D">202 Accepted right away</text>
 
   <!-- Arrow 1 -> 2 -->
-  <line x1="230" y1="191" x2="251" y2="191" stroke="#0071E3" stroke-width="2" />
-  <polygon points="257,191 249,186.5 249,195.5" fill="#0071E3" />
+  <line x1="200" y1="191" x2="214" y2="191" stroke="#0071E3" stroke-width="2" />
+  <polygon points="220,191 212,186.5 212,195.5" fill="#0071E3" />
 
   <!-- Node 1.2: FastAPI Async Edge -->
-  <rect x="257" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
-  <text x="349" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">FastAPI Async Edge</text>
-  <text x="349" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Checks auth, limit &amp; header</text>
-  <text x="349" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#0066CC">Streams UUID file to disk</text>
+  <rect x="220" y="138" width="154" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
+  <text x="297" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">FastAPI Async Edge</text>
+  <text x="297" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">Auth, limit &amp; magic bytes</text>
+  <text x="297" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" fill="#0066CC">Streams UUID to disk</text>
 
   <!-- Arrow 2 -> 3 -->
-  <line x1="441" y1="191" x2="462" y2="191" stroke="#475569" stroke-width="2" />
-  <polygon points="468,191 460,186.5 460,195.5" fill="#475569" />
+  <line x1="374" y1="191" x2="388" y2="191" stroke="#475569" stroke-width="2" />
+  <polygon points="394,191 386,186.5 386,195.5" fill="#475569" />
 
-  <!-- Node 1.3: Redis + Shared Disk -->
-  <rect x="468" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#D97706" stroke-width="1.6" />
-  <text x="560" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Redis &amp; Shared Disk</text>
-  <text x="560" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Task queue &amp; upload volume</text>
-  <text x="560" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#B45309">Plus rate-limit windows</text>
+  <!-- Node 1.3: Redis & Shared Disk -->
+  <rect x="394" y="138" width="154" height="106" rx="12" fill="#FFFFFF" stroke="#D97706" stroke-width="1.6" />
+  <text x="471" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">Redis &amp; Shared Disk</text>
+  <text x="471" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">Queue &amp; upload volume</text>
+  <text x="471" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" fill="#B45309">Plus rate-limit windows</text>
 
   <!-- Arrow 3 -> 4 -->
-  <line x1="652" y1="191" x2="673" y2="191" stroke="#475569" stroke-width="2" />
-  <polygon points="679,191 671,186.5 671,195.5" fill="#475569" />
+  <line x1="548" y1="191" x2="562" y2="191" stroke="#475569" stroke-width="2" />
+  <polygon points="568,191 560,186.5 560,195.5" fill="#475569" />
 
   <!-- Node 1.4: Celery Sync Worker -->
-  <rect x="679" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#334155" stroke-width="1.6" />
-  <text x="771" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Celery Sync Worker</text>
-  <text x="771" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">PyMuPDF · 1200/150 chunks</text>
-  <text x="771" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#334155">Batch-32 embed · 3x retry</text>
+  <rect x="568" y="138" width="154" height="106" rx="12" fill="#FFFFFF" stroke="#334155" stroke-width="1.6" />
+  <text x="645" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">Celery Sync Worker</text>
+  <text x="645" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">PyMuPDF page stream</text>
+  <text x="645" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" fill="#334155">Batch-32 · 3x backoff</text>
 
   <!-- Arrow 4 -> 5 -->
-  <line x1="863" y1="191" x2="884" y2="191" stroke="#16A34A" stroke-width="2" />
-  <polygon points="890,191 882,186.5 882,195.5" fill="#16A34A" />
+  <line x1="722" y1="191" x2="736" y2="191" stroke="#EA580C" stroke-width="2" />
+  <polygon points="742,191 734,186.5 734,195.5" fill="#EA580C" />
 
-  <!-- Node 1.5: Qdrant Vector DB -->
-  <rect x="890" y="138" width="184" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
-  <text x="982" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Qdrant Vector DB</text>
-  <text x="982" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Tenant-isolated HNSW index</text>
-  <text x="982" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">UUID5 = 0 duplicate chunks</text>
+  <!-- Node 1.5: Rust + PyO3 Engine -->
+  <rect x="742" y="138" width="156" height="106" rx="12" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.8" />
+  <text x="820" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#9A3412">Rust + PyO3 Engine</text>
+  <text x="820" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">text_processor · GIL-free</text>
+  <text x="820" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#C2410C">1200/150 · 9.7x–16.6x</text>
+
+  <!-- Arrow 5 -> 6 -->
+  <line x1="898" y1="191" x2="912" y2="191" stroke="#16A34A" stroke-width="2" />
+  <polygon points="918,191 910,186.5 910,195.5" fill="#16A34A" />
+
+  <!-- Node 1.6: Qdrant Vector DB -->
+  <rect x="918" y="138" width="156" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
+  <text x="996" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">Qdrant Vector DB</text>
+  <text x="996" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">Tenant-isolated HNSW</text>
+  <text x="996" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#15803D">UUID5 = 0 duplicates</text>
 
   <!-- ==================== LANE 2: READ PATH ==================== -->
   <rect x="28" y="294" width="1064" height="170" rx="14" fill="#FDFCF9" stroke="#E6E1D6" stroke-width="1.2" />
@@ -75,7 +85,7 @@
   </text>
 
   <!-- ==================== BRIDGE ARROW (WRITE -> READ) ==================== -->
-  <polyline points="982,244 982,276 427,276 427,338" fill="none" stroke="#16A34A" stroke-width="2" stroke-dasharray="6,4" />
+  <polyline points="996,244 996,276 427,276 427,338" fill="none" stroke="#16A34A" stroke-width="2" stroke-dasharray="6,4" />
   <polygon points="427,344 422.5,335.5 431.5,335.5" fill="#16A34A" />
   <rect x="586" y="265" width="238" height="22" rx="11" fill="#ECFDF5" stroke="#BBF7D0" stroke-width="1" />
   <text x="705" y="279.5" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" font-weight="600" fill="#15803D">
@@ -106,7 +116,7 @@
   <rect x="576" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
   <text x="692" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Context Guard &amp; LLM</text>
   <text x="692" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Context fence + strict abstention</text>
-  <text x="692" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#475569">Gemini / OpenAI-Compatible API</text>
+  <text x="692" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#475569">Gemini / Ollama / vLLM API</text>
 
   <!-- Arrow 2.3 -> 2.4 -->
   <line x1="808" y1="397" x2="835" y2="397" stroke="#0071E3" stroke-width="2" />
