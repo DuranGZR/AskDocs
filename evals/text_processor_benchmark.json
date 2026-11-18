@@ -1,0 +1,42 @@
+{
+  "corpus_size_bytes": 52428800,
+  "corpus_size_mib": 50.0,
+  "corpus_chars": 49585446,
+  "chunk_size": 1200,
+  "chunk_overlap": 150,
+  "iterations": 3,
+  "active_backend": "rust",
+  "rust_version": "0.1.0",
+  "clean_text": {
+    "stage": "clean_text",
+    "python_median_ms": 4890.166,
+    "python_mean_ms": 4901.83,
+    "python_min_ms": 4888.366,
+    "python_throughput_mib_per_sec": 10.22,
+    "python_heap_peak_mib": 749.511,
+    "rust_median_ms": 294.059,
+    "rust_mean_ms": 289.302,
+    "rust_min_ms": 278.127,
+    "rust_throughput_mib_per_sec": 170.03,
+    "rust_heap_peak_mib": 301.587,
+    "speedup": 16.63,
+    "parity_verified": true,
+    "output_count": 41124640
+  },
+  "chunk_text": {
+    "stage": "chunk_text",
+    "python_median_ms": 4934.825,
+    "python_mean_ms": 5079.008,
+    "python_min_ms": 4901.017,
+    "python_throughput_mib_per_sec": 10.13,
+    "python_heap_peak_mib": 749.51,
+    "rust_median_ms": 507.372,
+    "rust_mean_ms": 501.796,
+    "rust_min_ms": 474.091,
+    "rust_throughput_mib_per_sec": 98.55,
+    "rust_heap_peak_mib": 202.117,
+    "speedup": 9.73,
+    "parity_verified": true,
+    "output_count": 69349
+  }
+}

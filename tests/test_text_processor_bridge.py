@@ -1,25 +1,30 @@
 from pathlib import Path
 from typing import Any
 
+import pymupdf
 import pytest
 
 import text_processor
+from scripts.benchmark_text_processor import run_benchmark
+from src.services import pdf_parser
 from src.services.pdf_parser import (
-    chunk_text as py_chunk_text,
-)
-from src.services.pdf_parser import (
-    clean_text as py_clean_text,
-)
-from src.services.pdf_parser import (
+    ACTIVE_TEXT_PROCESSOR_BACKEND,
+    chunk_text,
+    clean_text,
     iter_document_pages,
+    parse_and_chunk_document,
+    py_chunk_text,
+    py_clean_text,
 )
+from src.services.qdrant_service import build_chunk_point_id
 
 
 def test_text_processor_bridge_metadata_and_health() -> None:
-    """Native Rust köprüsü sürüm bilgisi ve sağlık kontrolünü doğru döndürmelidir."""
+    """Native Rust köprüsü sürüm bilgisi, aktif backend ve sağlık kontrolünü doğru döndürmelidir."""
     assert text_processor.__version__ == "0.1.0"
     assert text_processor.version() == "0.1.0"
     assert text_processor.health_check() is True
+    assert ACTIVE_TEXT_PROCESSOR_BACKEND == "rust"
 
 
 @pytest.mark.parametrize(
@@ -102,26 +107,58 @@ def test_chunk_text_exact_parity_with_python_reference(
     )
 
 
-def test_chunk_text_parity_on_real_pdf_pages_when_available() -> None:
-    """Yerel örnek PDF dosyaları mevcutsa gerçek sayfa metinlerinde de birebir uyum doğrulanır."""
+def test_parse_and_chunk_document_and_point_ids_parity_on_real_pdfs(tmp_path: Path) -> None:
+    """Rust aktifken PDF chunk ve UUID5 kimlikleri Python referansıyla birebir aynı olmalıdır."""
+    generated_pdf = tmp_path / "ci_parity_sample.pdf"
+    with pymupdf.open() as doc:
+        rect = pymupdf.Rect(50, 50, 540, 750)
+        for page_idx in range(2):
+            page = doc.new_page()
+            page_text = " ".join(
+                (
+                    f"Sayfa {page_idx + 1} cümle {i}: "
+                    "Kurumsal Türkçe şif-\nreleme ve 🚀 veri güvenliği."
+                )
+                for i in range(1, 20)
+            )
+            page.insert_textbox(rect, page_text)
+        doc.save(generated_pdf)
+
     sample_pdfs = [
+        generated_pdf,
         Path("data/sirket_el_kitabi_tr.pdf"),
         Path("data/bitcoin_whitepaper.pdf"),
+        Path("data/rag_paper_2005_11401.pdf"),
     ]
     for pdf_path in sample_pdfs:
         if not pdf_path.is_file():
             continue
+
+        parsed = parse_and_chunk_document(
+            file_path=pdf_path,
+            document_id="doc-parity-check",
+            tenant_id="test-user",
+            file_type="pdf",
+            chunk_size=1200,
+            chunk_overlap=150,
+            filename=pdf_path.name,
+        )
+
+        expected_pairs: list[tuple[int, str]] = []
         for page in iter_document_pages(pdf_path, file_type="pdf"):
-            assert text_processor.clean_text(page.text) == py_clean_text(page.text)
-            assert text_processor.chunk_text(
-                page.text,
-                chunk_size=1200,
-                chunk_overlap=150,
-            ) == py_chunk_text(
-                page.text,
-                chunk_size=1200,
-                chunk_overlap=150,
-            )
+            for piece in py_chunk_text(page.text, chunk_size=1200, chunk_overlap=150):
+                expected_pairs.append((page.page_number, piece))
+
+        actual_pairs = [(chunk.page_number, chunk.text) for chunk in parsed.chunks]
+        assert actual_pairs == expected_pairs
+
+        actual_point_ids = [
+            build_chunk_point_id(chunk.document_id, chunk.chunk_index) for chunk in parsed.chunks
+        ]
+        expected_point_ids = [
+            build_chunk_point_id("doc-parity-check", idx) for idx in range(len(expected_pairs))
+        ]
+        assert actual_point_ids == expected_point_ids
 
 
 def test_chunk_text_invalid_arguments_raise_value_error() -> None:
@@ -134,3 +171,34 @@ def test_chunk_text_invalid_arguments_raise_value_error() -> None:
         text_processor.chunk_text("metin", chunk_size=100, chunk_overlap=-1)
     with pytest.raises(ValueError, match="chunk_overlap"):
         text_processor.chunk_text("metin", chunk_size=100, chunk_overlap=100)
+
+
+def test_pdf_parser_falls_back_to_python_when_native_module_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Native modül yokken clean_text ve chunk_text güvenli Python fallback'ine dönmelidir."""
+    monkeypatch.setattr(pdf_parser, "_rust_text_processor", None)
+    sample = "<p>Merhaba   dün-\nyası!</p> " + " ".join(f"Madde {i}." for i in range(1, 20))
+
+    assert clean_text(sample) == py_clean_text(sample)
+    assert chunk_text(sample, chunk_size=80, chunk_overlap=20) == py_chunk_text(
+        sample,
+        chunk_size=80,
+        chunk_overlap=20,
+    )
+
+
+def test_benchmark_runner_smoke_verifies_parity_and_metrics() -> None:
+    """Microbenchmark koşucusu küçük örnekte parity ve hız/bellek metriklerini üretmelidir."""
+    report = run_benchmark(
+        target_size_mb=0.05,
+        chunk_size=1200,
+        chunk_overlap=150,
+        iterations=1,
+    )
+    assert report.active_backend == "rust"
+    assert report.clean_text.parity_verified is True
+    assert report.chunk_text.parity_verified is True
+    assert report.clean_text.speedup > 0.0
+    assert report.chunk_text.speedup > 0.0
+    assert report.chunk_text.output_count > 0

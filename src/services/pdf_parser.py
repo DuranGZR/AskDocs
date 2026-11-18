@@ -1,10 +1,33 @@
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Literal, Protocol
 
 import pymupdf
 
 from src.services.base import DocumentChunk, PageContent, ParsedDocument
+
+
+class _TextProcessorModule(Protocol):
+    def clean_text(self, raw_text: str) -> str: ...
+
+    def chunk_text(
+        self,
+        text: str,
+        chunk_size: int = 500,
+        chunk_overlap: int = 75,
+    ) -> list[str]: ...
+
+
+_rust_text_processor: _TextProcessorModule | None
+try:
+    import text_processor as _text_processor_mod
+
+    _rust_text_processor = _text_processor_mod
+    ACTIVE_TEXT_PROCESSOR_BACKEND: Literal["rust", "python"] = "rust"
+except ImportError:
+    _rust_text_processor = None
+    ACTIVE_TEXT_PROCESSOR_BACKEND = "python"
 
 _SCRIPT_STYLE_RE = re.compile(
     r"<(script|style)\b[^>]*>.*?</\1>",
@@ -26,8 +49,8 @@ class TransientProcessingError(RuntimeError):
     """Geçici I/O veya dış servis kesintilerinde Celery retry tetiklemek için fırlatılır."""
 
 
-def clean_text(raw_text: str) -> str:
-    """HTML kalıntılarını, kontrol karakterlerini ve gereksiz boşlukları temizler."""
+def py_clean_text(raw_text: str) -> str:
+    """HTML kalıntılarını, kontrol karakterlerini ve gereksiz boşlukları temizler (Python)."""
     text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
     text = _SCRIPT_STYLE_RE.sub(" ", text)
     text = _HTML_TAG_RE.sub(" ", text)
@@ -37,6 +60,13 @@ def clean_text(raw_text: str) -> str:
     lines = [line.strip() for line in text.split("\n")]
     normalized = "\n".join(lines)
     return _MULTI_NEWLINE_RE.sub("\n\n", normalized).strip()
+
+
+def clean_text(raw_text: str) -> str:
+    """Aktif metin motorunu (Rust/PyO3 veya Python fallback) kullanarak metni temizler."""
+    if _rust_text_processor is not None:
+        return _rust_text_processor.clean_text(raw_text)
+    return py_clean_text(raw_text)
 
 
 def _find_split_end(text: str, start: int, max_end: int) -> int:
@@ -66,19 +96,19 @@ def _find_overlap_start(text: str, start: int, end: int, chunk_overlap: int) -> 
     return candidate
 
 
-def chunk_text(
+def py_chunk_text(
     text: str,
     *,
     chunk_size: int = 500,
     chunk_overlap: int = 75,
 ) -> list[str]:
-    """Metni cümle/kelime sınırlarını koruyarak örtüşmeli parçalara ayırır."""
+    """Metni cümle/kelime sınırlarını koruyarak örtüşmeli parçalara ayırır (Python)."""
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")
     if chunk_overlap < 0 or chunk_overlap >= chunk_size:
         raise ValueError("chunk_overlap must be >= 0 and smaller than chunk_size")
 
-    cleaned = clean_text(text)
+    cleaned = py_clean_text(text)
     if not cleaned:
         return []
     if len(cleaned) <= chunk_size:
@@ -105,6 +135,22 @@ def chunk_text(
         start = next_start if next_start > start else end
 
     return chunks
+
+
+def chunk_text(
+    text: str,
+    *,
+    chunk_size: int = 500,
+    chunk_overlap: int = 75,
+) -> list[str]:
+    """Aktif metin motorunu kullanarak metni cümle/kelime sınırlarına göre parçalar."""
+    if _rust_text_processor is not None:
+        return _rust_text_processor.chunk_text(
+            text,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
+    return py_chunk_text(text, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
 
 def _iter_txt_pages(file_path: Path, *, page_char_limit: int) -> Iterator[PageContent]:
