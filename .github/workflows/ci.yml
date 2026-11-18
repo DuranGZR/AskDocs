@@ -6,14 +6,43 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
-    name: Format, Lint, Type Check & Tests
+    name: Rust, Python & Web UI Quality Gates
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "text_processor -> target"
+
+      - name: Check Rust formatting
+        working-directory: text_processor
+        run: cargo fmt --check
+
+      - name: Run Rust Clippy lints
+        working-directory: text_processor
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run Rust unit tests
+        working-directory: text_processor
+        run: cargo test
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -21,10 +50,10 @@ jobs:
           enable-cache: true
           python-version: "3.11"
 
-      - name: Sync dependencies
+      - name: Sync dependencies and build text_processor extension
         run: uv sync --frozen
 
-      - name: Check code formatting
+      - name: Check Python code formatting
         run: uv run ruff format --check .
 
       - name: Run Ruff lint checks
@@ -33,5 +62,42 @@ jobs:
       - name: Run Mypy static type check
         run: uv run mypy src tests scripts locustfile.py
 
-      - name: Run Pytest suite
-        run: uv run pytest -v
+      - name: Check Web UI JavaScript syntax
+        run: node --check src/ui/app.js
+
+      - name: Run isolated Pytest suite with branch coverage
+        run: uv run pytest -v --cov=src --cov-report=term-missing
+
+  docker:
+    name: Multi-Stage Docker Build & Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-stage runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: corerag-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify non-root runtime and Rust extension inside container
+        run: |
+          docker run --rm --entrypoint python corerag-api:ci -c "\
+          import getpass, shutil, text_processor; \
+          from src.services.pdf_parser import ACTIVE_TEXT_PROCESSOR_BACKEND, clean_text, chunk_text; \
+          assert getpass.getuser() == 'appuser'; \
+          assert shutil.which('cargo') is None and shutil.which('rustc') is None; \
+          assert ACTIVE_TEXT_PROCESSOR_BACKEND == 'rust'; \
+          assert text_processor.health_check() is True; \
+          assert clean_text('<p>Merhaba   dün-\nyası!</p>') == 'Merhaba dünyası!'; \
+          assert len(chunk_text('Cümle bir. Cümle iki. Cümle üç.', chunk_size=20, chunk_overlap=5)) >= 2; \
+          print('CI_DOCKER_SMOKE_OK', text_processor.__version__)"
