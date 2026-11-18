@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "text_processor"
+version = "0.1.0"
+description = "Zero-unsafe Rust + PyO3 text cleaning and sentence-aligned chunking engine for CoreRAG-Engine"
+requires-python = ">=3.11"
+
+[tool.maturin]
+features = ["extension-module"]

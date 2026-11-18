@@ -20,10 +20,12 @@ dependencies = [
 [dependency-groups]
 dev = [
     "locust>=2.47.0",
+    "maturin>=1.7,<2.0",
     "mypy>=2.4.1",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
     "ruff>=0.17.5",
+    "text-processor",
     "types-aiofiles>=25.1.0.20261107",
 ]
 
@@ -53,4 +55,7 @@ explicit_package_bases = true
 [[tool.mypy.overrides]]
 module = ["celery", "celery.*", "langfuse", "langfuse.*"]
 ignore_missing_imports = true
+
+[tool.uv.sources]
+text-processor = { path = "text_processor", editable = true }
 
