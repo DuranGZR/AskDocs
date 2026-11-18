@@ -90,78 +90,67 @@ Click citation `[1]` to slide out the Cupertino Source Inspector right to page 2
   <img src="docs/images/architecture.svg" alt="AskDocs System Architecture" width="100%" />
 </div>
 
-AskDocs splits heavy ingestion (**Write Path**) from low-latency conversational streaming (**Read Path**):
+AskDocs strictly separates heavy document ingestion (**Write Path**) from low-latency conversational streaming (**Read Path**):
 
-1. **Upload & Index (Write Path):** FastAPI checks SHA-256 API-Key auth, sliding-window Redis Lua rate limits, and file headers (`%PDF-` or UTF-8), streams bytes to a shared volume via UUID paths, dispatches a Celery task to Redis, and replies with `202 Accepted`. Prefork Celery workers stream pages incrementally with PyMuPDF (`fitz`), offload CPU-intensive ligature/hyphen/whitespace cleaning and sentence-aligned chunking (`1200/150`) to the **GIL-free Rust (`PyO3`) `text_processor` engine** (`py.allow_threads`), generate embeddings in batches of `32`, and write idempotent `UUID5` points into Qdrant.
-2. **Ask & Verify (Read Path):** A query enters with optional document scope IDs and chat history. Short follow-up confirmations resolve against the prior assistant prompt, Qdrant fetches top-5 tenant-isolated matches at a `0.70` similarity threshold (falling back to `0.58` if empty), context snippets are fenced and sanitized, and verified SSE frames stream tokens, citations, and `[DONE]` markers cleanly to the browser.
+* **1. Upload & Index (Write Path):**
+  `PDF Upload` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Chunking` → `Qdrant Vectors`
+  Large PDF uploads never stall the API: FastAPI validates the request and hands off work immediately. Workers stream pages incrementally, clean and split text (`1200` chars / `150` overlap) via the **Rust (`PyO3`)** engine, and index deduplicated vectors into Qdrant.
+
+* **2. Ask & Verify (Read Path):**
+  `Question` → `Qdrant Similarity Search` → `Security & Context Filter` → `SSE Stream + Citation Cards`
+  Short follow-ups resolve against prior conversation context, and Qdrant retrieves the top 5 matching chunks (`0.70` cutoff) from the active workspace. Missing facts trigger honest abstention; grounded answers stream word-by-word with clickable `[1]`, `[2]` source badges.
 
 ### Stack Breakdown
 
 | Layer | Choice | Why It Is Here |
 | :--- | :--- | :--- |
-| **API & Web UI** | FastAPI + Vanilla JS | Async REST/SSE delivery, SHA-256 API-Key auth, security middlewares, and zero-framework Cupertino UI |
-| **Queue & Workers** | Celery + Redis | Isolates CPU/network indexing bursts from FastAPI's event loop and tracks atomic sliding-window rate limits |
-| **PDF & Rust Core** | PyMuPDF + Rust (`PyO3`) Engine | Streaming page extraction plus `#![forbid(unsafe_code)]` Rust `text_processor` (`abi3-py311`) with automatic pure-Python fallback |
-| **Vector Store** | Qdrant | Tenant-indexed HNSW vector search with document filtering and deterministic `UUID5` upserts |
-| **LLM & Embeddings** | Gemini (`OpenAI-Compat` via `httpx`) | Powers `gemini-3.5-flash-lite` generation and `gemini-embedding-001` (`3072`-dim) over pooled connections |
-| **Telemetry** | Langfuse + PostgreSQL | Fail-open traces for retrieval scores, TTFT latency, token accounting, and evaluation runs |
-
-<details>
-<summary><strong>Under the hood: Security middlewares, atomic rate limiting &amp; fault tolerance</strong></summary>
-
-* **Async vs. Sync isolation:** FastAPI routes strictly run async clients (`src/services/qdrant_service.py`, `src/services/llm_service.py`), while Celery prefork workers implement the exact same Clean Architecture interfaces (`src/services/base.py`) synchronously to eliminate closed event-loop errors.
-* **Constant-length auth & IDOR protection:** Constant-time `hmac.compare_digest` compares fixed-length SHA-256 digests (`src/api/dependencies.py`) to avoid key-length timing leaks, `MaxBodySizeMiddleware` rejects oversized `100 MiB+` requests before multipart buffering, and vector search/deletion always require compound `(tenant_id, document_id)` filters.
-* **Atomic sliding-window rate limiter:** A Redis Lua sorted-set script (`src/services/rate_limiter.py`) tracks valid traffic without appending rejected `429` calls—preventing blocked burst clients from locking themselves out indefinitely—and degrades `fail-open` under short timeouts alongside Langfuse tracing.
-
-</details>
+| **API & Web UI** | FastAPI + Vanilla JS | Async REST/SSE delivery, SHA-256 API-Key auth, and a zero-framework Cupertino UI |
+| **Queue & Workers** | Celery + Redis | Isolates CPU/network indexing bursts from FastAPI and tracks sliding-window rate limits |
+| **PDF & Text Core** | PyMuPDF + Rust (`PyO3`) | Incremental page streaming plus a native, GIL-free Rust text cleaner and chunker |
+| **Vector Store** | Qdrant | Tenant-isolated HNSW search, document scoping, and duplicate-free vector upserts |
+| **LLM & Embeddings** | Gemini (OpenAI-Compat) | Connection-pooled `gemini-3.5-flash-lite` generation and `3072`-dim embeddings |
+| **Telemetry** | Langfuse + PostgreSQL | Fail-open traces for retrieval scores, TTFT latency, and evaluation runs |
 
 ---
 
 ## Engineering Decisions
 
-### Thin Custom Core & Strict Process Isolation
-Instead of hiding I/O behind heavy RAG wrappers, AskDocs builds Clean Architecture service contracts directly over `httpx`, `qdrant-client`, and PyMuPDF. Keeping FastAPI purely async and running Celery prefork workers synchronously prevents event-loop corruption under load, while embedding parsers re-sort returned `/v1/embeddings` vectors by `item["index"]` rather than trusting list order.
-
-### Zero-Leak Ingestion, Rollback & Idempotent Retries
-Every handoff between web upload and background indexing handles crash points explicitly: if Redis queue dispatch fails after streaming a file to disk, the upload endpoint immediately triggers compensating cleanup (`storage.delete`); inside Celery workers, temporary files are preserved across jittered backoff retries (`max_retries=3`) rather than wiped on first error, and removed in `finally` only after final completion; deterministic `uuid5(document_id, chunk_index)` point IDs guarantee retries overwrite safely with zero duplicate vectors.
-
-### Circuit Breakers Without Cross-Tenant Blast Radius
-Dual `3-state` circuit breakers (`src/core/circuit_breaker.py`) fail fast (`503`) during real Qdrant or LLM outages without starving healthy routes. Crucially, abnormal user-level stream stops (`length`, `content_filter`) map cleanly to HTTP `422` without tripping the shared LLM circuit breaker—ensuring one truncated prompt never blocks service for other tenants.
-
-### Native Rust (`PyO3`) Text Core & Multi-Stage Packaging
-Normalizing PDF artifacts and slicing overlapping chunks across multi-megabyte documents is pure CPU work where Python's regular-expression engine allocates hundreds of megabytes of transient strings while holding the GIL. Extracting `clean_text` and `chunk_text` into a dedicated **`text_processor` Rust crate** (`text_processor/src/lib.rs`, `#![forbid(unsafe_code)]`) releases the GIL via `py.allow_threads(...)`, normalizes HTML/scripts/ligatures/hyphenation in linear passes, and aligns sentence boundaries with an `O(chunk_size)` lookback window (`100%` character-for-character parity verified against Python). Built as an `abi3-py311` wheel inside Stage 1 (`rust:1-slim-trixie`) of the 3-stage `Dockerfile`, the final non-root runtime image (`UID 10001`) carries zero Rust compiler bloat and transparently falls back to pure Python only if the compiled module is unavailable—with `.pyi` type stubs enforced by strict `mypy`.
-
-### Calibrated Retrieval & Verifiable Stream Boundaries
-Empirical evaluation tuned both context cost and safety boundaries: `1200/150` sentence-aligned chunks preserve full technical explanations while cutting embedding calls 3x; the `0.70` similarity cutoff (`0.58` gentle fallback) removes noise cleanly (with `0.75` shedding `83.3%` of negative trap noise in dense academic corpora); `<context>` sanitization defeats indirect prompt injection; and both server and UI verify `finish_reason` plus `[DONE]` boundaries before saving responses to browser history.
+| Problem | Solution | Practical Impact |
+| :--- | :--- | :--- |
+| **Large PDFs blocking Python & CPU cores** | Rewrote text normalization and chunking in native **Rust (`PyO3`)** | **16.6x** faster cleaning, **9.7x** faster chunking, and **3.7x** lower Python RAM |
+| **API freezing during file uploads** | Kept FastAPI purely async; offloaded indexing to Celery workers | Instant `202 Accepted` uploads; zero impact on concurrent chat latency |
+| **Orphan files or duplicate vectors on retry** | Compensating disk cleanup (`rollback`) and deterministic `UUID5` point IDs | Zero leaked temporary files and zero duplicate chunks across retries |
+| **One tenant or outage stalling everyone** | Three-state **Circuit Breakers** and atomic Redis rate limiting (`fail-open`) | Fast `503` protection on outages; Redis or Langfuse downtime never stops search |
+| **LLM hallucination or prompt injection** | Calibrated `0.70` cutoff, `<context>` sanitization, and `[DONE]` stream checks | **100%** trap-question abstention; truncated streams never pollute chat history |
 
 ---
 
 ## Benchmarks & Evaluations
 
-All numbers below come directly from reproducible evaluation, load, and microbenchmark harnesses committed in this repository.
+All metrics below are measured directly from reproducible evaluation, CPU/memory comparison, and load-test harnesses in this repository.
 
-### 1. RAG Retrieval & Grounding Quality (`rag-research` · 6 PDFs)
+### 1. RAG Accuracy & Hallucination Benchmark (`rag-research` · 6 PDFs)
 
-To measure semantic disambiguation under intense terminology overlap, AskDocs is evaluated against a **24-question Golden Dataset** ([`evals/golden_dataset.json`](evals/golden_dataset.json), `v3.0`) scoped strictly to the **`rag-research` workspace** containing **6 competing arXiv RAG papers (`385` chunks total)**—`REALM` (`56`), `DPR` (`64`), `FiD` (`25`), `HyDE` (`48`), `Self-RAG` (`122`), and `CRAG` (`70`)—including cross-lingual Turkish prompts (`q03`, `q12`) and **6 unanswerable / adversarial traps** (`q19`–`q24`, with four reusing exact paper terminology).
+To test semantic disambiguation across documents with heavy terminology overlap, AskDocs is evaluated inside the `rag-research` workspace across **6 competing arXiv RAG papers (385 total chunks)** using **24 questions** (18 answerable English/Turkish queries + 6 unanswerable trap questions):
 
-| Metric | Measured Result | Interpretation |
+| Metric | Result | What It Means |
 | :--- | :---: | :--- |
-| **Mean Recall@5** | **`1.0000`** (`18 / 18`) | Expected source page landed in Top-5 across every answerable query in all 6 papers |
-| **Mean MRR** | **`0.7824`** | Strong first-rank precision despite six closely overlapping retrieval papers in one tenant |
-| **Mean Faithfulness** | **`0.9729`** | Valid `[Source N]` citations with zero fabricated or out-of-range references |
-| **Keyword Coverage** | **`0.9398`** | Key architectural terms, benchmarks, and numeric facts captured across EN & TR |
-| **Abstention Accuracy** | **`1.0000`** (`6 / 6`) | All off-topic and adversarial near-miss queries declined without hallucination |
+| **Source Retrieval (`Recall@5`)** | **`1.0000`** (`18 / 18`) | Every answerable query surfaced the exact expected paper & page inside Top-5 |
+| **First-Rank Precision (`MRR`)** | **`0.7824`** | Correct chunks consistently ranked near the top across 6 overlapping papers |
+| **Grounded Faithfulness** | **`0.9729`** | All inline `[1]`, `[2]` citations mapped to real pages with zero fabricated sources |
+| **Keyword Coverage** | **`0.9398`** | Almost 94% of expected technical terms and metrics appeared accurately in EN & TR |
+| **Trap Rejection (`Abstention`)** | **`1.0000`** (`6 / 6`) | All 6 unanswerable and adversarial traps were declined without hallucination |
 
 <div align="center">
   <img src="docs/images/eval-threshold-chart.svg" alt="6-Paper RAG Calibration Sweep" width="100%" />
 </div>
 
 <details>
-<summary><strong>Threshold sweep (0.30–0.75) &amp; run configuration</strong></summary>
+<summary><strong>Open similarity threshold (0.30–0.75) calibration table</strong></summary>
 
-Run `eval-20261118-193027` · Workspace `rag-research` (`6` PDFs / `385` chunks) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · `top_k=5` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json) · [`evals/README.md`](evals/README.md)
+Run: `eval-20261118-193027` · Workspace: `rag-research` (6 PDFs / 385 chunks) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
 
-| `score_threshold` | `Recall@5` | `MRR` | `AvgChunks` (Sent to LLM) | `NegNoise` (6 Trap Queries) |
+| Score Threshold | `Recall@5` | `MRR` | Avg Chunks | Trap Noise (`NegNoise`) |
 | :---: | :---: | :---: | :---: | :---: |
 | `0.30` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
 | `0.40` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
@@ -171,31 +160,34 @@ Run `eval-20261118-193027` · Workspace `rag-research` (`6` PDFs / `385` chunks)
 | `0.70` (Default) | `1.0000` | `0.7824` | `5.00` | `0.6667` |
 | **`0.75` (Recommended)** | **`1.0000`** | **`0.7824`** | **`4.44` (-11.2%)** | **`0.1667` (-83.3%)** |
 
-Under high intra-domain competition (`385` chunks from six RAG papers), keeping `0.70` cuts negative trap noise by `33.3%` with `100%` Recall@5, while calibrating to `0.75` sheds **`83.3%` of trap noise** (`1.0000 -> 0.1667`) and trims LLM context tokens by `11.2%` (`5.00 -> 4.44`) with **zero loss** in `Recall@5` (`1.0000`) or `MRR` (`0.7824`).
+Tightening the cutoff to `0.75` eliminates **83.3% of trap-query noise** and reduces LLM context token cost by **11.2%** with zero loss in `Recall@5` (`1.0000`) or `MRR` (`0.7824`).
 
 </details>
 
-### 2. Rust (`PyO3`) vs. Pure Python CPU & Memory Microbenchmark
+### 2. What Rust (`PyO3`) Unlocked (50 MB Text Microbenchmark)
 
-To quantify the impact of moving text normalization and chunking into compiled Rust (`text_processor v0.1.0`, `opt-level = 3`, GIL released), [`scripts/benchmark_text_processor.py`](scripts/benchmark_text_processor.py) benchmarks both engines on an isolated **`50.00 MiB` (`52,428,800` bytes / `49,585,446` chars)** multilingual HTML/PDF-noise corpus (`chunk_size=1200`, `chunk_overlap=150`, `3`-run median, zero network/GPU I/O):
+Comparing pure Python against the compiled Rust engine ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) on an isolated 50 MB (~50 million chars) noisy text corpus with zero network or GPU latency:
 
-| Stage | Pure Python Median | Rust (`PyO3`) Median | Speedup | Python Heap Peak | Rust Py-Heap Peak | Parity |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`clean_text`** | `4,890.17 ms` (`10.22 MiB/s`) | **`294.06 ms` (`170.03 MiB/s`)** | **`16.63x`** (`-94.0%`) | `749.51 MiB` | `301.59 MiB` (`2.49x` lower) | `True` (`100%`) |
-| **`chunk_text`** (`69,349` chunks) | `4,934.83 ms` (`10.13 MiB/s`) | **`507.37 ms` (`98.55 MiB/s`)** | **`9.73x`** (`-89.7%`) | `749.51 MiB` | **`202.12 MiB` (`3.71x` lower)** | `True` (`100%`) |
+| Operation | Pure Python | Rust (`PyO3`) | Gain |
+| :--- | :---: | :---: | :--- |
+| **Text Cleaning (`clean_text`)** | `4.89 s` (`10.2 MB/s`) | **`0.29 s` (`170.0 MB/s`)** | **16.6x faster** |
+| **Text Chunking (`chunk_text` · 69k chunks)** | `4.93 s` (`10.1 MB/s`) | **`0.51 s` (`98.6 MB/s`)** | **9.7x faster** |
+| **Chunking Memory Peak (Python Heap)** | `749.5 MB` | **`202.1 MB`** | **3.7x less RAM** |
 
-> **Why Rust Matters Here:** Pure Python's chained `re.sub` passes allocate intermediate Unicode strings on the Python heap while holding the GIL (`~750 MiB` peak, `~4.9s` per stage). Rust performs a linear, zero-`unsafe` scan off the Python heap inside `py.allow_threads(...)`, eliminating GIL stalls inside Celery prefork workers and cutting chunking RAM overhead by **`3.71x`** with verified exact output parity ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)).
+* **Why such a large jump?** Python allocates hundreds of megabytes of transient Unicode copies across chained regex passes while holding the GIL.
+* **Zero Lock Contention, Exact Parity:** Rust scans linearly outside the Python heap without holding the GIL, producing **100% character-identical chunks** to Python.
+* **Zero Runtime Bloat:** Built in multi-stage Docker so no Rust compiler ships to production, with automatic fallback to pure Python if the compiled wheel is absent.
 
-### 3. Concurrency Load & PDF Stream Throughput
+### 3. Load Test & PDF Stream Throughput
 
-Backend concurrency (`20` users, `30s`, `--with-mock-ai` isolating orchestration from upstream API latency) and PyMuPDF page-streaming benchmarks:
+30-second Locust concurrency run with 20 virtual users (with mock AI isolating orchestration overhead from external API quotas) and PyMuPDF page-streaming throughput:
 
 | Benchmark | Workload | Result | Takeaway |
 | :--- | :--- | :--- | :--- |
-| **Locust Load Mix** | `1,260` reqs across all 8 endpoints | **`43.21 RPS` · `0.0%` errors** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
-| **Container Memory** | `api`, `worker`, `qdrant`, `redis` (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | `0` OOMs, `0` restarts under mixed traffic |
-| **PyMuPDF PDF Stream** | `100-page` PDF (`82.1 KiB`), `1200 / 150` | **`172.9 ms` (`578 pages/s`)** | 5-run median throughput |
-| **Chunk Ratio (`1200/150`)** | `5.33 MiB` (`5.59M` chars) corpus | **`6,167` chunks** | **3x fewer** embedding calls vs `500 / 75` (`18,500`) |
+| **Locust Load Mix** | 8 endpoints, 1,260 requests | **`43.21 RPS` · 0.0% errors** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
+| **Container Memory** | 4 core services (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | 0 OOMs and 0 restarts under mixed load |
+| **PyMuPDF PDF Stream** | 100-page PDF stream | **`172.9 ms` (`578 pages/s`)** | 5-run median throughput |
+| **Smart Chunk Size (`1200/150`)** | 5.33 MB sample text | **6,167 chunks** | **3x fewer** embeddings vs `500/75` (18,500) |
 
 <details>
 <summary><strong>Per-endpoint Locust breakdown &amp; Docker container RAM table</strong></summary>

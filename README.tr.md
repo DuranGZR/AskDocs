@@ -90,78 +90,67 @@ Seçili İngilizce makaleleri kıyaslayan Türkçe bir soru sorduğunuzda yanıt
   <img src="docs/images/architecture.svg" alt="AskDocs System Architecture" width="100%" />
 </div>
 
-Sistem ağır doküman işleme yükünü (**Write Path**) düşük gecikmeli kullanıcı sorgularından (**Read Path**) net biçimde ayırır:
+Sistem ağır belge işleme yükünü (**Yazma Akışı**) canlı sohbetten (**Okuma Akışı**) tamamen ayırır:
 
-1. **Upload ve İndeksleme (Write Path):** FastAPI SHA-256 API-Key auth, sliding-window Redis Lua rate limit ve dosya header (`%PDF-` veya UTF-8) doğrulamasını yaptıktan sonra dosyayı UUID adıyla shared volume'a stream eder, işi Redis üzerinden Celery queue'ya atar ve hemen `202 Accepted` döner. Prefork Celery worker'ları PyMuPDF (`fitz`) ile sayfaları stream okur, CPU yoğun ligatür/tire/boşluk temizliği ile cümle hizalı chunking (`1200/150`) aşamasını **GIL serbest bırakan Rust (`PyO3`) `text_processor` motoruna** (`py.allow_threads`) devreder, `32`'lik batch'ler halinde embed edip Qdrant'a idempotent `UUID5` noktaları yazar.
-2. **Sorgulama ve SSE Streaming (Read Path):** İstek opsiyonel `document_ids` filtresi ve chat history ile gelir. Kısa onay/takip soruları önceki bağlamla çözülür; Qdrant aktif `tenant` içinde `0.70` similarity threshold'uyla top-5 chunk getirir (sonuç boş dönerse `0.58` fallback threshold'u devreye girer). Context guard ve injection filtrelerinden geçen parçalar `[DONE]` sınırları doğrulanmış SSE stream'i olarak tarayıcıya iletilir.
+* **1. Yükleme ve İndeksleme (Write Path):**
+  `PDF Yükleme` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Parçalama` → `Qdrant Vektör Kaydı`
+  Kullanıcı büyük bir PDF yüklediğinde API beklemez; doğrulamayı yapıp işi anında arka plana devreder. Worker sayfaları stream ederek okur, **Rust** motoruyla metni temizleyip anlamlı parçalara böler (`1200` karakter / `150` çakışma) ve vektörleri Qdrant'a kaydeder.
+
+* **2. Soru Sorma ve Canlı Yanıt (Read Path):**
+  `Soru` → `Qdrant Benzerlik Araması` → `Güvenlik ve Bağlam Filtresi` → `SSE Canlı Yanıt + Kaynak Kartları`
+  Kısa takip soruları önceki sohbet bağlamından çözülür; yalnızca aktif çalışma alanındaki en alakalı 5 parça (`0.70` eşiği) getirilir. Kaynakta kanıt yoksa model uydurmaz; varsa tıklanabilir `[1]`, `[2]` rozetleriyle yanıtı kelime kelime tarayıcıya akıtır.
 
 ### Tech Stack Özeti
 
 | Katman | Tercih | Projedeki Rolü |
 | :--- | :--- | :--- |
-| **API & Web UI** | FastAPI + Vanilla JS | Async REST/SSE delivery, SHA-256 API-Key auth, güvenlik middleware'leri ve Cupertino Web UI |
-| **Queue & Worker'lar** | Celery + Redis | Ağır PDF/embedding yükünü FastAPI event-loop'undan ayırır ve atomic sliding-window rate limit tutar |
-| **PDF & Rust Çekirdeği** | PyMuPDF + Rust (`PyO3`) Motoru | Streaming sayfa okuma ve `#![forbid(unsafe_code)]` Rust `text_processor` (`abi3-py311`) + otomatik Python fallback |
-| **Vector Search** | Qdrant | `tenant` bazlı indekslenmiş HNSW arama, document scoping ve duplicate'leri önleyen `UUID5` upsert'i |
-| **LLM & Embedding** | Gemini (`OpenAI-Compat` / `httpx`) | Connection-pooled HTTP üzerinden `gemini-3.5-flash-lite` üretimi ve `3072`-dim embedding |
-| **Observability** | Langfuse + PostgreSQL | Retrieval skorları, TTFT latency, token hesabı ve eval run'larının `fail-open` trace kaydı |
-
-<details>
-<summary><strong>Arka plan detayları: Security middleware'leri, atomic rate limit ve fault tolerance</strong></summary>
-
-* **Async vs. Sync ayrımı:** FastAPI route'ları strictly async istemciler (`src/services/qdrant_service.py`, `src/services/llm_service.py`) çalıştırırken Celery `prefork` worker'ları aynı Clean Architecture interface'lerinin (`src/services/base.py`) senkron implementasyonunu kullanır; böylece closed event-loop hatası yaşanmaz.
-* **Constant-length auth & IDOR koruması:** Constant-time `hmac.compare_digest` öncesi anahtarlar sabit `32` baytlık SHA-256 hash'ine dönüştürülerek (`src/api/dependencies.py`) uzunluk temelli timing sızıntısı önlenir; `MaxBodySizeMiddleware` `100 MiB` üstü istekleri multipart parse edilmeden önce reddeder ve vector arama/silme işlemleri daima compound `(tenant_id, document_id)` filtresiyle çalışır.
-* **Atomic Lua sliding-window rate limiter:** Redis sorted-set Lua script'i (`src/services/rate_limiter.py`), kota dolduğunda gelen `429` burst isteklerini sete eklemeden geri çevirir (istemciyi sonsuz kilide sokmaz) ve Redis ya da Langfuse kesintilerinde kısa timeout ile `fail-open` çalışır.
-
-</details>
+| **API & Web Arayüzü** | FastAPI + Vanilla JS | Asenkron REST/SSE akışı, SHA-256 anahtar doğrulama ve çerçevesiz Cupertino arayüzü |
+| **Kuyruk & Worker** | Celery + Redis | Ağır PDF/embedding işlerini API'den ayırır ve hız limitlerini (Rate Limit) takip eder |
+| **PDF & Metin Motoru** | PyMuPDF + Rust (`PyO3`) | Hızlı sayfa okuma ve GIL kilitlemeyen yerel Rust temizleme/parçalama motoru |
+| **Vektör Veritabanı** | Qdrant | Çalışma alanı bazlı izole arama, belge filtreleme ve çift kaydı önleyen indeksleme |
+| **LLM & Embedding** | Gemini (OpenAI-Compat) | Bağlantı havuzlu `gemini-3.5-flash-lite` üretimi ve `3072` boyutlu vektörleştirme |
+| **İzleme (Observability)** | Langfuse + PostgreSQL | Arama skorları, yanıt hızı (TTFT) ve token kullanımının `fail-open` takibi |
 
 ---
 
 ## Tasarım Kararları
 
-### Thin Custom Core ve Async / Sync Süreç Ayrımı
-Opak RAG framework wrapper'ları yerine doğrudan `httpx`, `qdrant-client` ve PyMuPDF üzerine kurulu ince servis katmanı, stream memory tüketimini ve SSE hata akışını tam kontrol altında tutar. FastAPI'yi tamamen async bırakıp Celery `prefork` worker'larını senkron çalıştırmak concurrent yük altında event-loop çakışmalarını sıfırlar; embedding parser ise `/v1/embeddings` cevabında dönen vektörleri liste sırasına güvenmeden `item["index"]` değerine göre yeniden sıralar.
-
-### Sıfır Dosya Sızıntılı Upload, Rollback ve Idempotent Retry
-Upload ile arka plan indexing arasındaki tüm olası kopma noktaları düşünülmüştür: dosya shared disk'e stream edildikten hemen sonra Redis queue gönderimi başarısız olursa endpoint otomatik telafi silmesi (`storage.delete`) çalıştırır; worker içinde retry gerektiren geçici bir hata yaşandığında geçici dosya sonraki jitter'lı exponential backoff denemeleri (`max_retries=3`) okuyabilsin diye korunur ve yalnızca kesin bitişte (`finally`) temizlenir; `uuid5(document_id, chunk_index)` point ID'leri ise retry'larda Qdrant'a duplicate vector yazılmasını imkânsız kılar.
-
-### Tenant Bazlı Etki Alanını Sınırlayan Circuit Breaker'lar
-Async ve sync `3-state` Circuit Breaker'lar (`src/core/circuit_breaker.py`), gerçek Qdrant veya LLM kesintilerinde `503` ile sistemi korur. Kritik nokta olarak; tekil kullanıcı kaynaklı erken duruşlar (`length`, `content_filter`) HTTP `422` olarak sınıflandırılır ve ortak Circuit Breaker hatası sayılmaz—böylece bir kullanıcının token limitine takılan sorgusu diğer tenant'ların trafiğini durdurmaz.
-
-### Native Rust (`PyO3`) Metin Motoru ve Multi-Stage Paketleme
-Çok megabaytlık dokümanlarda PDF artığı temizlemek ve overlap'li chunking yapmak tamamen CPU ağırlıklı bir iştir; Python regex motoru bu aşamada GIL'i tutarak yüzlerce megabayt geçici string tahsis eder. `clean_text` ve `chunk_text` fonksiyonlarını ayrı bir **`text_processor` Rust crate'ine** (`text_processor/src/lib.rs`, `#![forbid(unsafe_code)]`) taşımak; GIL'i `py.allow_threads(...)` ile serbest bırakır, HTML/script/ligatür/tire temizliğini doğrusal tek geçişlerde yapar ve cümle sınırlarını `O(chunk_size)` geriye bakış penceresiyle hizalar (Python ile `%100` karakter paritesi testlidir). `Dockerfile` Stage 1 (`rust:1-slim-trixie`) içinde `abi3-py311` wheel'i olarak derlendiği için final `UID 10001` non-root runtime imajında Rust derleyici şişkinliği kalmaz; derlenmiş modül yoksa şeffaf biçimde saf Python fallback'ine düşer ve `.pyi` type stub'ları strict `mypy` ile doğrulanır.
-
-### Kalibre Retrieval ve Doğrulanabilir Stream Sınırları
-`1200 / 150` karakterlik cümle hizalı chunking teknik bütünlüğü korurken embedding çağrı sayısını **3 kat azaltır**. `0.70` similarity threshold'u (`0.58` fallback ile) context gürültüsünü keser (`0.75` eşiği ise yoğun akademik korpuslarda negatif tuzak gürültüsünü `%83.3` oranında düşürür), `<context>` redaksiyonu belge içi indirect prompt injection'ı engeller ve hem sunucu hem tarayıcı `finish_reason` ile `[DONE]` sınırlarını doğrulayarak yarıda kesilen yanıtların chat history'yi kirletmesini önler.
+| Karşılaşılan Sorun | Uygulanan Çözüm | Pratik Kazanç |
+| :--- | :--- | :--- |
+| **Büyük PDF'lerin Python'ı kilitlemesi** | Metin temizleme ve parçalama katmanı **Rust (`PyO3`)** ile yazıldı | **16.6x** daha hızlı temizlik, **9.7x** daha hızlı parçalama ve **3.7x** daha düşük RAM |
+| **Yükleme sırasında API'nin donması** | FastAPI tamamen asenkron tutuldu; indeksleme Celery worker'larına ayrıldı | Yüklemelerde anında `202 Accepted` yanıtı; sohbet trafiği hiç yavaşlamaz |
+| **Ağ kopmalarında çift kayıt veya dosya sızıntısı** | Otomatik disk geri alımı (`rollback`) ve deterministik `UUID5` vektör kimlikleri | Yeniden denemelerde sıfır yetim dosya ve sıfır kopya vektör kaydı |
+| **Tek kullanıcı veya dış servisin sistemi düşürmesi** | 3 durumlu **Circuit Breaker** ve atomik Redis hız sınırlama (`fail-open`) | Dış servis kesintilerinde hızlı koruma; Redis veya Langfuse dursa bile arama sürer |
+| **LLM'in kaynak dışı bilgi uydurması** | Kalibre benzerlik eşiği (`0.70`), injection temizliği ve `[DONE]` akış doğrulaması | Tuzak sorularda **%100** doğru ret; yarım kalan yanıtlar sohbet geçmişini bozmaz |
 
 ---
 
 ## Benchmark ve Ölçümler
 
-Aşağıdaki tüm metrikler repodaki tekrarlanabilir evaluation, load test ve CPU benchmark script'lerinden ölçülmüştür.
+Aşağıdaki tüm sayılar repodaki tekrarlanabilir değerlendirme, CPU/bellek karşılaştırma ve yük testi script'lerinden doğrudan ölçülmüştür.
 
-### 1. RAG Retrieval & Faithfulness Değerlendirmesi (`rag-research` · 6 PDF)
+### 1. RAG Doğruluk ve Halüsinasyon Testi (`rag-research` · 6 PDF)
 
-Ortak terminoloji paylaşan rakip makaleler arasında gerçek semantic ayrıştırma gücünü ölçmek için sistem, **`rag-research` workspace'indeki** 6 arXiv RAG/retrieval makalesi (**`385` chunk** — `REALM` `56`, `DPR` `64`, `FiD` `25`, `HyDE` `48`, `Self-RAG` `122`, `CRAG` `70`) ile **24 soruluk Golden Dataset** ([`evals/golden_dataset.json`](evals/golden_dataset.json), `v3.0`) üzerinde test edildi. Sorular cross-lingual Türkçe sorguları (`q03`, `q12`) ve makale terimlerini tuzak olarak kullanan **6 unanswerable / adversarial soruyu** (`q19`–`q24`) içerir.
+Sistemin aynı alandaki benzer belgeleri birbirine karıştırıp karıştırmadığını ölçmek için, `rag-research` çalışma alanındaki **6 akademik RAG makalesi (toplam 385 metin parçası)** üzerinde **24 soruluk** (18 İngilizce/Türkçe normal soru + 6 belgede cevabı olmayan tuzak soru) bir değerlendirme koşturuldu:
 
-| Metrik | Ölçülen Sonuç | Anlamı |
+| Ölçüt | Sonuç | Ne Anlama Geliyor? |
 | :--- | :---: | :--- |
-| **Mean Recall@5** | **`1.0000`** (`18 / 18`) | 6 makalenin tamamında beklenen doküman ve sayfa ilk 5 sonuç içinde geldi |
-| **Mean MRR** | **`0.7824`** | Aynı alandaki 6 rakip makale rekabetine rağmen yüksek ilk-sıra ranking kalitesi |
-| **Mean Faithfulness** | **`0.9729`** | Geçerli `[Source N]` grounding uyumu; out-of-range veya uydurma atıf sıfır |
-| **Keyword Coverage** | **`0.9398`** | İngilizce ve Türkçe doküman/sorgularda kritik teknik kavram/sayı kapsamı |
-| **Abstention Accuracy** | **`1.0000`** (`6 / 6`) | Genel ve near-miss adversarial tüm negatif sorularda halüsinasyonsuz ret |
+| **Doğru Kaynağı Bulma (`Recall@5`)** | **`1.0000`** (`18 / 18`) | 6 rakip makaledeki her soruda doğru sayfa ilk 5 sonuç içinde bulundu |
+| **İlk Sıra İsabeti (`MRR`)** | **`0.7824`** | Yoğun terim örtüşmesine rağmen doğru kaynak yüksek oranda üst sırada geldi |
+| **Kaynağa Sadakat (`Faithfulness`)** | **`0.9729`** | Yanıtlardaki tüm `[1]`, `[2]` atıfları gerçek sayfalara dayandı; uydurma atıf çıkmadı |
+| **İçerik Kapsamı (`Keyword Coverage`)** | **`0.9398`** | Türkçe ve İngilizce sorularda kritik kavram ve sayıların %94'ü yanıtlandı |
+| **Tuzak Soruları Reddetme (`Abstention`)** | **`1.0000`** (`6 / 6`) | Belgede karşılığı olmayan 6 şaşırtmacalı sorunun tamamında model bilgi uydurmadı |
 
 <div align="center">
   <img src="docs/images/eval-threshold-chart.svg" alt="6-PDF RAG Threshold Calibration Sweep" width="100%" />
 </div>
 
 <details>
-<summary><strong>0.30–0.75 threshold sweep tablosu ve run parametreleri</strong></summary>
+<summary><strong>Benzerlik eşiği (0.30–0.75) kalibrasyon tablosunu aç</strong></summary>
 
-Run: `eval-20261118-193027` · Workspace: `rag-research` (`6` PDF / `385` chunk) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · `top_k=5` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json) · [`evals/README.md`](evals/README.md)
+Koşum: `eval-20261118-193027` · Çalışma Alanı: `rag-research` (6 PDF / 385 parça) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
 
-| `score_threshold` | `Recall@5` | `MRR` | `AvgChunks` (LLM'e Giden) | `NegNoise` (6 Tuzak Sorgu) |
+| Eşik Değeri | `Recall@5` | `MRR` | Ortalama Parça | Tuzak Gürültüsü (`NegNoise`) |
 | :---: | :---: | :---: | :---: | :---: |
 | `0.30` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
 | `0.40` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
@@ -171,31 +160,34 @@ Run: `eval-20261118-193027` · Workspace: `rag-research` (`6` PDF / `385` chunk)
 | `0.70` (Varsayılan) | `1.0000` | `0.7824` | `5.00` | `0.6667` |
 | **`0.75` (Önerilen)** | **`1.0000`** | **`0.7824`** | **`4.44` (-%11.2)** | **`0.1667` (-%83.3)** |
 
-6 akademik makalenin yoğun rekabetinde `0.70` varsayılan eşiği negatif tuzak gürültüsünü `%33.3` düşürürken `Recall@5=1.0000` korur; `0.75` değerine kalibre edildiğinde ise `Recall@5` (`1.0000`) ve `MRR` (`0.7824`) **hiç kayıp vermeden** tuzak gürültüsü **`%83.3` düşer** (`1.0000 -> 0.1667`) ve LLM'e giden chunk maliyeti **`%11.2` azalır** (`5.00 -> 4.44`).
+Yoğun akademik korpusta eşik değerini `0.75`'e çekmek doğru sayfa yakalama oranını (`1.0000`) hiç düşürmeden tuzak gürültüsünü **%83.3 azaltır** ve modele gönderilen token yükünü **%11.2** düşürür.
 
 </details>
 
-### 2. Rust (`PyO3`) vs. Saf Python CPU ve Bellek Benchmark'ı
+### 2. Rust (`PyO3`) Bize Ne Kazandırdı? (50 MB Metin Testi)
 
-Metin temizleme ve chunking katmanını derlenmiş Rust (`text_processor v0.1.0`, `opt-level = 3`, GIL serbest) motoruna geçirmenin net kazanımını ölçmek için [`scripts/benchmark_text_processor.py`](scripts/benchmark_text_processor.py) script'i ağ/GPU I/O olmadan **`50.00 MiB` (`52,428,800` bayt / `49,585,446` karakter)** HTML/PDF-gürültülü Türkçe/İngilizce korpus üzerinde çalıştırıldı (`chunk_size=1200`, `chunk_overlap=150`, `3` tekrarlı medyan):
+50 MB büyüklüğündeki (~50 milyon karakter) gürültülü metin bloğu üzerinde ağ ve LLM beklemelerinden bağımsız olarak saf Python ile Rust motoru ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) karşılaştırıldı:
 
-| Aşama | Saf Python Medyan | Rust (`PyO3`) Medyan | Hızlanma | Python Heap Peak | Rust Py-Heap Peak | Parity |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **`clean_text`** | `4,890.17 ms` (`10.22 MiB/sn`) | **`294.06 ms` (`170.03 MiB/sn`)** | **`16.63x`** (`-%94.0`) | `749.51 MiB` | `301.59 MiB` (`2.49x` düşük) | `True` (`%100`) |
-| **`chunk_text`** (`69,349` parça) | `4,934.83 ms` (`10.13 MiB/sn`) | **`507.37 ms` (`98.55 MiB/sn`)** | **`9.73x`** (`-%89.7`) | `749.51 MiB` | **`202.12 MiB` (`3.71x` düşük)** | `True` (`%100`) |
+| İşlem | Saf Python | Rust (`PyO3`) | Kazanım |
+| :--- | :---: | :---: | :--- |
+| **Metin Temizleme (`clean_text`)** | `4.89 sn` (`10.2 MB/sn`) | **`0.29 sn` (`170.0 MB/sn`)** | **16.6x daha hızlı** |
+| **Metin Parçalama (`chunk_text` · 69 bin parça)** | `4.93 sn` (`10.1 MB/sn`) | **`0.51 sn` (`98.6 MB/sn`)** | **9.7x daha hızlı** |
+| **Parçalama Bellek Zirvesi (Python Heap)** | `749.5 MB` | **`202.1 MB`** | **3.7x daha az RAM** |
 
-> **Rust Bize Ne Kazandırdı?** Saf Python'ın zincirli `re.sub` geçişleri GIL'i tutarak Python heap'inde `~750 MiB` geçici string üretip aşama başına `~4.9 sn` harcarken; `#![forbid(unsafe_code)]` Rust çekirdeği `py.allow_threads(...)` içinde Python heap dışı lineer tarama yaparak Celery `prefork` worker'larındaki GIL darboğazını kaldırır, chunking Python-heap yükünü **`3.71x` azaltır** ve birebir aynı çıktıyı (`parity_verified=true`) üretir ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)).
+* **Neden bu kadar fark etti?** Saf Python büyük metinleri temizlerken bellekte sürekli ara string kopyaları oluşturur ve diğer işlemleri kilitler (GIL).
+* **Sıfır Kilitlenme, Birebir Çıktı:** Rust çekirdeği metni GIL dışında tek geçişte işleyip Python belleğini şişirmez; üstelik tüm parçalarda Python ile **%100 birebir aynı** çıktıyı üretir.
+* **Temiz Dağıtım:** Çok aşamalı Docker build ile final imajda Rust derleyici yükü bırakmaz; derlenmiş modül yoksa otomatik olarak saf Python'a geçer.
 
-### 3. Load Test ve PDF Stream Throughput
+### 3. Yük Testi ve PDF Okuma Hızı
 
-Dış LLM kota latency'sini izole etmek için `--with-mock-ai` moduyla yürütülen 20 concurrent user Locust load testi (`30s`) ve PyMuPDF sayfa stream hızları:
+20 eşzamanlı kullanıcıyla yapılan 30 saniyelik Locust yük testi (dış LLM gecikmesini ayırmak için mock AI ile) ve PyMuPDF sayfa okuma ölçümleri:
 
-| Benchmark | Kapsam | Sonuç | Özet Not |
+| Test | Kapsam | Sonuç | Özet |
 | :--- | :--- | :--- | :--- |
-| **Locust Load Test** | `8` endpoint, toplam `1,260` request | **`43.21 RPS` · `%0.0` hata** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
-| **Container RAM Kararlılığı** | `api`, `worker`, `qdrant`, `redis` (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | Karma trafikte `0` OOM, `0` restart |
-| **PyMuPDF Streaming Parser** | `100 sayfa` PDF (`82.1 KiB`), `1200 / 150` | **`172.9 ms` (`578 sayfa/sn`)** | 5 run medyan hızı |
-| **Chunk Verimliliği (`1200/150`)** | `5.33 MiB` (`5.59M` char) metin bloğu | **`6,167` parça** | `500 / 75` ayarına (`18,500`) göre **3x daha az** embedding |
+| **Locust Yük Testi** | 8 endpoint, 1.260 istek | **`43.21 RPS` · %0.0 hata** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
+| **Konteyner Bellek Kararlılığı** | 4 ana servis (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | Yoğun yükte 0 OOM, 0 yeniden başlatma |
+| **PyMuPDF PDF Okuma** | 100 sayfalık PDF akışı | **`172.9 ms` (`578 sayfa/sn`)** | 5 ölçüm medyan hızı |
+| **Akıllı Parça Boyutu (`1200/150`)** | 5.33 MB örnek doküman | **6.167 parça** | `500/75` ayarına (18.500) göre **3x daha az** embedding maliyeti |
 
 <details>
 <summary><strong>Endpoint bazlı Locust latency ve Docker container RAM tablosunu aç</strong></summary>
