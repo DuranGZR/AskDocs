@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
@@ -307,6 +307,14 @@ class BaseHealthChecker(ABC):
 
 class SyncBaseLLMClient(ABC):
     """Senkron Embedding istemcisi soyut arayüzü (Celery worker katmanı için)."""
+
+    def set_rate_limit_callback(
+        self,
+        callback: Callable[[float, int, int, str], None] | None,
+    ) -> None:
+        """HTTP 429 hız sınırı beklemesi başladığında çağrılacak opsiyonel geri çağrımı ayarlar."""
+        del callback
+        return None
 
     @abstractmethod
     def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:

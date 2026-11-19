@@ -37,8 +37,8 @@ def create_celery_app() -> Celery:
         broker_connection_retry_on_startup=True,
         task_track_started=True,
         # Askıda kalan görev koruması (Linux worker'da geçerli)
-        task_soft_time_limit=300,  # 5 dk sonunda SoftTimeLimitExceeded (temiz çıkış)
-        task_time_limit=360,  # 6 dk sonunda zorla sonlandır
+        task_soft_time_limit=900,  # 15 dk sonunda SoftTimeLimitExceeded (temiz çıkış)
+        task_time_limit=960,  # 16 dk sonunda zorla sonlandır
     )
 
     return app

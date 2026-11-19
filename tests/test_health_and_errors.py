@@ -7,8 +7,12 @@ from src.core.config import Settings, get_settings
 from src.core.exceptions import AppError
 
 
-async def test_health_check_ok(client: httpx.AsyncClient) -> None:
-    """Tüm bağımlılıklar hazırken 200 OK, checks/circuits özeti ve Request-ID dönmelidir."""
+async def test_health_check_ok(
+    app: FastAPI,
+    client: httpx.AsyncClient,
+    test_settings: Settings,
+) -> None:
+    """Tüm bağımlılıklar hazırken 200 OK, checks/circuits, hız sınırı ve Request-ID dönmelidir."""
     response = await client.get("/api/v1/health")
 
     assert response.status_code == 200
@@ -20,9 +24,24 @@ async def test_health_check_ok(client: httpx.AsyncClient) -> None:
         "checks": {"storage": "ok", "redis": "ok", "qdrant": "ok"},
         "circuits": {"qdrant": "closed", "llm": "closed"},
     }
+    assert response.headers.get("x-ratelimit-upload-limit") == "0"
+    assert response.headers.get("x-ratelimit-window-seconds") == "60"
     request_id = response.headers.get("x-request-id")
     assert request_id is not None
     assert len(request_id) == 32
+
+    rate_limited_settings = test_settings.model_copy(
+        update={
+            "RATE_LIMIT_ENABLED": True,
+            "RATE_LIMIT_UPLOAD_PER_WINDOW": 5,
+            "RATE_LIMIT_WINDOW_SECONDS": 60,
+        }
+    )
+    app.dependency_overrides[get_settings] = lambda: rate_limited_settings
+    limited_response = await client.get("/api/v1/health")
+    assert limited_response.status_code == 200
+    assert limited_response.headers.get("x-ratelimit-upload-limit") == "5"
+    assert limited_response.headers.get("x-ratelimit-window-seconds") == "60"
 
 
 async def test_health_check_degraded_returns_503(

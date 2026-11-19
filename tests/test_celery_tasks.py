@@ -72,6 +72,8 @@ def test_celery_app_uses_safe_json_and_reliability_settings(
     assert app.conf.task_reject_on_worker_lost is True
     assert app.conf.worker_prefetch_multiplier == 1
     assert app.conf.task_track_started is True
+    assert app.conf.task_soft_time_limit == 900
+    assert app.conf.task_time_limit == 960
     assert app.conf.timezone == "UTC"
     assert app.conf.enable_utc is True
     assert "corerag.process_document" in app.tasks
@@ -251,6 +253,17 @@ async def test_celery_document_task_dispatcher_get_task_status_maps_states_and_s
     fake_results: dict[str, SimpleNamespace] = {
         "t-received": SimpleNamespace(state="RECEIVED", result=None),
         "t-started": SimpleNamespace(state="STARTED", result=None),
+        "t-started-meta": SimpleNamespace(
+            state="STARTED",
+            info={
+                "phase": "rate_limited",
+                "chunks_done": 64,
+                "chunks_total": 128,
+                "wait_seconds": 42,
+                "provider": "Google Gemini API",
+            },
+            result=None,
+        ),
         "t-retry": SimpleNamespace(state="RETRY", result=None),
         "t-dict": SimpleNamespace(
             state="SUCCESS",
@@ -272,6 +285,15 @@ async def test_celery_document_task_dispatcher_get_task_status_maps_states_and_s
     assert pending_snap.result is None
 
     assert (await dispatcher.get_task_status(task_id="t-started")).status == "STARTED"
+    started_meta_snap = await dispatcher.get_task_status(task_id="t-started-meta")
+    assert started_meta_snap.status == "STARTED"
+    assert started_meta_snap.result == {
+        "phase": "rate_limited",
+        "chunks_done": 64,
+        "chunks_total": 128,
+        "wait_seconds": 42,
+        "provider": "Google Gemini API",
+    }
     assert (await dispatcher.get_task_status(task_id="t-retry")).status == "RETRY"
 
     dict_snap = await dispatcher.get_task_status(task_id="t-dict")

@@ -592,12 +592,20 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert 'id="scope-chips-bar"' in root_resp.text
     assert 'id="clear-scope-btn"' in root_resp.text
     assert 'id="upload-summary-bar"' in root_resp.text
+    assert 'id="starter-prompts"' in root_resp.text
+    assert 'id="indexing-stage-card"' in root_resp.text
+    assert 'id="indexing-master-fill"' in root_resp.text
+    assert 'id="indexing-rate-banner"' in root_resp.text
+    assert "Bitcoin'de double-spending" not in root_resp.text
     assert "/static/app.js" in root_resp.text
 
     css_resp = await client.get("/static/styles.css")
     assert css_resp.status_code == 200
     assert "--apple-blue" in css_resp.text
     assert ".inspector-drawer" in css_resp.text
+    assert ".indexing-stage-card" in css_resp.text
+    assert ".indexing-rate-banner" in css_resp.text
+    assert ".composer-capsule.is-locked" in css_resp.text
     assert ".md-table" in css_resp.text
     assert ".turn-action-chip" in css_resp.text
     assert "mark.quote-highlight" in css_resp.text
@@ -608,6 +616,7 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert "/api/v1/documents/tenants" in js_resp.text
     assert "citation-source-num" in js_resp.text
     assert "no_text_extracted" in js_resp.text
+    assert "quota_exhausted" in js_resp.text
     assert "MAX_CONCURRENT_UPLOADS" in js_resp.text
     assert "processSseFrame" in js_resp.text
     assert "job.tenantId === state.tenantId" in js_resp.text
@@ -624,6 +633,12 @@ async def test_web_ui_routes_serve_html_and_static_assets(client: httpx.AsyncCli
     assert "buildFollowupChipPayload" in js_resp.text
     assert "turn-followup-chip" in js_resp.text
     assert "renderScopeChips" in js_resp.text
+    assert "renderStarterPrompts" in js_resp.text
+    assert "maxUploadPerWindow" in js_resp.text
+    assert "hasActiveWorkspaceUploads" in js_resp.text
+    assert "renderIndexingStageCard" in js_resp.text
+    assert "indexingRateBanner" in js_resp.text
+    assert "requestedTenant" in js_resp.text
     assert "restoreChatTranscript" in js_resp.text
     assert "md-table" in js_resp.text
 

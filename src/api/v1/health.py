@@ -37,6 +37,11 @@ async def health_check(
     if not all_ok:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
 
+    response.headers["X-RateLimit-Upload-Limit"] = (
+        str(settings.RATE_LIMIT_UPLOAD_PER_WINDOW) if settings.RATE_LIMIT_ENABLED else "0"
+    )
+    response.headers["X-RateLimit-Window-Seconds"] = str(settings.RATE_LIMIT_WINDOW_SECONDS)
+
     return HealthResponse(
         status="ok" if all_ok else "degraded",
         app_name=settings.APP_NAME,

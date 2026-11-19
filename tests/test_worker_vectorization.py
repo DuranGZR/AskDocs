@@ -324,3 +324,179 @@ def test_index_document_chunks_edge_cases() -> None:
 
     with pytest.raises(ServiceUnavailableError, match="mismatch"):
         index_document_chunks(chunks=sample_chunks, llm_client=llm, vector_db=vdb, batch_size=2)
+
+
+def test_worker_rolls_back_partial_vectors_on_permanent_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Kalıcı hata veya zaman aşımında Qdrant'a yazılmış kısmi vektörler geri silinmelidir."""
+    from billiard.exceptions import SoftTimeLimitExceeded  # type: ignore[import-untyped]
+
+    sample_path = tmp_path / "partial-rollback.txt"
+    sample_path.write_text(
+        " ".join(f"Kısmi vektör geri alma testi cümle numarası {idx}." for idx in range(1, 10)),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("API_KEY", "test-api-key-minimum-8-chars")
+    monkeypatch.setenv("CHUNK_SIZE", "110")
+    monkeypatch.setenv("CHUNK_OVERLAP", "15")
+    monkeypatch.setenv("EMBEDDING_BATCH_SIZE", "2")
+    monkeypatch.setenv("QDRANT_VECTOR_SIZE", "4")
+    monkeypatch.setenv("QDRANT_COLLECTION_NAME", "documents")
+
+    embed_calls = 0
+
+    def timeout_on_second_batch(request: httpx.Request) -> httpx.Response:
+        nonlocal embed_calls
+        embed_calls += 1
+        if embed_calls == 2:
+            raise SoftTimeLimitExceeded()
+        body = json.loads(request.content.decode("utf-8"))
+        inputs: list[str] = body["input"]
+        data = [
+            {"object": "embedding", "index": idx, "embedding": [0.5, 0.5, 0.5, 0.5]}
+            for idx, _ in enumerate(inputs)
+        ]
+        return httpx.Response(status_code=200, json={"object": "list", "data": data})
+
+    sync_http_client = httpx.Client(transport=httpx.MockTransport(timeout_on_second_batch))
+    qdrant_client = QdrantClient(location=":memory:")
+
+    class _PersistentVectorDB(SyncQdrantService):
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_llm_client",
+        lambda settings: SyncOpenAICompatibleLLMClient(
+            base_url="http://test-ai:11434/v1",
+            embedding_model=settings.EMBEDDING_MODEL,
+            client=sync_http_client,
+        ),
+    )
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_vector_db",
+        lambda settings: _PersistentVectorDB(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            vector_size=settings.QDRANT_VECTOR_SIZE,
+            client=qdrant_client,
+        ),
+    )
+
+    get_settings.cache_clear()
+    try:
+        process_document_task.push_request(retries=0)
+        try:
+            with pytest.raises(SoftTimeLimitExceeded):
+                process_document_task(
+                    document_id="doc-partial-timeout",
+                    file_path=str(sample_path),
+                    tenant_id="tenant_rollback",
+                    file_type="txt",
+                    request_id="req-rollback-1",
+                )
+        finally:
+            process_document_task.pop_request()
+
+        assert qdrant_client.count(collection_name="documents").count == 0
+        assert not sample_path.exists()
+    finally:
+        get_settings.cache_clear()
+        sync_http_client.close()
+        qdrant_client.close()
+
+
+def test_worker_aborts_and_rolls_back_on_daily_quota_exhausted(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Günlük API kotası dolduğunda worker beklemeden durmalı ve kısmi vektörleri silmelidir."""
+    sample_path = tmp_path / "daily-quota.txt"
+    sample_path.write_text(
+        " ".join(f"Günlük kota kontrol testi cümle numarası {idx}." for idx in range(1, 10)),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("API_KEY", "test-api-key-minimum-8-chars")
+    monkeypatch.setenv("CHUNK_SIZE", "110")
+    monkeypatch.setenv("CHUNK_OVERLAP", "15")
+    monkeypatch.setenv("EMBEDDING_BATCH_SIZE", "2")
+    monkeypatch.setenv("QDRANT_VECTOR_SIZE", "4")
+    monkeypatch.setenv("QDRANT_COLLECTION_NAME", "documents")
+
+    embed_calls = 0
+    sleep_calls: list[float] = []
+
+    def quota_on_second_batch(request: httpx.Request) -> httpx.Response:
+        nonlocal embed_calls
+        embed_calls += 1
+        if embed_calls == 2:
+            return httpx.Response(
+                status_code=429,
+                json={
+                    "error": {
+                        "code": 429,
+                        "message": (
+                            "Quota exceeded, limit: 1000, description: "
+                            "Embed content requests per day limit exceeded on Free Tier.\n"
+                            "Please retry in 15h22m46s."
+                        ),
+                    }
+                },
+            )
+        body = json.loads(request.content.decode("utf-8"))
+        inputs: list[str] = body["input"]
+        data = [
+            {"object": "embedding", "index": idx, "embedding": [0.4, 0.4, 0.4, 0.4]}
+            for idx, _ in enumerate(inputs)
+        ]
+        return httpx.Response(status_code=200, json={"object": "list", "data": data})
+
+    monkeypatch.setattr("src.services.llm_service.time.sleep", sleep_calls.append)
+    sync_http_client = httpx.Client(transport=httpx.MockTransport(quota_on_second_batch))
+    qdrant_client = QdrantClient(location=":memory:")
+
+    class _PersistentVectorDB(SyncQdrantService):
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_llm_client",
+        lambda settings: SyncOpenAICompatibleLLMClient(
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+            embedding_model=settings.EMBEDDING_MODEL,
+            client=sync_http_client,
+        ),
+    )
+    monkeypatch.setattr(
+        "src.tasks.document_tasks.create_worker_vector_db",
+        lambda settings: _PersistentVectorDB(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            vector_size=settings.QDRANT_VECTOR_SIZE,
+            client=qdrant_client,
+        ),
+    )
+
+    get_settings.cache_clear()
+    try:
+        result = process_document_task(
+            document_id="doc-daily-quota",
+            file_path=str(sample_path),
+            tenant_id="tenant_quota",
+            file_type="txt",
+            request_id="req-quota-1",
+        )
+        assert result["status"] == "quota_exhausted"
+        assert result["error"] == (
+            "❌ Google Gemini API günlük ücretsiz kotası (1.000 parça/gün) doldu."
+        )
+        assert result["upserted_count"] == 0
+        assert sleep_calls == []
+        assert qdrant_client.count(collection_name="documents").count == 0
+        assert not sample_path.exists()
+    finally:
+        get_settings.cache_clear()
+        sync_http_client.close()
+        qdrant_client.close()

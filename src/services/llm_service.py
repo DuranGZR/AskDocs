@@ -4,9 +4,10 @@ import logging
 import math
 import re
 import time
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -17,10 +18,37 @@ from src.services.base import BaseLLMClient, ChatMessage, SyncBaseLLMClient
 logger = logging.getLogger(__name__)
 
 _MAX_RATE_LIMIT_RETRIES = 3
+_WORKER_MAX_RATE_LIMIT_RETRIES = 8
 _CHAT_MAX_RATE_LIMIT_RETRIES = 2
 _CHAT_MAX_RETRY_WAIT_SECONDS = 10.0
-_RETRY_IN_PATTERN = re.compile(r"retry\s+in\s+([0-9]+(?:\.[0-9]+)?)\s*s", re.IGNORECASE)
+_MAX_SHORT_RATE_LIMIT_WAIT_SECONDS = 120.0
+_RETRY_IN_PATTERN = re.compile(
+    r"retry\s+in\s+((?:\d+(?:\.\d+)?\s*(?:ms|s|m|h)(?![a-zA-Z])\s*)+)",
+    re.IGNORECASE,
+)
+_RETRY_DELAY_JSON_PATTERN = re.compile(
+    r'"retryDelay"\s*:\s*"([0-9]+(?:\.[0-9]+)?)s"',
+    re.IGNORECASE,
+)
+_DURATION_FULL_RE = re.compile(
+    r"(?:\d+(?:\.\d+)?\s*(?:ms|s|m|h)(?![a-zA-Z])\s*)+",
+    re.IGNORECASE,
+)
+_DURATION_TOKEN_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)\s*(ms|s|m|h)", re.IGNORECASE)
+_DAILY_QUOTA_TEXT_RE = re.compile(
+    r"per[\s_]+day\s+limit\s+exceeded|requests[\s_]+per[\s_]+day|"
+    r"insufficient_quota|billing_hard_limit",
+    re.IGNORECASE,
+)
+_QUOTA_LIMIT_NUMBER_RE = re.compile(r"\blimit\s*:\s*(\d+)\b", re.IGNORECASE)
 _ABNORMAL_REASON_SAFE_RE = re.compile(r"[^a-zA-Z0-9_-]+")
+
+
+class QuotaExhaustedError(AppError):
+    """Sağlayıcı günlük veya plan kotası tamamen dolduğunda (beklemeden) fırlatılır."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, status_code=429, code="daily_quota_exhausted")
 
 
 @dataclass(frozen=True, slots=True)
@@ -76,25 +104,156 @@ def _build_abnormal_finish_error(finish_reason: str) -> AppError:
     )
 
 
+def infer_provider_label(base_url: str) -> str:
+    """Yapılandırılan LLM_BASE_URL adresinden kullanıcı dostu sağlayıcı adını çıkarır."""
+    host = (urlsplit(base_url.strip()).hostname or "").lower()
+    if "googleapis.com" in host:
+        return "Google Gemini API"
+    if "openai.azure.com" in host or host.endswith(".azure.com"):
+        return "Azure OpenAI API"
+    if "openai.com" in host:
+        return "OpenAI API"
+    if "groq.com" in host:
+        return "Groq API"
+    if "together.xyz" in host or "together.ai" in host:
+        return "Together AI API"
+    if "openrouter.ai" in host:
+        return "OpenRouter API"
+    if "mistral.ai" in host:
+        return "Mistral API"
+    if "anthropic.com" in host:
+        return "Anthropic API"
+    if host in {"localhost", "127.0.0.1", "0.0.0.0", "ollama", "vllm"}:
+        return "Yerel AI Sunucusu"
+    if host:
+        return f"AI API ({host})"
+    return "AI API"
+
+
+def _parse_reset_header_seconds(raw_value: str) -> float | None:
+    """Hız sınırı sıfırlama başlıklarını ('14', '12.5s', '1m10s', '800ms') saniyeye çevirir."""
+    cleaned = raw_value.strip()
+    if not cleaned:
+        return None
+
+    try:
+        numeric = float(cleaned)
+    except ValueError:
+        numeric = None
+
+    if numeric is not None:
+        if not math.isfinite(numeric):
+            return None
+        if numeric > 1_000_000_000:
+            diff = numeric - time.time()
+            return diff if diff > 0 else None
+        return numeric if numeric > 0 else None
+
+    if not _DURATION_FULL_RE.fullmatch(cleaned):
+        return None
+
+    total_seconds = 0.0
+    for match in _DURATION_TOKEN_RE.finditer(cleaned):
+        amount = float(match.group(1))
+        unit = match.group(2).lower()
+        if unit == "ms":
+            total_seconds += amount * 0.001
+        elif unit == "s":
+            total_seconds += amount
+        elif unit == "m":
+            total_seconds += amount * 60.0
+        elif unit == "h":
+            total_seconds += amount * 3600.0
+    return total_seconds if total_seconds > 0 else None
+
+
+def _extract_raw_retry_delay_seconds(response: httpx.Response) -> float | None:
+    """HTTP 429 yanıtından ham bekleme süresini (saniye) kırpmadan çıkarır."""
+    retry_after = response.headers.get("retry-after")
+    if retry_after is not None:
+        try:
+            parsed_retry = float(retry_after.strip())
+            if math.isfinite(parsed_retry) and parsed_retry > 0:
+                return parsed_retry + 1.0
+        except ValueError:
+            pass
+
+    body_text = response.text
+    retry_in_match = _RETRY_IN_PATTERN.search(body_text)
+    if retry_in_match:
+        parsed_duration = _parse_reset_header_seconds(retry_in_match.group(1))
+        if parsed_duration is not None and parsed_duration > 0:
+            return parsed_duration + 1.5
+
+    retry_json_match = _RETRY_DELAY_JSON_PATTERN.search(body_text)
+    if retry_json_match:
+        return float(retry_json_match.group(1)) + 1.5
+
+    for header_name in (
+        "x-ratelimit-reset-requests",
+        "x-ratelimit-reset-tokens",
+        "x-ratelimit-reset",
+    ):
+        header_val = response.headers.get(header_name)
+        if header_val is not None:
+            parsed_reset = _parse_reset_header_seconds(header_val)
+            if parsed_reset is not None and parsed_reset > 0:
+                return parsed_reset + 1.0
+
+    return None
+
+
 def _extract_retry_delay_seconds(
     response: httpx.Response,
     attempt: int,
     *,
     fallback_base_seconds: float = 15.0,
 ) -> float:
-    """HTTP 429 yanıtındaki Retry-After veya mesaj ipucundan bekleme süresini hesaplar."""
-    retry_after = response.headers.get("retry-after")
-    if retry_after is not None:
-        try:
-            return min(65.0, max(1.0, float(retry_after.strip()) + 1.0))
-        except ValueError:
-            pass
-
-    match = _RETRY_IN_PATTERN.search(response.text)
-    if match:
-        return min(65.0, max(1.0, float(match.group(1)) + 1.5))
+    """HTTP 429 yanıtındaki Retry-After, mesaj veya reset başlıklarından bekleme süresi üretir."""
+    raw_delay = _extract_raw_retry_delay_seconds(response)
+    if raw_delay is not None:
+        return min(65.0, max(1.0, raw_delay))
 
     return float(min(60.0, fallback_base_seconds * (2**attempt)))
+
+
+def _detect_daily_quota_error(
+    response: httpx.Response,
+    provider_label: str,
+) -> QuotaExhaustedError | None:
+    """Günlük veya plan kotası tükenmiş 429 yanıtlarını kısa süreli RPM limitlerinden ayırır."""
+    if response.status_code != 429:
+        return None
+
+    raw_delay = _extract_raw_retry_delay_seconds(response)
+    body_text = response.text
+    is_daily_text = bool(_DAILY_QUOTA_TEXT_RE.search(body_text))
+    is_long_wait = raw_delay is not None and raw_delay > _MAX_SHORT_RATE_LIMIT_WAIT_SECONDS
+    if not is_daily_text and not is_long_wait:
+        return None
+
+    limit_match = _QUOTA_LIMIT_NUMBER_RE.search(body_text)
+    if limit_match:
+        formatted_limit = f"{int(limit_match.group(1)):,}".replace(",", ".")
+        return QuotaExhaustedError(
+            f"❌ {provider_label} günlük ücretsiz kotası ({formatted_limit} parça/gün) doldu."
+        )
+    if "free_tier" in body_text.lower() or provider_label == "Google Gemini API":
+        return QuotaExhaustedError(
+            f"❌ {provider_label} günlük ücretsiz kotası (1.000 parça/gün) doldu."
+        )
+    return QuotaExhaustedError(f"❌ {provider_label} günlük/plan kotası doldu.")
+
+
+def _raise_if_daily_quota_exhausted(
+    response: httpx.Response,
+    provider_label: str,
+) -> None:
+    """Günlük/plan kotası dolmuşsa beklemeden QuotaExhaustedError yükseltir."""
+    daily_err = _detect_daily_quota_error(response, provider_label)
+    if daily_err is not None:
+        logger.warning("%s daily quota exhausted (429); aborting without retry", provider_label)
+        raise daily_err
 
 
 def _build_headers(api_key: str) -> dict[str, str]:
@@ -232,6 +391,7 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         circuit_breaker: CircuitBreaker | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._provider_label = infer_provider_label(base_url)
         self._llm_model = llm_model
         self._embedding_model = embedding_model
         self._headers = _build_headers(api_key)
@@ -274,6 +434,7 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
                     json=request_body,
                 )
                 if response.status_code == 429:
+                    _raise_if_daily_quota_exhausted(response, self._provider_label)
                     delay = _extract_retry_delay_seconds(
                         response,
                         attempt,
@@ -418,6 +579,7 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
                 ) as response:
                     if response.status_code == 429:
                         await response.aread()
+                        _raise_if_daily_quota_exhausted(response, self._provider_label)
                         delay = _extract_retry_delay_seconds(
                             response,
                             attempt,
@@ -496,10 +658,12 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
         circuit_breaker: SyncCircuitBreaker | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
+        self._provider_label = infer_provider_label(base_url)
         self._embedding_model = embedding_model
         self._headers = _build_headers(api_key)
         self._owns_client = client is None
         self._circuit_breaker = circuit_breaker
+        self._rate_limit_callback: Callable[[float, int, int, str], None] | None = None
         self._client = client or httpx.Client(
             base_url=self._base_url,
             headers=self._headers,
@@ -509,6 +673,13 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
                 max_keepalive_connections=10,
             ),
         )
+
+    def set_rate_limit_callback(
+        self,
+        callback: Callable[[float, int, int, str], None] | None,
+    ) -> None:
+        """HTTP 429 hız sınırı beklemesi başladığında çağrılacak geri çağrımı ayarlar."""
+        self._rate_limit_callback = callback
 
     def embed_texts(self, *, texts: Sequence[str]) -> list[list[float]]:
         """Metin listesini /v1/embeddings ucu üzerinden senkron olarak vektörlere dönüştürür."""
@@ -521,7 +692,7 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
     def _embed_texts_once(self, texts: Sequence[str]) -> list[list[float]]:
         payload: Any = None
         try:
-            for attempt in range(_MAX_RATE_LIMIT_RETRIES + 1):
+            for attempt in range(_WORKER_MAX_RATE_LIMIT_RETRIES + 1):
                 response = self._client.post(
                     f"{self._base_url}/embeddings",
                     headers=self._headers,
@@ -530,14 +701,26 @@ class SyncOpenAICompatibleLLMClient(SyncBaseLLMClient):
                         "input": list(texts),
                     },
                 )
-                if response.status_code == 429 and attempt < _MAX_RATE_LIMIT_RETRIES:
+                if response.status_code == 429:
+                    _raise_if_daily_quota_exhausted(response, self._provider_label)
+                if response.status_code == 429 and attempt < _WORKER_MAX_RATE_LIMIT_RETRIES:
                     delay = _extract_retry_delay_seconds(response, attempt)
                     logger.warning(
                         "Sync embedding rate limit (429) hit; retrying in %.1fs (attempt %d/%d)",
                         delay,
                         attempt + 1,
-                        _MAX_RATE_LIMIT_RETRIES,
+                        _WORKER_MAX_RATE_LIMIT_RETRIES,
                     )
+                    if self._rate_limit_callback is not None:
+                        try:
+                            self._rate_limit_callback(
+                                delay,
+                                attempt + 1,
+                                _WORKER_MAX_RATE_LIMIT_RETRIES,
+                                self._provider_label,
+                            )
+                        except Exception:
+                            pass
                     time.sleep(delay)
                     continue
                 response.raise_for_status()

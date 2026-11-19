@@ -9,6 +9,8 @@
   const STORAGE_CHAT_PREFIX = "corerag.chat.";
   const POLL_INTERVAL_MS = 900;
   const MAX_CONCURRENT_UPLOADS = 2;
+  const DEFAULT_MAX_UPLOAD_PER_WINDOW = 5;
+  const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
   const MAX_HISTORY_MESSAGES = 10;
   const MAX_SAVED_UI_TURNS = 24;
   const HEALTH_POLL_INTERVAL_MS = 30000;
@@ -26,6 +28,11 @@
     uploads: new Map(),
     uploadQueue: [],
     activeUploadCount: 0,
+    maxUploadPerWindow: DEFAULT_MAX_UPLOAD_PER_WINDOW,
+    uploadRateWindowSeconds: DEFAULT_RATE_LIMIT_WINDOW_SECONDS,
+    uploadWindowTimestamps: [],
+    batchByTenant: new Map(),
+    countdownTimerId: null,
     confirmDeleteId: null,
     confirmTimerId: null,
     isStreaming: false,
@@ -55,6 +62,7 @@
     mobileOpenBtn: document.getElementById("mobile-sidebar-open"),
     mobileCloseBtn: document.getElementById("mobile-sidebar-close"),
     dropzone: document.getElementById("dropzone"),
+    dropzoneSubtitle: document.getElementById("dropzone-subtitle"),
     fileInput: document.getElementById("file-input"),
     selectFilesBtn: document.getElementById("select-files-btn"),
     clearScopeBtn: document.getElementById("clear-scope-btn"),
@@ -86,6 +94,16 @@
     emptyState: document.getElementById("empty-state"),
     emptyDesc: document.getElementById("empty-desc"),
     starterPrompts: document.getElementById("starter-prompts"),
+    indexingStageCard: document.getElementById("indexing-stage-card"),
+    indexingStageTitle: document.getElementById("indexing-stage-title"),
+    indexingStageBadge: document.getElementById("indexing-stage-badge"),
+    indexingStageDesc: document.getElementById("indexing-stage-desc"),
+    indexingMasterFill: document.getElementById("indexing-master-fill"),
+    indexingStepUpload: document.getElementById("indexing-step-upload"),
+    indexingStepChunk: document.getElementById("indexing-step-chunk"),
+    indexingStepVector: document.getElementById("indexing-step-vector"),
+    indexingRateBanner: document.getElementById("indexing-rate-banner"),
+    indexingFileList: document.getElementById("indexing-file-list"),
     messagesList: document.getElementById("messages-list"),
     scopeChipsBar: document.getElementById("scope-chips-bar"),
     queryForm: document.getElementById("query-form"),
@@ -320,14 +338,21 @@
     if (nextTenant === state.tenantId) {
       return;
     }
+    clearDeleteConfirm();
     state.tenantId = nextTenant;
+    state.documents = [];
+    state.docNameById = new Map();
     state.selectedDocumentIds.clear();
     saveTenant(nextTenant);
     renderWorkspaceList();
+    renderDocumentList();
     renderSummaryTexts();
     renderScopeChips();
+    renderStarterPrompts();
     resetChatView();
     restoreChatTranscript();
+    renderIndexingStageCard();
+    updateComposerLockState();
     fetchDocuments();
     showToast(`Çalışma alanı: ${nextTenant}`);
   }
@@ -384,10 +409,65 @@
     }
   }
 
+  function getUploadQuotaInfo(nowMs = Date.now()) {
+    const limit = state.maxUploadPerWindow;
+    const windowSeconds = state.uploadRateWindowSeconds;
+    const recentTimestamps = pruneUploadWindowTimestamps(nowMs);
+    const activeGlobalCount = Array.from(state.uploads.values()).filter(isUploadJobActive).length;
+    const usedSlots = Math.max(activeGlobalCount, recentTimestamps.length);
+    const remainingSlots = limit > 0 ? Math.max(0, limit - usedSlots) : Number.POSITIVE_INFINITY;
+    const windowMs = Math.max(1, windowSeconds) * 1000;
+    const oldestTs = recentTimestamps.length > 0 ? recentTimestamps[0] : null;
+    const waitSeconds = oldestTs
+      ? Math.max(1, Math.ceil((windowMs - (nowMs - oldestTs)) / 1000))
+      : windowSeconds;
+    return {
+      limit,
+      windowSeconds,
+      recentTimestamps,
+      remainingSlots,
+      waitSeconds,
+    };
+  }
+
+  function renderDropzoneSubtitle() {
+    if (!dom.dropzoneSubtitle) {
+      return;
+    }
+    if (state.maxUploadPerWindow <= 0) {
+      dom.dropzoneSubtitle.textContent = ".pdf veya .txt (çoklu destek)";
+      return;
+    }
+    const quota = getUploadQuotaInfo();
+    if (quota.remainingSlots === 0 && quota.recentTimestamps.length > 0) {
+      dom.dropzoneSubtitle.textContent = `Yükleme kotası doldu (0/${quota.limit}) • ${quota.waitSeconds} sn sonra yenilenir`;
+    } else if (quota.remainingSlots < quota.limit) {
+      dom.dropzoneSubtitle.textContent = `.pdf veya .txt (kalan yükleme hakkı: ${quota.remainingSlots}/${quota.limit})`;
+    } else {
+      dom.dropzoneSubtitle.textContent = `.pdf veya .txt (tek seferde en fazla ${quota.limit} dosya)`;
+    }
+  }
+
   async function checkHealth() {
     state.lastHealthCheckAt = Date.now();
     try {
       const response = await fetch("/api/v1/health");
+      const rawUploadLimit = response.headers.get("X-RateLimit-Upload-Limit");
+      const rawWindowSec = response.headers.get("X-RateLimit-Window-Seconds");
+      if (rawUploadLimit !== null) {
+        const parsedLimit = Number.parseInt(rawUploadLimit, 10);
+        if (Number.isFinite(parsedLimit) && parsedLimit >= 0) {
+          state.maxUploadPerWindow = parsedLimit;
+        }
+      }
+      if (rawWindowSec !== null) {
+        const parsedWindow = Number.parseInt(rawWindowSec, 10);
+        if (Number.isFinite(parsedWindow) && parsedWindow >= 1) {
+          state.uploadRateWindowSeconds = parsedWindow;
+        }
+      }
+      renderDropzoneSubtitle();
+
       let data = null;
       try {
         data = await response.json();
@@ -435,22 +515,41 @@
       state.docNameById = new Map();
       state.selectedDocumentIds.clear();
       renderDocumentList();
+      renderSummaryTexts();
       renderScopeChips();
       renderStarterPrompts();
       dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
       return;
     }
-    const url = `/api/v1/documents?tenant_id=${encodeURIComponent(state.tenantId)}`;
+    const requestedTenant = state.tenantId;
+    const url = `/api/v1/documents?tenant_id=${encodeURIComponent(requestedTenant)}`;
     try {
       const response = await apiFetch(url);
+      if (state.tenantId !== requestedTenant) {
+        return;
+      }
       if (response.status === 401) {
+        state.documents = [];
+        state.docNameById = new Map();
+        state.selectedDocumentIds.clear();
+        renderDocumentList();
+        renderSummaryTexts();
+        renderScopeChips();
+        renderStarterPrompts();
         dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı doğrulanamadı`;
         return;
       }
       if (!response.ok) {
-        throw new Error(await extractErrorMessage(response));
+        const errorMessage = await extractErrorMessage(response);
+        if (state.tenantId !== requestedTenant) {
+          return;
+        }
+        throw new Error(errorMessage);
       }
       const data = await response.json();
+      if (state.tenantId !== requestedTenant) {
+        return;
+      }
       state.documents = Array.isArray(data.documents) ? data.documents : [];
       state.docNameById = new Map(
         state.documents.map((doc) => [doc.document_id, doc.filename])
@@ -465,6 +564,16 @@
       renderScopeChips();
       renderStarterPrompts();
     } catch (err) {
+      if (state.tenantId !== requestedTenant) {
+        return;
+      }
+      state.documents = [];
+      state.docNameById = new Map();
+      state.selectedDocumentIds.clear();
+      renderDocumentList();
+      renderSummaryTexts();
+      renderScopeChips();
+      renderStarterPrompts();
       dom.topbarDocSummary.textContent = "Doküman listesi yüklenemedi";
       showToast(err instanceof Error ? err.message : "Doküman listesi alınamadı", true);
     }
@@ -577,8 +686,10 @@
     if (!dom.starterPrompts) {
       return;
     }
+    dom.starterPrompts.replaceChildren();
     const docs = state.documents;
     if (docs.length === 0) {
+      dom.starterPrompts.classList.add("hidden");
       return;
     }
 
@@ -626,9 +737,9 @@
     }
 
     if (items.length === 0) {
+      dom.starterPrompts.classList.add("hidden");
       return;
     }
-    dom.starterPrompts.replaceChildren();
     for (const entry of items.slice(0, 3)) {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -637,6 +748,7 @@
       btn.textContent = entry.label;
       dom.starterPrompts.appendChild(btn);
     }
+    dom.starterPrompts.classList.remove("hidden");
   }
 
   function renderUploadSummaryBar() {
@@ -714,7 +826,7 @@
 
     const sub = document.createElement("p");
     sub.className = job.state === "error" ? "doc-sub is-error" : "doc-sub";
-    sub.textContent = job.phaseText;
+    sub.textContent = formatJobPhaseText(job);
 
     meta.append(title, sub);
     main.append(badge, meta);
@@ -726,8 +838,7 @@
       dismissBtn.textContent = "Kapat";
       dismissBtn.addEventListener("click", () => {
         state.uploads.delete(job.localId);
-        renderDocumentList();
-        updateSystemStatus();
+        syncUploadUi();
       });
       main.appendChild(dismissBtn);
     }
@@ -870,8 +981,11 @@
       }
       state.documents = state.documents.filter((doc) => doc.document_id !== documentId);
       state.docNameById.delete(documentId);
+      state.selectedDocumentIds.delete(documentId);
       renderDocumentList();
       renderSummaryTexts();
+      renderScopeChips();
+      renderStarterPrompts();
       showToast(`"${filename}" silindi`);
     } catch (err) {
       rowElement.classList.remove("is-removing");
@@ -901,6 +1015,344 @@
     return `Sunucu hatası (${response.status})`;
   }
 
+  function isUploadJobActive(job) {
+    return job.state === "queued" || job.state === "uploading" || job.state === "indexing";
+  }
+
+  function getActiveWorkspaceUploadJobs(tenantId = state.tenantId) {
+    return Array.from(state.uploads.values()).filter(
+      (job) => job.tenantId === tenantId && isUploadJobActive(job)
+    );
+  }
+
+  function hasActiveWorkspaceUploads(tenantId = state.tenantId) {
+    return getActiveWorkspaceUploadJobs(tenantId).length > 0;
+  }
+
+  function ensureActiveBatch(tenantId) {
+    let batch = state.batchByTenant.get(tenantId);
+    if (!batch || !hasActiveWorkspaceUploads(tenantId)) {
+      batch = {
+        completedIds: new Set(),
+        jobMeta: new Map(),
+        maxPct: 6,
+        lastTotal: 0,
+      };
+      state.batchByTenant.set(tenantId, batch);
+    }
+    return batch;
+  }
+
+  function markBatchJobCompleted(tenantId, localId, finalState, phaseText) {
+    const batch = state.batchByTenant.get(tenantId);
+    if (!batch) {
+      return;
+    }
+    batch.completedIds.add(localId);
+    const meta = batch.jobMeta.get(localId);
+    if (meta) {
+      meta.finalState = finalState;
+      meta.phaseText = phaseText;
+    }
+  }
+
+  function setStepVisualState(stepEl, stepState) {
+    if (!stepEl) {
+      return;
+    }
+    stepEl.classList.remove("is-active", "is-done");
+    if (stepState === "is-active" || stepState === "is-done") {
+      stepEl.classList.add(stepState);
+    }
+  }
+
+  function formatJobPhaseText(job, nowMs = Date.now()) {
+    if (job.isRateLimited) {
+      const remainingSec = job.rateLimitResumeAt
+        ? Math.max(1, Math.ceil((job.rateLimitResumeAt - nowMs) / 1000))
+        : 1;
+      const provider = job.rateLimitProvider || "AI API";
+      const chunkInfo = job.chunksTotal > 0 ? `${job.chunksDone} / ${job.chunksTotal} parça • ` : "";
+      return `⏳ ${provider} kotası: ${chunkInfo}${remainingSec} sn`;
+    }
+    return job.phaseText;
+  }
+
+  function ensureCountdownTicker() {
+    const hasActiveOrRateLimited = Array.from(state.uploads.values()).some(isUploadJobActive);
+    const recentQuota =
+      state.maxUploadPerWindow > 0 && pruneUploadWindowTimestamps().length > 0;
+    if (!hasActiveOrRateLimited && !recentQuota) {
+      if (state.countdownTimerId) {
+        window.clearInterval(state.countdownTimerId);
+        state.countdownTimerId = null;
+      }
+      renderDropzoneSubtitle();
+      return;
+    }
+    if (state.countdownTimerId) {
+      return;
+    }
+    state.countdownTimerId = window.setInterval(() => {
+      const stillActive = Array.from(state.uploads.values()).some(isUploadJobActive);
+      const stillRecentQuota =
+        state.maxUploadPerWindow > 0 && pruneUploadWindowTimestamps().length > 0;
+      renderDropzoneSubtitle();
+      if (stillActive) {
+        renderDocumentList();
+        renderIndexingStageCard();
+      }
+      if (!stillActive && !stillRecentQuota) {
+        window.clearInterval(state.countdownTimerId);
+        state.countdownTimerId = null;
+      }
+    }, 1000);
+  }
+
+  function renderIndexingStageCard() {
+    if (!dom.indexingStageCard) {
+      return;
+    }
+    const nowMs = Date.now();
+    const activeJobs = getActiveWorkspaceUploadJobs();
+    if (activeJobs.length === 0) {
+      dom.indexingStageCard.classList.add("hidden");
+      dom.indexingStageCard.classList.remove("is-hero");
+      if (dom.indexingRateBanner) {
+        dom.indexingRateBanner.classList.add("hidden");
+        dom.indexingRateBanner.replaceChildren();
+      }
+      state.batchByTenant.delete(state.tenantId);
+      if (!state.hasMessages && dom.emptyState) {
+        dom.emptyState.classList.remove("hidden");
+      }
+      return;
+    }
+
+    if (dom.emptyState) {
+      dom.emptyState.classList.add("hidden");
+    }
+    dom.indexingStageCard.classList.remove("hidden");
+    dom.indexingStageCard.classList.toggle("is-hero", !state.hasMessages);
+
+    const batch = state.batchByTenant.get(state.tenantId);
+    const metaList = batch ? Array.from(batch.jobMeta.values()) : [];
+    const totalCount = Math.max(activeJobs.length, metaList.length);
+    const doneCount = batch
+      ? Array.from(batch.completedIds).filter((id) => batch.jobMeta.has(id)).length
+      : 0;
+
+    let progressSum = 0;
+    if (metaList.length > 0) {
+      for (const meta of metaList) {
+        const liveJob = state.uploads.get(meta.localId);
+        if (batch.completedIds.has(meta.localId) || meta.finalState) {
+          progressSum += 100;
+        } else if (liveJob) {
+          progressSum += Math.max(4, Math.min(99, liveJob.progress || 4));
+        } else {
+          progressSum += 4;
+        }
+      }
+    } else {
+      for (const job of activeJobs) {
+        progressSum += Math.max(4, Math.min(99, job.progress || 4));
+      }
+    }
+
+    const rawPct = totalCount > 0 ? Math.round(progressSum / totalCount) : 6;
+    let overallPct = rawPct;
+    if (batch) {
+      if (batch.lastTotal === totalCount) {
+        overallPct = Math.max(batch.maxPct || 6, rawPct);
+      }
+      batch.maxPct = overallPct;
+      batch.lastTotal = totalCount;
+    }
+    overallPct = Math.max(6, Math.min(100, overallPct));
+
+    if (dom.indexingStageTitle) {
+      dom.indexingStageTitle.textContent =
+        totalCount === 1 ? "Dokümanınız İndeksleniyor" : "Dokümanlarınız İndeksleniyor";
+    }
+    if (dom.indexingStageBadge) {
+      dom.indexingStageBadge.textContent = `${doneCount} / ${totalCount} tamamlandı • %${overallPct}`;
+    }
+    if (dom.indexingMasterFill) {
+      dom.indexingMasterFill.style.width = `${overallPct}%`;
+    }
+
+    const hasUploadingOrQueued = activeJobs.some(
+      (job) => job.state === "queued" || job.state === "uploading"
+    );
+    const hasRunningWorker = activeJobs.some(
+      (job) => job.state === "indexing" && ((job.progress || 0) >= 88 || job.chunksTotal > 0)
+    );
+    const hasQueuedWorker = activeJobs.some(
+      (job) => job.state === "indexing" && (job.progress || 0) < 88 && !(job.chunksTotal > 0)
+    );
+
+    setStepVisualState(dom.indexingStepUpload, hasUploadingOrQueued ? "is-active" : "is-done");
+    setStepVisualState(
+      dom.indexingStepChunk,
+      hasRunningWorker ? "is-done" : hasQueuedWorker ? "is-active" : ""
+    );
+    setStepVisualState(dom.indexingStepVector, hasRunningWorker ? "is-active" : "");
+
+    if (dom.indexingRateBanner) {
+      const rateLimitedJobs = activeJobs.filter((job) => job.isRateLimited);
+      if (rateLimitedJobs.length > 0) {
+        let primary = rateLimitedJobs[0];
+        for (const candidate of rateLimitedJobs) {
+          if ((candidate.rateLimitResumeAt || 0) > (primary.rateLimitResumeAt || 0)) {
+            primary = candidate;
+          }
+        }
+        const waitSec = primary.rateLimitResumeAt
+          ? Math.max(1, Math.ceil((primary.rateLimitResumeAt - nowMs) / 1000))
+          : 1;
+        const provider = primary.rateLimitProvider || "AI API";
+        let bannerText = `${provider} hız sınırı bekleniyor — devam etmesine ${waitSec} sn kaldı`;
+        if (rateLimitedJobs.length === 1 && primary.chunksTotal > 0) {
+          bannerText = `${provider} hız sınırı bekleniyor — yeni kota penceresine ${waitSec} sn kaldı (${primary.chunksDone} / ${primary.chunksTotal} parça hazır)`;
+        } else if (rateLimitedJobs.length > 1) {
+          bannerText = `${provider} hız sınırı bekleniyor (${rateLimitedJobs.length} dosya) — devam etmesine ${waitSec} sn kaldı`;
+        }
+        const dotEl = document.createElement("span");
+        dotEl.className = "indexing-rate-dot";
+        const msgEl = document.createElement("span");
+        msgEl.textContent = bannerText;
+        dom.indexingRateBanner.replaceChildren(dotEl, msgEl);
+        dom.indexingRateBanner.classList.remove("hidden");
+      } else {
+        dom.indexingRateBanner.classList.add("hidden");
+        dom.indexingRateBanner.replaceChildren();
+      }
+    }
+
+    if (dom.indexingFileList) {
+      dom.indexingFileList.replaceChildren();
+      const rows =
+        metaList.length > 0
+          ? metaList
+          : activeJobs.map((job) => ({
+              localId: job.localId,
+              filename: job.filename,
+              finalState: null,
+              phaseText: job.phaseText,
+            }));
+
+      for (const item of rows) {
+        const liveJob = state.uploads.get(item.localId);
+        const row = document.createElement("div");
+
+        let rowClass = "indexing-file-row";
+        let phaseLabel = item.phaseText || "Hazırlanıyor...";
+        let pctLabel = "%4";
+
+        if (item.finalState === "error" || liveJob?.state === "error") {
+          rowClass = "indexing-file-row is-error";
+          phaseLabel = item.phaseText || liveJob?.phaseText || "Hata";
+          pctLabel = "Hata";
+        } else if (
+          item.finalState === "done" ||
+          liveJob?.state === "done" ||
+          batch?.completedIds.has(item.localId)
+        ) {
+          rowClass = "indexing-file-row is-done";
+          phaseLabel = "İndekslendi ✓";
+          pctLabel = "%100";
+        } else if (liveJob) {
+          if (liveJob.isRateLimited) {
+            rowClass = "indexing-file-row is-rate-limited";
+          }
+          phaseLabel = formatJobPhaseText(liveJob, nowMs);
+          pctLabel = `%${Math.round(liveJob.progress || 4)}`;
+        }
+
+        row.className = rowClass;
+
+        const nameEl = document.createElement("span");
+        nameEl.className = "indexing-file-name";
+        nameEl.textContent = item.filename;
+        nameEl.title = item.filename;
+
+        const metaEl = document.createElement("div");
+        metaEl.className = "indexing-file-meta";
+
+        const phaseEl = document.createElement("span");
+        phaseEl.className = "indexing-file-phase";
+        phaseEl.textContent = phaseLabel;
+
+        const pctEl = document.createElement("span");
+        pctEl.className = "indexing-file-pct";
+        pctEl.textContent = pctLabel;
+
+        metaEl.append(phaseEl, pctEl);
+        row.append(nameEl, metaEl);
+        dom.indexingFileList.appendChild(row);
+      }
+    }
+  }
+
+  function updateComposerLockState() {
+    if (!dom.queryInput || !dom.queryForm) {
+      return;
+    }
+    const activeCount = getActiveWorkspaceUploadJobs().length;
+    const wasLocked = dom.queryInput.disabled;
+    const shouldLock = activeCount > 0 && !state.isStreaming;
+
+    if (shouldLock) {
+      dom.queryInput.disabled = true;
+      dom.queryForm.classList.add("is-locked");
+      dom.queryInput.placeholder = `Dokümanlar işleniyor (${activeCount} dosya kaldı)... Tamamlandığında soru sorabilirsiniz.`;
+      dom.sendBtn.disabled = true;
+    } else {
+      dom.queryInput.disabled = false;
+      dom.queryForm.classList.remove("is-locked");
+      dom.queryInput.placeholder = "Dokümanlarınıza bir soru sorun...";
+      updateSendButtonDisabledState();
+      if (
+        wasLocked &&
+        activeCount === 0 &&
+        (!dom.apiKeyModal || dom.apiKeyModal.classList.contains("hidden"))
+      ) {
+        dom.queryInput.focus();
+      }
+    }
+  }
+
+  function syncUploadUi() {
+    renderDropzoneSubtitle();
+    renderDocumentList();
+    renderIndexingStageCard();
+    updateComposerLockState();
+    updateSystemStatus();
+    ensureCountdownTicker();
+  }
+
+  function failUploadJob(job, phaseText) {
+    job.state = "error";
+    job.isIndeterminate = false;
+    job.isRateLimited = false;
+    job.rateLimitResumeAt = null;
+    job.phaseText = phaseText;
+    markBatchJobCompleted(job.tenantId, job.localId, "error", phaseText);
+    if (!hasActiveWorkspaceUploads(job.tenantId)) {
+      state.batchByTenant.delete(job.tenantId);
+    }
+    syncUploadUi();
+  }
+
+  function pruneUploadWindowTimestamps(nowMs = Date.now()) {
+    const windowMs = Math.max(1, state.uploadRateWindowSeconds) * 1000;
+    state.uploadWindowTimestamps = state.uploadWindowTimestamps.filter(
+      (ts) => nowMs - ts < windowMs
+    );
+    return state.uploadWindowTimestamps;
+  }
+
   function handleSelectedFiles(fileList) {
     const files = Array.from(fileList || []);
     if (files.length === 0) {
@@ -925,6 +1377,40 @@
     if (rejected.length > 0) {
       showToast(`Desteklenmeyen dosya türü atlandı: ${rejected.join(", ")}`, true);
     }
+    if (accepted.length === 0) {
+      return;
+    }
+
+    if (state.maxUploadPerWindow > 0) {
+      if (accepted.length > state.maxUploadPerWindow) {
+        showToast(
+          `Tek seferde en fazla ${state.maxUploadPerWindow} dosya yükleyebilirsiniz (${accepted.length} dosya seçildi). Lütfen en fazla ${state.maxUploadPerWindow} dosya seçin.`,
+          true
+        );
+        return;
+      }
+
+      const quota = getUploadQuotaInfo();
+      if (accepted.length > quota.remainingSlots) {
+        if (quota.remainingSlots === 0) {
+          showToast(
+            `Yükleme hız sınırı dolu (${quota.windowSeconds} sn içinde en fazla ${quota.limit} dosya). Lütfen ${quota.waitSeconds} sn bekleyin.`,
+            true
+          );
+        } else {
+          showToast(
+            `Hız sınırı nedeniyle şu an en fazla ${quota.remainingSlots} dosya yükleyebilirsiniz (${accepted.length} dosya seçildi).`,
+            true
+          );
+        }
+        return;
+      }
+    }
+
+    const acceptedAt = Date.now();
+    for (let i = 0; i < accepted.length; i += 1) {
+      state.uploadWindowTimestamps.push(acceptedAt);
+    }
 
     for (const file of accepted) {
       enqueueFileUpload(file);
@@ -935,6 +1421,14 @@
   function enqueueFileUpload(file) {
     const localId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     const ext = file.name.toLowerCase().endsWith(".txt") ? "txt" : "pdf";
+    const batch = ensureActiveBatch(state.tenantId);
+    batch.jobMeta.set(localId, {
+      localId,
+      filename: file.name,
+      fileType: ext,
+      finalState: null,
+      phaseText: "Sırada bekliyor...",
+    });
     const job = {
       localId,
       tenantId: state.tenantId,
@@ -945,13 +1439,18 @@
       phaseText: "Sırada bekliyor...",
       state: "queued",
       isIndeterminate: false,
+      isRateLimited: false,
+      rateLimitResumeAt: null,
+      rateLimitProvider: "",
+      chunksDone: 0,
+      chunksTotal: 0,
+      pageCount: 0,
       documentId: null,
       taskId: null,
     };
     state.uploads.set(localId, job);
     state.uploadQueue.push(localId);
-    renderDocumentList();
-    updateSystemStatus();
+    syncUploadUi();
   }
 
   function pumpUploadQueue() {
@@ -974,8 +1473,7 @@
     job.state = "uploading";
     job.progress = 8;
     job.phaseText = "Yükleniyor • %8";
-    renderDocumentList();
-    updateSystemStatus();
+    syncUploadUi();
 
     const formData = new FormData();
     formData.append("file", job.file);
@@ -994,6 +1492,7 @@
         job.progress = pct;
         job.phaseText = `Yükleniyor • %${pct}`;
         renderDocumentList();
+        renderIndexingStageCard();
       }
     };
 
@@ -1020,43 +1519,35 @@
         job.progress = 74;
         job.phaseText = "Kuyruğa alındı...";
         job.isIndeterminate = true;
-        renderDocumentList();
-        updateSystemStatus();
+        syncUploadUi();
         releaseSlot();
         pollTaskStatus(localId);
         return;
       }
 
-      job.state = "error";
-      job.isIndeterminate = false;
       if (xhr.status === 401) {
         state.apiKeyVerified = false;
         updateApiKeyButtonState();
-        job.phaseText = "API anahtarı doğrulanamadı";
+        failUploadJob(job, "API anahtarı doğrulanamadı");
         openApiKeyModal("Doküman yüklemek için geçerli bir API anahtarı girin.");
       } else if (xhr.status === 429) {
         const retryAfter = xhr.getResponseHeader("Retry-After");
-        job.phaseText = retryAfter
+        const rateLimitMsg = retryAfter
           ? `Hız sınırı aşıldı (${retryAfter} sn bekleyin)`
           : "Hız sınırı aşıldı";
-        showToast(job.phaseText, true);
+        failUploadJob(job, rateLimitMsg);
+        showToast(rateLimitMsg, true);
       } else {
         if (xhr.status === 503) {
           void scheduleHealthRefresh();
         }
-        job.phaseText = parsed?.error?.message || `Yükleme başarısız (${xhr.status})`;
+        failUploadJob(job, parsed?.error?.message || `Yükleme başarısız (${xhr.status})`);
       }
-      renderDocumentList();
-      updateSystemStatus();
       releaseSlot();
     };
 
     xhr.onerror = () => {
-      job.state = "error";
-      job.isIndeterminate = false;
-      job.phaseText = "Ağ bağlantısı hatası";
-      renderDocumentList();
-      updateSystemStatus();
+      failUploadJob(job, "Ağ bağlantısı hatası");
       releaseSlot();
     };
 
@@ -1082,19 +1573,11 @@
         `/api/v1/documents/status/${encodeURIComponent(job.taskId)}`
       );
       if (response.status === 401) {
-        job.state = "error";
-        job.isIndeterminate = false;
-        job.phaseText = "API anahtarı doğrulanamadı";
-        renderDocumentList();
-        updateSystemStatus();
+        failUploadJob(job, "API anahtarı doğrulanamadı");
         return;
       }
       if (response.status === 400 || response.status === 404 || response.status === 422) {
-        job.state = "error";
-        job.isIndeterminate = false;
-        job.phaseText = "Görev takibi sonlandırıldı";
-        renderDocumentList();
-        updateSystemStatus();
+        failUploadJob(job, "Görev takibi sonlandırıldı");
         return;
       }
       if (response.status === 429) {
@@ -1102,6 +1585,7 @@
         const waitSec = Math.max(2, retryAfter);
         job.phaseText = `Hız sınırı bekleniyor (${waitSec} sn)...`;
         renderDocumentList();
+        renderIndexingStageCard();
         window.setTimeout(() => pollTaskStatus(localId), waitSec * 1000);
         return;
       }
@@ -1114,64 +1598,124 @@
         const resultStatus = snapshot.result?.status;
         const chunkCount = snapshot.result?.chunk_count;
         if (resultStatus === "missing_file") {
-          job.state = "error";
-          job.isIndeterminate = false;
-          job.phaseText = "Geçici dosya bulunamadı";
-          renderDocumentList();
-          updateSystemStatus();
+          failUploadJob(job, "Geçici dosya bulunamadı");
           return;
         }
         if (resultStatus === "no_text_extracted" || chunkCount === 0) {
-          job.state = "error";
-          job.isIndeterminate = false;
-          job.phaseText = "Metin çıkarılamadı (taranmış veya boş belge)";
-          renderDocumentList();
-          updateSystemStatus();
+          failUploadJob(job, "Metin çıkarılamadı (taranmış veya boş belge)");
           showToast(`"${job.filename}" içinde çıkarılabilir metin bulunamadı`, true);
           return;
         }
+        if (resultStatus === "quota_exhausted") {
+          const quotaMsg =
+            typeof snapshot.result?.error === "string" && snapshot.result.error
+              ? snapshot.result.error
+              : "❌ AI API günlük ücretsiz kotası doldu.";
+          failUploadJob(job, quotaMsg);
+          while (state.uploadQueue.length > 0) {
+            const queuedId = state.uploadQueue.shift();
+            const queuedJob = queuedId ? state.uploads.get(queuedId) : null;
+            if (queuedJob && queuedJob.state === "queued") {
+              failUploadJob(queuedJob, quotaMsg);
+            }
+          }
+          showToast(quotaMsg, true);
+          return;
+        }
 
+        job.state = "done";
         job.progress = 100;
         job.isIndeterminate = false;
+        job.isRateLimited = false;
+        job.rateLimitResumeAt = null;
         job.phaseText = "Hazır • %100";
+        markBatchJobCompleted(job.tenantId, localId, "done", "İndekslendi ✓");
         renderDocumentList();
+        updateSystemStatus();
 
         if (job.tenantId === state.tenantId) {
+          if (hasActiveWorkspaceUploads(job.tenantId)) {
+            renderIndexingStageCard();
+            updateComposerLockState();
+          }
           await fetchDocuments();
         }
+        if (!hasActiveWorkspaceUploads(job.tenantId)) {
+          state.batchByTenant.delete(job.tenantId);
+        }
+        renderIndexingStageCard();
+        updateComposerLockState();
+        ensureCountdownTicker();
         window.setTimeout(() => {
           state.uploads.delete(localId);
-          renderDocumentList();
-          updateSystemStatus();
+          syncUploadUi();
         }, 420);
         showToast(`"${job.filename}" indekslendi`);
         return;
       }
 
       if (snapshot.status === "FAILURE") {
-        job.state = "error";
-        job.isIndeterminate = false;
-        job.phaseText = snapshot.error || "Doküman işlenemedi";
-        renderDocumentList();
-        updateSystemStatus();
+        failUploadJob(job, snapshot.error || "Doküman işlenemedi");
         return;
       }
 
       if (snapshot.status === "STARTED") {
-        job.progress = 88;
-        job.phaseText = "Parçalanıyor & Vektörleniyor...";
+        const meta =
+          snapshot.result && typeof snapshot.result === "object" ? snapshot.result : null;
+        if (meta && (meta.phase === "embedding" || meta.phase === "rate_limited")) {
+          const done = Number(meta.chunks_done) || 0;
+          const total = Number(meta.chunks_total) || 0;
+          const pages = Number(meta.page_count) || 0;
+          const ratio = total > 0 ? Math.min(1, Math.max(0, done / total)) : 0;
+          job.chunksDone = done;
+          job.chunksTotal = total;
+          job.pageCount = pages;
+          if (meta.phase === "rate_limited") {
+            job.isRateLimited = true;
+            job.rateLimitProvider =
+              typeof meta.provider === "string" && meta.provider ? meta.provider : "AI API";
+            const resumeAtMs = Number(meta.resume_at_epoch_ms);
+            const fallbackWaitSec = Math.max(1, Number(meta.wait_seconds) || 15);
+            job.rateLimitResumeAt =
+              Number.isFinite(resumeAtMs) && resumeAtMs > Date.now()
+                ? resumeAtMs
+                : Date.now() + fallbackWaitSec * 1000;
+            job.progress = Math.max(job.progress || 76, Math.round(76 + ratio * 21));
+            job.phaseText = formatJobPhaseText(job);
+          } else {
+            job.isRateLimited = false;
+            job.rateLimitResumeAt = null;
+            job.progress = Math.max(job.progress || 76, Math.round(76 + ratio * 22));
+            job.phaseText =
+              total > 0
+                ? `Vektörleniyor • ${done} / ${total} parça`
+                : "Parçalanıyor & Vektörleniyor...";
+          }
+        } else {
+          job.isRateLimited = false;
+          job.rateLimitResumeAt = null;
+          job.progress = Math.max(job.progress || 74, 88);
+          job.phaseText = "Parçalanıyor & Vektörleniyor...";
+        }
       } else if (snapshot.status === "RETRY") {
+        job.isRateLimited = false;
+        job.rateLimitResumeAt = null;
         job.progress = 80;
         job.phaseText = "Yeniden deneniyor...";
       } else {
+        job.isRateLimited = false;
+        job.rateLimitResumeAt = null;
         job.progress = 74;
         job.phaseText = "Sırada bekliyor...";
       }
       renderDocumentList();
+      renderIndexingStageCard();
+      ensureCountdownTicker();
     } catch {
       job.phaseText = "Durum bekleniyor...";
       nextDelayMs = Math.min(5000, Math.round(nextDelayMs * 1.5));
       renderDocumentList();
+      renderIndexingStageCard();
     }
 
     window.setTimeout(() => pollTaskStatus(localId), nextDelayMs);
@@ -1464,7 +2008,11 @@
   function clearConversation() {
     resetChatView();
     removeSavedChat(state.tenantId);
-    dom.queryInput.focus();
+    renderIndexingStageCard();
+    updateComposerLockState();
+    if (!hasActiveWorkspaceUploads()) {
+      dom.queryInput.focus();
+    }
   }
 
   function scrollChatToBottomIfNearBottom(force = false) {
@@ -1488,7 +2036,7 @@
     } else {
       dom.sendBtn.title = "Gönder (Enter)";
       dom.sendBtn.setAttribute("aria-label", "Soruyu gönder");
-      updateSendButtonDisabledState();
+      updateComposerLockState();
     }
     updateSystemStatus();
   }
@@ -1496,6 +2044,10 @@
   function updateSendButtonDisabledState() {
     if (state.isStreaming) {
       dom.sendBtn.disabled = false;
+      return;
+    }
+    if (hasActiveWorkspaceUploads()) {
+      dom.sendBtn.disabled = true;
       return;
     }
     dom.sendBtn.disabled = dom.queryInput.value.trim().length === 0;
@@ -2097,6 +2649,10 @@
   }
 
   async function submitQuery(rawQuery) {
+    if (hasActiveWorkspaceUploads()) {
+      showToast("Doküman indeksleme işlemi tamamlanana kadar soru gönderilemez.", true);
+      return;
+    }
     const query = rawQuery.trim();
     if (!query || state.isStreaming) {
       return;
@@ -2447,7 +3003,11 @@
         state.apiKeyVerified = false;
         state.documents = [];
         state.docNameById = new Map();
+        state.selectedDocumentIds.clear();
         renderDocumentList();
+        renderSummaryTexts();
+        renderScopeChips();
+        renderStarterPrompts();
         dom.topbarDocSummary.textContent = `${state.tenantId} • API anahtarı bekleniyor`;
         updateApiKeyButtonState();
         closeApiKeyModal();
@@ -2565,7 +3125,7 @@
     document.addEventListener("keydown", (event) => {
       const activeTag = document.activeElement?.tagName?.toLowerCase();
       const isTyping = activeTag === "input" || activeTag === "textarea";
-      if (event.key === "/" && !isTyping) {
+      if (event.key === "/" && !isTyping && !dom.queryInput.disabled) {
         event.preventDefault();
         dom.queryInput.focus();
         return;
@@ -2602,11 +3162,15 @@
 
   function init() {
     bindEvents();
+    renderDropzoneSubtitle();
     updateApiKeyButtonState();
     renderWorkspaceList();
     renderSummaryTexts();
     renderScopeChips();
+    renderStarterPrompts();
     restoreChatTranscript();
+    renderIndexingStageCard();
+    updateComposerLockState();
     checkHealth();
     startHealthPolling();
     if (state.apiKey) {

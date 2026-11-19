@@ -2,7 +2,7 @@ import asyncio
 import logging
 import threading
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +26,11 @@ from src.services.base import (
     TaskStatusSnapshot,
     VectorPoint,
 )
-from src.services.llm_service import SyncOpenAICompatibleLLMClient
+from src.services.llm_service import (
+    QuotaExhaustedError,
+    SyncOpenAICompatibleLLMClient,
+    infer_provider_label,
+)
 from src.services.pdf_parser import TransientProcessingError, parse_and_chunk_document
 from src.services.qdrant_service import SyncQdrantService, build_chunk_point_id
 from src.tasks.celery_app import celery_app
@@ -90,6 +94,40 @@ def create_worker_vector_db(settings: Settings) -> SyncBaseVectorDB:
     )
 
 
+def _rollback_partial_document_vectors(
+    vector_db: SyncBaseVectorDB,
+    *,
+    tenant_id: str,
+    document_id: str,
+) -> None:
+    """Kalıcı görev hatasında veya zaman aşımında Qdrant'taki kısmi vektörleri temizler."""
+    try:
+        vector_db.delete_by_document(tenant_id=tenant_id, document_id=document_id)
+        logger.info(
+            "Rolled back partial vectors for failed document_id=%s tenant_id=%s",
+            document_id,
+            tenant_id,
+        )
+    except Exception as cleanup_exc:
+        logger.warning(
+            "Failed to roll back partial vectors for document_id=%s tenant_id=%s: %s",
+            document_id,
+            tenant_id,
+            type(cleanup_exc).__name__,
+        )
+
+
+def _update_task_progress(task: Any, meta: dict[str, object]) -> None:
+    """Celery görev durumunu Redis arka ucuna canlı ilerleme/kota metasıyla yazar."""
+    task_id = getattr(getattr(task, "request", None), "id", None)
+    if not task_id or not hasattr(task, "update_state"):
+        return
+    try:
+        task.update_state(state="STARTED", meta=meta)
+    except Exception:
+        pass
+
+
 @observe(name="worker.index_document_chunks", capture_input=False, capture_output=False)
 def index_document_chunks(
     *,
@@ -97,6 +135,7 @@ def index_document_chunks(
     llm_client: SyncBaseLLMClient,
     vector_db: SyncBaseVectorDB,
     batch_size: int = 32,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> int:
     """Parçaları batch halinde vektörleştirip deterministik UUID5 ile Qdrant'a yazar."""
     if batch_size <= 0:
@@ -106,8 +145,11 @@ def index_document_chunks(
 
     vector_db.ensure_collection()
     total_upserted = 0
+    total_chunks = len(chunks)
+    if on_progress is not None:
+        on_progress(0, total_chunks)
 
-    for start in range(0, len(chunks), batch_size):
+    for start in range(0, total_chunks, batch_size):
         batch = chunks[start : start + batch_size]
         vectors = llm_client.embed_texts(texts=[chunk.text for chunk in batch])
         if len(vectors) != len(batch):
@@ -124,6 +166,8 @@ def index_document_chunks(
             for chunk, vector in zip(batch, vectors, strict=True)
         ]
         total_upserted += vector_db.upsert(points=points)
+        if on_progress is not None:
+            on_progress(total_upserted, total_chunks)
 
     return total_upserted
 
@@ -199,7 +243,47 @@ def process_document_task(
         estimated_tokens = sum(estimate_tokens(chunk.text) for chunk in parsed.chunks)
 
         if parsed.chunks:
+            current_chunks_done = 0
+            provider_label = infer_provider_label(settings.LLM_BASE_URL)
+
+            def _on_progress(done_count: int, total_count: int) -> None:
+                nonlocal current_chunks_done
+                current_chunks_done = done_count
+                _update_task_progress(
+                    self,
+                    {
+                        "phase": "embedding",
+                        "page_count": page_count,
+                        "chunks_done": done_count,
+                        "chunks_total": total_count,
+                        "provider": provider_label,
+                    },
+                )
+
+            def _on_rate_limit(
+                delay_sec: float,
+                attempt: int,
+                max_retries: int,
+                provider: str,
+            ) -> None:
+                wait_sec = max(1, round(delay_sec))
+                _update_task_progress(
+                    self,
+                    {
+                        "phase": "rate_limited",
+                        "page_count": page_count,
+                        "chunks_done": current_chunks_done,
+                        "chunks_total": chunk_count,
+                        "wait_seconds": wait_sec,
+                        "resume_at_epoch_ms": int((time.time() + delay_sec) * 1000),
+                        "attempt": attempt,
+                        "max_retries": max_retries,
+                        "provider": provider,
+                    },
+                )
+
             llm_client = create_worker_llm_client(settings)
+            llm_client.set_rate_limit_callback(_on_rate_limit)
             try:
                 vector_db = create_worker_vector_db(settings)
                 try:
@@ -208,7 +292,23 @@ def process_document_task(
                         llm_client=llm_client,
                         vector_db=vector_db,
                         batch_size=settings.EMBEDDING_BATCH_SIZE,
+                        on_progress=_on_progress,
                     )
+                except BaseException as exc:
+                    current_retries = int(
+                        getattr(getattr(self, "request", None), "retries", 0) or 0
+                    )
+                    max_retries = int(getattr(self, "max_retries", 3) or 3)
+                    will_retry = (
+                        isinstance(exc, RETRYABLE_EXCEPTIONS) and current_retries < max_retries
+                    )
+                    if not will_retry:
+                        _rollback_partial_document_vectors(
+                            vector_db,
+                            tenant_id=tenant_id,
+                            document_id=document_id,
+                        )
+                    raise
                 finally:
                     vector_db.close()
             finally:
@@ -262,6 +362,42 @@ def process_document_task(
             "chunk_count": chunk_count,
             "upserted_count": upserted_count,
             "status": result_status,
+        }
+    except QuotaExhaustedError as exc:
+        record_worker_indexing_trace(
+            document_id=document_id,
+            tenant_id=tenant_id,
+            request_id=request_id,
+            file_type=file_type,
+            size_bytes=size_bytes,
+            page_count=page_count,
+            chunk_count=chunk_count,
+            upserted_count=0,
+            embedding_model=embedding_model,
+            estimated_tokens=estimated_tokens,
+            duration_ms=(time.perf_counter() - t_task) * 1000.0,
+            start_time=task_start,
+            end_time=utc_now(),
+            status="quota_exhausted",
+            error=str(exc),
+        )
+        logger.warning(
+            "Daily quota exhausted for document_id=%s tenant_id=%s: %s",
+            document_id,
+            tenant_id,
+            str(exc),
+        )
+        return {
+            "document_id": document_id,
+            "tenant_id": tenant_id,
+            "file_type": file_type,
+            "file_exists": True,
+            "size_bytes": size_bytes,
+            "page_count": page_count,
+            "chunk_count": chunk_count,
+            "upserted_count": 0,
+            "status": "quota_exhausted",
+            "error": str(exc),
         }
     except RETRYABLE_EXCEPTIONS as exc:
         current_retries = int(getattr(getattr(self, "request", None), "retries", 0) or 0)
@@ -364,7 +500,9 @@ class CeleryDocumentTaskDispatcher(DocumentTaskDispatcher):
             )
 
         if raw_state == "STARTED":
-            return TaskStatusSnapshot(task_id=task_id, status="STARTED")
+            raw_info = getattr(async_result, "info", None) or async_result.result
+            meta = dict(raw_info) if isinstance(raw_info, Mapping) else None
+            return TaskStatusSnapshot(task_id=task_id, status="STARTED", result=meta)
 
         if raw_state == "RETRY":
             return TaskStatusSnapshot(task_id=task_id, status="RETRY")

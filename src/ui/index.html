@@ -62,7 +62,7 @@
             </svg>
           </div>
           <p class="dropzone-title">PDF Ekle veya Sürükle</p>
-          <p class="dropzone-subtitle">.pdf veya .txt (çoklu destek)</p>
+          <p class="dropzone-subtitle" id="dropzone-subtitle">.pdf veya .txt (tek seferde en fazla 5 dosya)</p>
           <button type="button" class="apple-secondary-btn" id="select-files-btn">
             Dosya Seç
           </button>
@@ -204,29 +204,53 @@
             <p class="empty-desc" id="empty-desc">
               Sol panelden bir veya birden fazla PDF yükleyin; tüm sorularınız yalnızca yüklediğiniz kaynaklardaki gerçek bilgilere dayanarak canlı yanıtlanır.
             </p>
-            <div class="starter-prompts" id="starter-prompts">
-              <button
-                type="button"
-                class="starter-chip"
-                data-prompt="Yıllık izin hakkı kaç gün ve uzaktan çalışma kuralları nelerdir?"
-              >
-                Yıllık izin hakkı ve uzaktan çalışma kuralları nedir?
-              </button>
-              <button
-                type="button"
-                class="starter-chip"
-                data-prompt="Bitcoin whitepaper'ında çift harcama (double-spending) sorunu nasıl çözülüyor?"
-              >
-                Bitcoin'de double-spending sorunu nasıl çözülüyor?
-              </button>
-              <button
-                type="button"
-                class="starter-chip"
-                data-prompt="RAG (Retrieval-Augmented Generation) yaklaşımında parametrik ve parametrik olmayan bellek nasıl birleşir?"
-              >
-                RAG mimarisinde bellek mekanizması nasıl çalışır?
-              </button>
+            <div class="starter-prompts hidden" id="starter-prompts"></div>
+          </div>
+
+          <!-- Canlı Doküman İndeksleme Görsel Kartı -->
+          <div class="indexing-stage-card hidden" id="indexing-stage-card" role="status" aria-live="polite">
+            <div class="indexing-stage-header">
+              <div class="indexing-orb" aria-hidden="true">
+                <span class="indexing-orb-ring"></span>
+                <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+                  <path d="M7 3.5H14.8L19.5 8.2V19.2C19.5 20.19 18.69 21 17.7 21H7C6.01 21 5.2 20.19 5.2 19.2V5.3C5.2 4.31 6.01 3.5 7 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                  <path d="M14.5 3.5V8.5H19.5" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+                  <path d="M8.5 13H15.5M8.5 16.5H13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+                </svg>
+              </div>
+              <div class="indexing-stage-headings">
+                <div class="indexing-stage-title-row">
+                  <h2 class="indexing-stage-title" id="indexing-stage-title">Dokümanlarınız İndeksleniyor</h2>
+                  <span class="indexing-stage-badge" id="indexing-stage-badge">0 / 0 • %0</span>
+                </div>
+                <p class="indexing-stage-desc" id="indexing-stage-desc">
+                  Belgeleriniz Rust motoruyla parçalanıp vektör uzayına aktarılıyor. Eksiksiz yanıt alabilmeniz için işlem tamamlandığında soru alanı otomatik açılacaktır.
+                </p>
+              </div>
             </div>
+
+            <div class="indexing-master-track" aria-hidden="true">
+              <div class="indexing-master-fill" id="indexing-master-fill" style="width: 6%"></div>
+            </div>
+
+            <div class="indexing-pipeline-steps" aria-hidden="true">
+              <div class="indexing-step is-active" id="indexing-step-upload">
+                <span class="indexing-step-dot"></span>
+                <span>1. Dosya Aktarımı</span>
+              </div>
+              <div class="indexing-step" id="indexing-step-chunk">
+                <span class="indexing-step-dot"></span>
+                <span>2. Rust Parçalama</span>
+              </div>
+              <div class="indexing-step" id="indexing-step-vector">
+                <span class="indexing-step-dot"></span>
+                <span>3. Vektör &amp; Qdrant</span>
+              </div>
+            </div>
+
+            <div class="indexing-rate-banner hidden" id="indexing-rate-banner" role="status" aria-live="polite"></div>
+
+            <div class="indexing-file-list" id="indexing-file-list"></div>
           </div>
 
           <!-- Mesaj Balonları -->

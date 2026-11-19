@@ -520,3 +520,124 @@ async def test_async_stream_generate_handles_finish_reasons_and_sse_error_frames
                 pass
     finally:
         await http_err.aclose()
+
+
+def test_provider_label_inference_reset_headers_and_rate_limit_callback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sağlayıcı etiketi, reset başlıkları (1m10s/12.5s) ve 429 geri çağrımı çalışmalıdır."""
+    from src.services.llm_service import _extract_retry_delay_seconds, infer_provider_label
+
+    assert infer_provider_label("https://generativelanguage.googleapis.com/v1beta/openai") == (
+        "Google Gemini API"
+    )
+    assert infer_provider_label("https://api.openai.com/v1") == "OpenAI API"
+    assert infer_provider_label("https://api.groq.com/openai/v1") == "Groq API"
+    assert infer_provider_label("http://localhost:11434/v1") == "Yerel AI Sunucusu"
+    assert infer_provider_label("https://custom.llm.example.com/v1") == (
+        "AI API (custom.llm.example.com)"
+    )
+
+    groq_429 = httpx.Response(
+        status_code=429,
+        headers={"x-ratelimit-reset-requests": "12.5s"},
+        text="rate limit reached",
+    )
+    assert _extract_retry_delay_seconds(groq_429, 0) == pytest.approx(13.5)
+
+    minute_429 = httpx.Response(
+        status_code=429,
+        headers={"x-ratelimit-reset-tokens": "1m10s"},
+        text="tokens exhausted",
+    )
+    assert _extract_retry_delay_seconds(minute_429, 0) == pytest.approx(65.0)
+
+    recorded_callbacks: list[tuple[float, int, int, str]] = []
+    sleep_calls: list[float] = []
+    attempts = 0
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(
+                status_code=429,
+                headers={"x-ratelimit-reset-requests": "4s"},
+                text="busy",
+            )
+        return httpx.Response(status_code=200, json={"data": [{"embedding": [0.1, 0.2]}]})
+
+    monkeypatch.setattr("src.services.llm_service.time.sleep", sleep_calls.append)
+    sync_client = httpx.Client(transport=httpx.MockTransport(handler))
+    service = SyncOpenAICompatibleLLMClient(
+        base_url="https://api.groq.com/openai/v1",
+        embedding_model="text-embedding-3-small",
+        client=sync_client,
+    )
+    service.set_rate_limit_callback(
+        lambda delay, attempt, max_retries, provider: recorded_callbacks.append(
+            (delay, attempt, max_retries, provider)
+        )
+    )
+    try:
+        vectors = service.embed_texts(texts=["hello"])
+        assert vectors == [[0.1, 0.2]]
+        assert sleep_calls == [5.0]
+        assert recorded_callbacks == [(5.0, 1, 8, "Groq API")]
+    finally:
+        sync_client.close()
+
+
+def test_daily_quota_429_aborts_immediately_without_sleeping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Günlük kota (per day / 15h22m) dolduğunda beklemeden QuotaExhaustedError fırlatmalıdır."""
+    from src.core.circuit_breaker import SyncCircuitBreaker
+    from src.services.llm_service import QuotaExhaustedError
+
+    sleep_calls: list[float] = []
+    callback_calls: list[object] = []
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            status_code=429,
+            json={
+                "error": {
+                    "code": 429,
+                    "message": (
+                        "You exceeded your current quota.\n"
+                        "* Quota exceeded for metric: "
+                        "generativelanguage.googleapis.com/embed_content_free_tier_requests, "
+                        "limit: 1000, model: gemini-embedding-1.0, description: "
+                        "Embed content requests per day limit exceeded on Free Tier.\n"
+                        "Please retry in 15h22m46.913669153s."
+                    ),
+                    "status": "RESOURCE_EXHAUSTED",
+                }
+            },
+        )
+
+    monkeypatch.setattr("src.services.llm_service.time.sleep", sleep_calls.append)
+    breaker = SyncCircuitBreaker(name="worker.llm", failure_threshold=1)
+    sync_client = httpx.Client(transport=httpx.MockTransport(handler))
+    service = SyncOpenAICompatibleLLMClient(
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+        embedding_model="gemini-embedding-001",
+        client=sync_client,
+        circuit_breaker=breaker,
+    )
+    service.set_rate_limit_callback(lambda *args: callback_calls.append(args))
+    try:
+        with pytest.raises(QuotaExhaustedError) as exc_info:
+            service.embed_texts(texts=["daily quota test"])
+        assert exc_info.value.status_code == 429
+        assert exc_info.value.code == "daily_quota_exhausted"
+        assert (
+            str(exc_info.value)
+            == "❌ Google Gemini API günlük ücretsiz kotası (1.000 parça/gün) doldu."
+        )
+        assert sleep_calls == []
+        assert callback_calls == []
+        assert breaker.state == "closed"
+    finally:
+        sync_client.close()
