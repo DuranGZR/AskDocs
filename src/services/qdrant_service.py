@@ -41,6 +41,22 @@ class _DocumentAggregate:
     chunk_count: int = 0
 
 
+def _extract_collection_vector_size(collection_info: Any) -> int | None:
+    """Qdrant koleksiyon bilgisinden tanımlı vektör boyutunu güvenli şekilde okur."""
+    config = getattr(collection_info, "config", None)
+    params = getattr(config, "params", None)
+    vectors = getattr(params, "vectors", None)
+    size = getattr(vectors, "size", None)
+    if isinstance(size, int) and not isinstance(size, bool):
+        return size
+    if isinstance(vectors, Mapping):
+        default_vec = vectors.get("")
+        mapped_size = getattr(default_vec, "size", None)
+        if isinstance(mapped_size, int) and not isinstance(mapped_size, bool):
+            return mapped_size
+    return None
+
+
 def build_chunk_point_id(document_id: str, chunk_index: int) -> str:
     """Aynı doküman ve chunk_index için her zaman aynı UUID5 nokta ID'sini üretir."""
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{document_id}:{chunk_index}"))
@@ -187,8 +203,25 @@ class AsyncQdrantService(BaseVectorDB):
         return await op()
 
     async def ensure_collection(self) -> None:
-        """Koleksiyon yoksa oluşturur ve tenant_id/document_id payload indekslerini tanımlar."""
+        """Koleksiyon yoksa veya boyutu uyumsuzsa oluşturur; payload indekslerini tanımlar."""
         exists = await self._client.collection_exists(self._collection_name)
+        if exists:
+            try:
+                info = await self._client.get_collection(self._collection_name)
+            except AttributeError:
+                info = None
+            existing_size = _extract_collection_vector_size(info)
+            if existing_size is not None and existing_size != self._vector_size:
+                logger.warning(
+                    "Qdrant collection '%s' vector_size mismatch "
+                    "(existing=%d, configured=%d); recreating collection",
+                    self._collection_name,
+                    existing_size,
+                    self._vector_size,
+                )
+                await self._client.delete_collection(self._collection_name)
+                exists = False
+
         if not exists:
             await self._client.create_collection(
                 collection_name=self._collection_name,
@@ -514,10 +547,27 @@ class SyncQdrantService(SyncBaseVectorDB):
         return op()
 
     def ensure_collection(self) -> None:
-        """Koleksiyon yoksa oluşturur ve tenant_id/document_id payload indekslerini tanımlar."""
+        """Koleksiyon yoksa veya boyutu uyumsuzsa oluşturur; payload indekslerini tanımlar."""
 
         def _op() -> None:
             exists = self._client.collection_exists(self._collection_name)
+            if exists:
+                try:
+                    info = self._client.get_collection(self._collection_name)
+                except AttributeError:
+                    info = None
+                existing_size = _extract_collection_vector_size(info)
+                if existing_size is not None and existing_size != self._vector_size:
+                    logger.warning(
+                        "Qdrant collection '%s' vector_size mismatch "
+                        "(existing=%d, configured=%d); recreating collection",
+                        self._collection_name,
+                        existing_size,
+                        self._vector_size,
+                    )
+                    self._client.delete_collection(self._collection_name)
+                    exists = False
+
             if not exists:
                 self._client.create_collection(
                     collection_name=self._collection_name,

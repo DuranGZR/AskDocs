@@ -332,6 +332,7 @@ def _build_override_compose_yaml(mock_script_path: Path) -> str:
   api:
     environment:
       LLM_BASE_URL: http://mock-ai:18080/v1
+      EMBEDDING_BASE_URL: http://mock-ai:18080/v1
       QDRANT_COLLECTION_NAME: {LOAD_TEST_COLLECTION}
       RATE_LIMIT_ENABLED: "false"
       LANGFUSE_ENABLED: "false"
@@ -346,6 +347,7 @@ def _build_override_compose_yaml(mock_script_path: Path) -> str:
   celery_worker:
     environment:
       LLM_BASE_URL: http://mock-ai:18080/v1
+      EMBEDDING_BASE_URL: http://mock-ai:18080/v1
       QDRANT_COLLECTION_NAME: {LOAD_TEST_COLLECTION}
       LANGFUSE_ENABLED: "false"
     depends_on:

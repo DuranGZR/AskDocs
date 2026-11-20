@@ -123,7 +123,15 @@ def infer_provider_label(base_url: str) -> str:
         return "Mistral API"
     if "anthropic.com" in host:
         return "Anthropic API"
-    if host in {"localhost", "127.0.0.1", "0.0.0.0", "ollama", "vllm"}:
+    if host in {
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "ollama",
+        "vllm",
+        "tei",
+        "text-embeddings-inference",
+    }:
         return "Yerel AI Sunucusu"
     if host:
         return f"AI API ({host})"
@@ -386,20 +394,27 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         api_key: str = "ollama",
         llm_model: str = "llama3.2:3b",
         embedding_model: str = "nomic-embed-text",
+        embedding_base_url: str | None = None,
+        embedding_api_key: str | None = None,
         timeout_seconds: float = 60.0,
         client: httpx.AsyncClient | None = None,
         circuit_breaker: CircuitBreaker | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._provider_label = infer_provider_label(base_url)
+        cleaned_embedding_url = (embedding_base_url or "").strip().rstrip("/")
+        self._embedding_base_url = cleaned_embedding_url or self._base_url
+        self._embedding_provider_label = infer_provider_label(self._embedding_base_url)
         self._llm_model = llm_model
         self._embedding_model = embedding_model
         self._headers = _build_headers(api_key)
+        self._embedding_headers = _build_headers(
+            embedding_api_key if embedding_api_key is not None else api_key
+        )
         self._owns_client = client is None
         self._circuit_breaker = circuit_breaker
         self._client = client or httpx.AsyncClient(
             base_url=self._base_url,
-            headers=self._headers,
             timeout=httpx.Timeout(timeout_seconds),
             limits=httpx.Limits(
                 max_connections=100,
@@ -424,17 +439,23 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
         max_retries: int,
         max_wait_seconds: float | None,
         fallback_base_seconds: float,
+        base_url: str | None = None,
+        headers: dict[str, str] | None = None,
+        provider_label: str | None = None,
     ) -> Any:
         """OpenAI-uyumlu JSON uçlarına 429 hız sınırı yeniden denemeli POST isteği gönderir."""
+        target_base_url = base_url or self._base_url
+        target_headers = headers or self._headers
+        target_provider = provider_label or self._provider_label
         try:
             for attempt in range(max_retries + 1):
                 response = await self._client.post(
-                    f"{self._base_url}{endpoint}",
-                    headers=self._headers,
+                    f"{target_base_url}{endpoint}",
+                    headers=target_headers,
                     json=request_body,
                 )
                 if response.status_code == 429:
-                    _raise_if_daily_quota_exhausted(response, self._provider_label)
+                    _raise_if_daily_quota_exhausted(response, target_provider)
                     delay = _extract_retry_delay_seconds(
                         response,
                         attempt,
@@ -476,6 +497,9 @@ class AsyncOpenAICompatibleLLMClient(BaseLLMClient):
             max_retries=_MAX_RATE_LIMIT_RETRIES,
             max_wait_seconds=None,
             fallback_base_seconds=15.0,
+            base_url=self._embedding_base_url,
+            headers=self._embedding_headers,
+            provider_label=self._embedding_provider_label,
         )
         return _parse_embeddings_payload(payload, expected_count=len(texts))
 

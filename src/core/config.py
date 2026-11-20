@@ -54,17 +54,19 @@ class Settings(BaseSettings):
         max_length=64,
         pattern=r"^[a-zA-Z0-9_-]+$",
     )
-    QDRANT_VECTOR_SIZE: int = Field(default=3072, ge=1, le=8192)
+    QDRANT_VECTOR_SIZE: int = Field(default=1024, ge=1, le=8192)
     RAG_TOP_K: int = Field(default=5, ge=1, le=20)
-    RAG_SCORE_THRESHOLD: float = Field(default=0.7, ge=0.0, le=1.0)
-    RAG_FALLBACK_SCORE_THRESHOLD: float = Field(default=0.58, ge=0.0, le=1.0)
+    RAG_SCORE_THRESHOLD: float = Field(default=0.60, ge=0.0, le=1.0)
+    RAG_FALLBACK_SCORE_THRESHOLD: float = Field(default=0.48, ge=0.0, le=1.0)
     RAG_MAX_HISTORY_MESSAGES: int = Field(default=10, ge=0, le=20)
 
     # --- AI / LLM & Embedding (OpenAI-Compatible API) ---
     LLM_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta/openai"
     LLM_API_KEY: SecretStr = SecretStr("your-llm-api-key")
     LLM_MODEL: str = Field(default="gemini-3.5-flash-lite", min_length=1, max_length=128)
-    EMBEDDING_MODEL: str = Field(default="gemini-embedding-001", min_length=1, max_length=128)
+    EMBEDDING_BASE_URL: str | None = "http://localhost:8081/v1"
+    EMBEDDING_API_KEY: SecretStr | None = SecretStr("local-tei")
+    EMBEDDING_MODEL: str = Field(default="BAAI/bge-m3", min_length=1, max_length=128)
     EMBEDDING_BATCH_SIZE: int = Field(default=32, ge=1, le=512)
     LLM_TIMEOUT_SECONDS: float = Field(default=60.0, gt=0.0, le=600.0)
 
@@ -86,6 +88,20 @@ class Settings(BaseSettings):
     def max_upload_size_bytes(self) -> int:
         """Maksimum yükleme boyutunu bayt cinsinden döndürür."""
         return self.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+    @property
+    def effective_embedding_base_url(self) -> str:
+        """Embedding istekleri için etkin temel URL'yi döndürür (boşsa LLM_BASE_URL'e döner)."""
+        return self.EMBEDDING_BASE_URL or self.LLM_BASE_URL
+
+    @property
+    def effective_embedding_api_key(self) -> str:
+        """Embedding servisi için etkin API anahtarını döndürür."""
+        if self.EMBEDDING_API_KEY is not None:
+            cleaned = self.EMBEDDING_API_KEY.get_secret_value().strip()
+            if cleaned:
+                return cleaned
+        return self.LLM_API_KEY.get_secret_value()
 
     @field_validator("APP_ENV", "LOG_FORMAT", mode="before")
     @classmethod
@@ -143,6 +159,19 @@ class Settings(BaseSettings):
         except ValueError as exc:
             raise ValueError("URL contains an invalid port number") from exc
         return cleaned
+
+    @field_validator("EMBEDDING_BASE_URL", mode="before")
+    @classmethod
+    def validate_optional_embedding_url(cls, value: object) -> object:
+        """Opsiyonel EMBEDDING_BASE_URL boşsa None döner, doluysa HTTP/HTTPS olarak doğrular."""
+        if value is None:
+            return None
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+            return cls.validate_http_url(cleaned)
+        return value
 
     @model_validator(mode="after")
     def validate_production_security(self) -> Self:

@@ -105,6 +105,40 @@ services:
     networks:
       - corerag-net
 
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:86-1.6
+    container_name: corerag-tei
+    restart: unless-stopped
+    command:
+      - --model-id
+      - ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      - --dtype
+      - float16
+      - --max-batch-tokens
+      - "8192"
+      - --max-client-batch-size
+      - "32"
+      - --auto-truncate
+    ports:
+      - "127.0.0.1:8081:80"
+    volumes:
+      - tei_data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:80/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    networks:
+      - corerag-net
+
   api:
     build:
       context: .
@@ -122,6 +156,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      EMBEDDING_BASE_URL: ${DOCKER_EMBEDDING_BASE_URL:-http://tei:80/v1}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-local-tei}
       LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     ports:
@@ -144,6 +180,8 @@ services:
       redis:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+      tei:
         condition: service_healthy
     healthcheck:
       test:
@@ -178,6 +216,8 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       QDRANT_URL: http://qdrant:6333
       LLM_BASE_URL: ${LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai}
+      EMBEDDING_BASE_URL: ${DOCKER_EMBEDDING_BASE_URL:-http://tei:80/v1}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-local-tei}
       LANGFUSE_HOST: http://langfuse:3000
       WATCHFILES_FORCE_POLLING: "true"
     volumes:
@@ -195,6 +235,8 @@ services:
       redis:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+      tei:
         condition: service_healthy
     healthcheck:
       test:
@@ -214,6 +256,7 @@ volumes:
   redis_data:
   qdrant_data:
   postgres_data:
+  tei_data:
 
 networks:
   corerag-net:

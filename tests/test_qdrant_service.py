@@ -523,3 +523,84 @@ async def test_sample_document_chunks_balances_pages_and_respects_tenant() -> No
         assert all(item.chunk.tenant_id == "tenant_sample" for item in sampled)
     finally:
         await service.close()
+
+
+async def test_async_qdrant_ensure_collection_recreates_on_vector_size_mismatch() -> None:
+    """Mevcut koleksiyon boyutu ayarlanan boyutla uyuşmazsa koleksiyon yeniden kurulmalıdır."""
+    client = AsyncQdrantClient(location=":memory:")
+    legacy_service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=3072,
+        client=client,
+    )
+    new_service = AsyncQdrantService(
+        collection_name="documents",
+        vector_size=1024,
+        client=client,
+    )
+    try:
+        await legacy_service.ensure_collection()
+        await legacy_service.upsert(
+            points=[
+                _make_point(
+                    document_id="doc-old",
+                    tenant_id="tenant_a",
+                    chunk_index=0,
+                    text="Eski 3072 boyutlu parça",
+                    vector=[0.1] * 3072,
+                )
+            ]
+        )
+        assert (await client.count(collection_name="documents")).count == 1
+
+        # Aynı boyutta tekrar ensure_collection veriyi korumalıdır
+        await legacy_service.ensure_collection()
+        assert (await client.count(collection_name="documents")).count == 1
+
+        # Yeni 1024 boyutuna geçince koleksiyon sıfırlanıp 1024 olarak kurulmalıdır
+        await new_service.ensure_collection()
+        info = await client.get_collection("documents")
+        vectors_cfg = info.config.params.vectors
+        assert not isinstance(vectors_cfg, dict) and vectors_cfg is not None
+        assert vectors_cfg.size == 1024
+        assert (await client.count(collection_name="documents")).count == 0
+    finally:
+        await new_service.close()
+
+
+def test_sync_qdrant_ensure_collection_recreates_on_vector_size_mismatch() -> None:
+    """SyncQdrantService boyut uyuşmazlığında (3072 -> 1024) koleksiyonu yeniden oluşturmalıdır."""
+    client = QdrantClient(location=":memory:")
+    legacy_service = SyncQdrantService(
+        collection_name="documents",
+        vector_size=3072,
+        client=client,
+    )
+    new_service = SyncQdrantService(
+        collection_name="documents",
+        vector_size=1024,
+        client=client,
+    )
+    try:
+        legacy_service.ensure_collection()
+        legacy_service.upsert(
+            points=[
+                _make_point(
+                    document_id="doc-old-sync",
+                    tenant_id="tenant_sync",
+                    chunk_index=0,
+                    text="Eski senkron parça",
+                    vector=[0.1] * 3072,
+                )
+            ]
+        )
+        assert client.count(collection_name="documents").count == 1
+
+        new_service.ensure_collection()
+        info = client.get_collection("documents")
+        vectors_cfg = info.config.params.vectors
+        assert not isinstance(vectors_cfg, dict) and vectors_cfg is not None
+        assert vectors_cfg.size == 1024
+        assert client.count(collection_name="documents").count == 0
+    finally:
+        new_service.close()

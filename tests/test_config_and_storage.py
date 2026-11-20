@@ -65,6 +65,51 @@ def test_settings_rejects_unsafe_or_invalid_values(overrides: dict[str, Any]) ->
         Settings(_env_file=None, **overrides)
 
 
+def test_settings_hybrid_embedding_defaults_and_fallbacks() -> None:
+    """Hibrit embedding ayarları TEI varsayılanlarını kullanıp LLM_BASE_URL'e dönebilmelidir."""
+    defaults = Settings(
+        _env_file=None,
+        API_KEY="test-api-key-minimum-8-chars",
+    )
+    assert defaults.QDRANT_VECTOR_SIZE == 1024
+    assert defaults.RAG_SCORE_THRESHOLD == 0.60
+    assert defaults.RAG_FALLBACK_SCORE_THRESHOLD == 0.48
+    assert defaults.EMBEDDING_MODEL == "BAAI/bge-m3"
+    assert defaults.effective_embedding_base_url == "http://localhost:8081/v1"
+    assert defaults.effective_embedding_api_key == "local-tei"
+
+    normalized = Settings(
+        _env_file=None,
+        API_KEY="test-api-key-minimum-8-chars",
+        EMBEDDING_BASE_URL="  http://tei:80/v1/  ",
+        EMBEDDING_API_KEY="  tei-secret-token  ",
+    )
+    assert normalized.effective_embedding_base_url == "http://tei:80/v1"
+    assert normalized.effective_embedding_api_key == "tei-secret-token"
+
+    fallback = Settings(
+        _env_file=None,
+        API_KEY="test-api-key-minimum-8-chars",
+        LLM_BASE_URL="https://generativelanguage.googleapis.com/v1beta/openai",
+        LLM_API_KEY="cloud-llm-key",
+        EMBEDDING_BASE_URL="   ",
+        EMBEDDING_API_KEY="   ",
+    )
+    assert fallback.EMBEDDING_BASE_URL is None
+    assert fallback.effective_embedding_base_url == (
+        "https://generativelanguage.googleapis.com/v1beta/openai"
+    )
+    assert fallback.effective_embedding_api_key == "cloud-llm-key"
+
+    for bad_emb_url in ("ftp://tei:80/v1", "http://", "http://tei:invalid/v1"):
+        with pytest.raises(ValidationError):
+            Settings(
+                _env_file=None,
+                API_KEY="test-api-key-minimum-8-chars",
+                EMBEDDING_BASE_URL=bad_emb_url,
+            )
+
+
 async def test_local_storage_cleans_up_when_stream_fails_mid_write(tmp_path: Path) -> None:
     """Akış ortasında okuma hatası oluşursa kısmi dosya diskte bırakılmamalıdır."""
     storage = LocalStorageService(base_dir=tmp_path, max_size_bytes=1024)

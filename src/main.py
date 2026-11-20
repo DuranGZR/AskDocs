@@ -55,6 +55,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         api_key=settings.LLM_API_KEY.get_secret_value(),
         llm_model=settings.LLM_MODEL,
         embedding_model=settings.EMBEDDING_MODEL,
+        embedding_base_url=settings.effective_embedding_base_url,
+        embedding_api_key=settings.effective_embedding_api_key,
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
         circuit_breaker=llm_breaker,
     )

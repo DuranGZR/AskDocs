@@ -76,8 +76,8 @@ def _get_worker_circuit_breaker(name: str, settings: Settings) -> SyncCircuitBre
 def create_worker_llm_client(settings: Settings) -> SyncBaseLLMClient:
     """Celery worker için senkron OpenAI-uyumlu embedding istemcisi oluşturur."""
     return SyncOpenAICompatibleLLMClient(
-        base_url=settings.LLM_BASE_URL,
-        api_key=settings.LLM_API_KEY.get_secret_value(),
+        base_url=settings.effective_embedding_base_url,
+        api_key=settings.effective_embedding_api_key,
         embedding_model=settings.EMBEDDING_MODEL,
         timeout_seconds=settings.LLM_TIMEOUT_SECONDS,
         circuit_breaker=_get_worker_circuit_breaker("worker.llm", settings),
@@ -244,7 +244,7 @@ def process_document_task(
 
         if parsed.chunks:
             current_chunks_done = 0
-            provider_label = infer_provider_label(settings.LLM_BASE_URL)
+            provider_label = infer_provider_label(settings.effective_embedding_base_url)
 
             def _on_progress(done_count: int, total_count: int) -> None:
                 nonlocal current_chunks_done

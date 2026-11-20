@@ -534,6 +534,8 @@ def test_provider_label_inference_reset_headers_and_rate_limit_callback(
     assert infer_provider_label("https://api.openai.com/v1") == "OpenAI API"
     assert infer_provider_label("https://api.groq.com/openai/v1") == "Groq API"
     assert infer_provider_label("http://localhost:11434/v1") == "Yerel AI Sunucusu"
+    assert infer_provider_label("http://tei:80/v1") == "Yerel AI Sunucusu"
+    assert infer_provider_label("http://text-embeddings-inference:80/v1") == "Yerel AI Sunucusu"
     assert infer_provider_label("https://custom.llm.example.com/v1") == (
         "AI API (custom.llm.example.com)"
     )
@@ -641,3 +643,54 @@ def test_daily_quota_429_aborts_immediately_without_sleeping(
         assert breaker.state == "closed"
     finally:
         sync_client.close()
+
+
+async def test_async_hybrid_client_routes_embeddings_and_chat_separately() -> None:
+    """Hibrit istemci embedding'i yerel TEI'ye, chat çağrılarını bulut LLM'e yönlendirmelidir."""
+    captured_requests: list[tuple[str, str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured_requests.append(
+            (str(request.url), request.headers.get("Authorization", ""), request.content.decode())
+        )
+        if str(request.url).endswith("/embeddings"):
+            return httpx.Response(
+                status_code=200,
+                json={"data": [{"index": 0, "embedding": [0.1, 0.2, 0.3]}]},
+            )
+        return httpx.Response(
+            status_code=200,
+            json={"choices": [{"index": 0, "message": {"role": "assistant", "content": "Yanıt"}}]},
+        )
+
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    service = AsyncOpenAICompatibleLLMClient(
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+        api_key="cloud-secret",
+        llm_model="gemini-3.5-flash-lite",
+        embedding_model="BAAI/bge-m3",
+        embedding_base_url="http://tei:80/v1/",
+        embedding_api_key="local-tei",
+        client=http_client,
+    )
+    try:
+        vectors = await service.embed_texts(texts=["merhaba"])
+        answer = await service.generate(messages=[ChatMessage(role="user", content="Soru")])
+
+        assert vectors == [[0.1, 0.2, 0.3]]
+        assert answer == "Yanıt"
+        assert len(captured_requests) == 2
+
+        emb_url, emb_auth, emb_body = captured_requests[0]
+        assert emb_url == "http://tei/v1/embeddings"
+        assert emb_auth == "Bearer local-tei"
+        assert json.loads(emb_body)["model"] == "BAAI/bge-m3"
+
+        chat_url, chat_auth, chat_body = captured_requests[1]
+        assert (
+            chat_url == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        )
+        assert chat_auth == "Bearer cloud-secret"
+        assert json.loads(chat_body)["model"] == "gemini-3.5-flash-lite"
+    finally:
+        await http_client.aclose()
