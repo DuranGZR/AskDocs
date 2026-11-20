@@ -3,21 +3,26 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 TENANT_ID_PATTERN = r"^[a-zA-Z0-9_-]{1,64}$"
+_MAX_HISTORY_CONTENT_CHARS = 16000
 
 
 class ConversationMessage(BaseModel):
     """Çok turlu sohbet geçmişindeki tekil kullanıcı veya asistan mesajı."""
 
     role: Literal["user", "assistant"]
-    content: str = Field(..., min_length=1, max_length=4000)
+    content: str = Field(..., min_length=1, max_length=_MAX_HISTORY_CONTENT_CHARS)
 
-    @field_validator("content")
+    @field_validator("content", mode="before")
     @classmethod
-    def validate_non_empty_content(cls, value: str) -> str:
-        """Boşluktan ibaret geçmiş mesajlarını reddeder."""
+    def validate_non_empty_content(cls, value: object) -> object:
+        """Boş geçmiş mesajlarını reddeder; uzun geçmiş yanıtlarını güvenli sınıra kırpar."""
+        if not isinstance(value, str):
+            return value
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("History message content must not be empty or whitespace only")
+        if len(cleaned) > _MAX_HISTORY_CONTENT_CHARS:
+            return cleaned[:_MAX_HISTORY_CONTENT_CHARS].rstrip()
         return cleaned
 
 

@@ -3,14 +3,20 @@ import json
 import logging
 import re
 import time
-import unicodedata
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from src.api.v1.query import build_rag_messages, format_context_block
+from src.api.v1.query import (
+    _normalize_text,
+    build_rag_messages,
+    format_context_block,
+)
+from src.api.v1.query import (
+    is_abstention_answer as is_abstention_answer,
+)
 from src.core.observability import get_langfuse_client, utc_now
 from src.services.base import BaseLLMClient, BaseVectorDB, ChatMessage, ScoredChunk
 
@@ -24,22 +30,6 @@ _SOURCE_BLOCK_RE = re.compile(r"\[([^\[\]]*source[^\[\]]*)\]", flags=re.IGNORECA
 _INT_RE = re.compile(r"\d+")
 _WHITESPACE_RE = re.compile(r"\s+")
 _JSON_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", flags=re.IGNORECASE)
-
-_ABSTENTION_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(
-        r"\b(?:bilgi|veri|detay|rakam)\w*(?:\s+\S+){0,4}\s+"
-        r"(?:bulunmamaktadır|bulunmuyor|yer\s+almamaktadır|mevcut\s+değil)"
-    ),
-    re.compile(r"\byeterli\s+bilgi(?:ye)?\s+(?:yok|sahip\s+değil|bulunmamaktadır)"),
-    re.compile(r"\bbelgelerde\b.*\bbulunmamaktadır\b"),
-    re.compile(r"\bbilmiyorum\b"),
-    re.compile(r"\b(?:do|does)\s+not\s+(?:contain|provide|mention)\b"),
-    re.compile(r"\b(?:don't|do\s+not)\s+know\b"),
-    re.compile(r"\b(?:not\s+enough|insufficient|no)\s+information\b"),
-    re.compile(r"\bcannot\s+(?:be\s+)?answer(?:ed)?\s+based\s+on\b"),
-    re.compile(r"\bnot\s+mentioned\s+in\s+the\s+provided\b"),
-    re.compile(r"\b(?:is|are)\s+not\s+(?:mentioned|stated|specified|reported|included)\b"),
-)
 
 _LLM_JUDGE_SYSTEM_PROMPT = (
     "You are an impartial RAG faithfulness evaluator. Given <context>, <question>, and "
@@ -158,12 +148,6 @@ class EvalSummaryReport(BaseModel):
     evaluated_at: str
 
 
-def _normalize_text(text: str) -> str:
-    """Türkçe büyük İ birleşim noktasını, PDF ligatürlerini ve boşlukları normalize eder."""
-    normalized = unicodedata.normalize("NFKC", text).lower().replace("\u0307", "")
-    return _WHITESPACE_RE.sub(" ", normalized).strip()
-
-
 def load_golden_dataset(path: Path) -> GoldenDataset:
     """JSON dosyasından altın değerlendirme veri setini okuyup doğrular."""
     raw = json.loads(path.read_text(encoding="utf-8"))
@@ -181,14 +165,6 @@ def extract_citation_indices(answer: str) -> list[int]:
                 seen.add(idx)
                 indices.append(idx)
     return indices
-
-
-def is_abstention_answer(answer: str) -> bool:
-    """Yanıtın belgelerde yeterli bilgi bulunmadığını açıkça belirtip belirtmediğini döner."""
-    norm = _normalize_text(answer)
-    if not norm:
-        return False
-    return any(pattern.search(norm) for pattern in _ABSTENTION_PATTERNS)
 
 
 def compute_keyword_coverage(answer: str, expected_keywords: Sequence[str]) -> float:

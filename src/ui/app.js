@@ -12,6 +12,7 @@
   const DEFAULT_MAX_UPLOAD_PER_WINDOW = 5;
   const DEFAULT_RATE_LIMIT_WINDOW_SECONDS = 60;
   const MAX_HISTORY_MESSAGES = 10;
+  const MAX_HISTORY_CONTENT_CHARS = 12000;
   const MAX_SAVED_UI_TURNS = 24;
   const HEALTH_POLL_INTERVAL_MS = 30000;
   const HEALTH_MIN_REFRESH_GAP_MS = 5000;
@@ -2378,8 +2379,25 @@
   }
 
   function isTrivialGreetingText(queryText) {
-    return /^(?:merhaba|selam|slm|hi|hello|hey|günaydın|iyi akşamlar|teşekkürler|sağ ol)[!.\s]*$/i.test(
-      String(queryText || "").trim()
+    const cleaned = String(queryText || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!cleaned) return false;
+    if (
+      /^(?:merhaba|selam|slm|hi|hello|hey|günaydın|iyi akşamlar|teşekkürler|sağ ol)[!.\s]*$/i.test(
+        cleaned
+      )
+    ) {
+      return true;
+    }
+    const withoutGreeting = cleaned
+      .replace(/^(?:merhaba|selam|slm|hi|hello|hey|günaydın|iyi\s+akşamlar)[,!.\s]+/i, "")
+      .trim();
+    const identityRe =
+      /^(?:(?:sen\s+)?kimsin(?:\s+(?:ve|ya\s+da)\s+(?:ne\s+(?:işe|ise)\s+yar[ıi]yorsun|neler\s+yapabilirsin|nas[ıi]l\s+yard[ıi]mc[ıi]\s+olabilirsin))?|ne\s+(?:işe|ise)\s+yar[ıi]yorsun|(?:neler|ne)\s+yapabilirsin|(?:bana\s+)?nas[ıi]l\s+yard[ıi]m(?:c[ıi])?\s+(?:olabilirsin|edebilirsin)|kendini\s+tan[ıi]t(?:[ıi]r\s+m[ıi]s[ıi]n)?|(?:sen\s+)?nas[ıi]ls[ıi]n|who\s+are\s+you(?:\s+and\s+(?:what\s+(?:do|can)\s+you\s+do|how\s+can\s+you\s+help(?:\s+me)?))?|what\s+(?:do|can)\s+you\s+do|how\s+can\s+you\s+help(?:\s+me)?|introduce\s+yourself)[?!.\s]*$/i;
+    return (
+      Boolean(withoutGreeting && identityRe.test(withoutGreeting)) ||
+      identityRe.test(cleaned)
     );
   }
 
@@ -2478,7 +2496,17 @@
     }
 
     if (
-      /başka\s+(?:bir\s+)?(?:soru|yardım|konu)|yardımcı\s+olabilir\s+miyim|anything\s+else/i.test(
+      /başka\s+(?:bir\s+)?(?:soru|yardım|konu)|merak\s+ettiğiniz\s+başka|\bvar\s+m[ıi]\s*\?*\s*$|yardımcı\s+olabilir\s+miyim|anything\s+else/i.test(
+        questionSentence
+      )
+    ) {
+      return null;
+    }
+    if (
+      /^(?:hangi|hangisi\w*|ne\s+tür|nas[ıi]l\s+bir|which|what\s+kind)\b/i.test(
+        questionSentence.trim()
+      ) ||
+      /\b(?:hangi\s+\S+|hangisini\w*|nerede|neden)\b.*\b(?:istersiniz|tercih\s+edersiniz)\?\s*$/i.test(
         questionSentence
       )
     ) {
@@ -2497,6 +2525,10 @@
       { re: /paylaşmamı|görmek\s+ister\s+misiniz/i, text: "Evet, paylaşır mısın" },
       { re: /açıklamamı|anlatmamı/i, text: "Evet, açıklar mısın" },
       { re: /ister\s+misiniz|istiyorsanız|merak\s+ediyor\s+musunuz/i, text: "Evet, isterim" },
+      {
+        re: /devam\s+edelim\s+mi|örnek\s+vereyim\s+mi|göstereyim\s+mi|anlatayım\s+m[ıi]|ekleyeyim\s+mi/i,
+        text: "Evet, yapalım",
+      },
       { re: /would\s+you\s+like.*compare/i, text: "Yes, let's compare" },
       { re: /would\s+you\s+like.*summarize/i, text: "Yes, please summarize" },
       { re: /would\s+you\s+like|shall\s+i|do\s+you\s+want/i, text: "Yes, let's do that" },
@@ -2508,7 +2540,7 @@
       }
     }
 
-    return { label: "Evet, yapalım →", prompt: "Evet, yapalım" };
+    return null;
   }
 
   function renderTurnActions(actionsBar, answerText, citations, showFollowup = true) {
@@ -2685,7 +2717,13 @@
     let citations = [];
     let streamErrorMessage = "";
     let sawDoneEvent = false;
-    const historySnapshot = state.chatHistory.slice(-MAX_HISTORY_MESSAGES);
+    const historySnapshot = state.chatHistory
+      .slice(-MAX_HISTORY_MESSAGES)
+      .map((item) => ({
+        role: item.role,
+        content: String(item.content || "").trim().slice(0, MAX_HISTORY_CONTENT_CHARS).trim(),
+      }))
+      .filter((item) => item.content.length > 0);
 
     try {
       const response = await apiFetch("/api/v1/query/stream", {
