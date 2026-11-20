@@ -65,16 +65,16 @@
   <rect x="742" y="138" width="156" height="106" rx="12" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.8" />
   <text x="820" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#9A3412">Rust + PyO3 Engine</text>
   <text x="820" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">text_processor · GIL-free</text>
-  <text x="820" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#C2410C">1200/150 · 9.7x–16.6x</text>
+  <text x="820" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#C2410C">1200/150 · 10.3x–17.2x</text>
 
   <!-- Arrow 5 -> 6 -->
   <line x1="898" y1="191" x2="912" y2="191" stroke="#16A34A" stroke-width="2" />
   <polygon points="918,191 910,186.5 910,195.5" fill="#16A34A" />
 
-  <!-- Node 1.6: Qdrant Vector DB -->
+  <!-- Node 1.6: Local TEI GPU + Qdrant -->
   <rect x="918" y="138" width="156" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
-  <text x="996" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">Qdrant Vector DB</text>
-  <text x="996" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">Tenant-isolated HNSW</text>
+  <text x="996" y="166" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">TEI GPU + Qdrant</text>
+  <text x="996" y="189" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="10.5" fill="#4B5563">BAAI/bge-m3 (1024d HNSW)</text>
   <text x="996" y="213" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="9.8" font-weight="600" fill="#15803D">UUID5 = 0 duplicates</text>
 
   <!-- ==================== LANE 2: READ PATH ==================== -->
@@ -106,7 +106,7 @@
   <rect x="311" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.6" />
   <text x="427" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Tenant-Isolated Search</text>
   <text x="427" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Top-5 cosine search inside workspace</text>
-  <text x="427" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">0.70 cutoff (0.58 fallback)</text>
+  <text x="427" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" font-weight="600" fill="#15803D">0.60 cutoff (0.48 fallback)</text>
 
   <!-- Arrow 2.2 -> 2.3 -->
   <line x1="543" y1="397" x2="570" y2="397" stroke="#0071E3" stroke-width="2" />
@@ -116,7 +116,7 @@
   <rect x="576" y="344" width="232" height="106" rx="12" fill="#FFFFFF" stroke="#0071E3" stroke-width="1.6" />
   <text x="692" y="372" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5" font-weight="700" fill="#1D1D1F">Context Guard &amp; LLM</text>
   <text x="692" y="395" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="11" fill="#4B5563">Context fence + strict abstention</text>
-  <text x="692" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#475569">Gemini / Ollama / vLLM API</text>
+  <text x="692" y="419" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#475569">TEI GPU + Gemini / Compat LLM</text>
 
   <!-- Arrow 2.3 -> 2.4 -->
   <line x1="808" y1="397" x2="835" y2="397" stroke="#0071E3" stroke-width="2" />

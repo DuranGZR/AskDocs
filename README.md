@@ -27,10 +27,10 @@
     <code>FastAPI</code> ·
     <code>Celery &amp; Redis</code> ·
     <code>Qdrant</code> ·
-    <code>Gemini / OpenAI-Compat</code> ·
+    <code>Gemini + Local TEI (BAAI/bge-m3)</code> ·
     <code>Langfuse</code> ·
-    <code>169 Tests (163 Py + 6 Rust)</code> ·
-    <code>88.6% Branch Cov</code>
+    <code>179 Tests (173 Py + 6 Rust)</code> ·
+    <code>87.7% Branch Cov</code>
   </sub>
 </p>
 
@@ -49,34 +49,34 @@ Turning documents into a reliable Q&A workspace takes more than dropping a vecto
 * **Isolated Workspaces & File Scoping:** Separate documents and queries cleanly per tenant workspace, or check individual PDFs in the sidebar to restrict search strictly to selected files.
 * **Non-Blocking Ingestion:** Uploads validate file integrity immediately, return `202 Accepted`, and hand parsing, chunking, and batched embedding work off to background Celery workers.
 * **Verified Citations & Source Inspector:** Answers stream live with clickable `[1]`, `[2]` badges that slide open a Source Inspector pointed at the matched page, similarity score, and highlighted passage.
-* **Bilingual Follow-Ups & Guardrails:** Expands short follow-up replies cleanly from chat context, neutralizes `<context>` prompt-injection tags inside files, and abstains cleanly when evidence is missing.
-* **Production Resilience & Model Portability:** Dual async/sync circuit breakers isolate vector or LLM outages, Redis rate limiting and Langfuse tracing fail open, and `.env` lets you target Gemini, OpenAI, or any OpenAI-compatible API without code changes.
+* **Bilingual Follow-Ups & Guardrails:** Expands short follow-up replies cleanly from chat context, isolates prompt-extraction attempts and `<context>` injection tags, suppresses unrelated citation cards on refusals, and abstains cleanly when evidence is missing.
+* **Production Resilience & Hybrid Model Portability:** Dual async/sync circuit breakers isolate vector or LLM outages, Redis rate limiting and Langfuse tracing fail open, `EMBEDDING_BASE_URL` decouples local GPU embeddings (`BAAI/bge-m3` via HuggingFace TEI) from cloud chat generation (`gemini-3.5-flash-lite`), and Qdrant automatically recreates collections on vector dimension changes.
 
 ---
 
 ## See it in action
 
-Below is a three-step walkthrough inside the isolated **`rag-research`** workspace loaded with six interconnected arXiv retrieval papers (`REALM`, `DPR`, `FiD`, `HyDE`, `Self-RAG`, and `CRAG`).
+Below is a three-step walkthrough inside the isolated **`duran`** workspace loaded with **10 university computer science PDFs (`753` indexed pages, `1,357` chunks)** spanning Computer Networks, Databases, Operating Systems, Python, Java OOP, Data Structures, and AI Literacy.
 
 ### `#1` / Select a Workspace & Scope Specific Documents
 
-Switch workspaces at the bottom left, drag and drop multiple PDFs or text files, and check specific papers (`crag_2401_15884.pdf` and `selfrag_2310_11511.pdf`) to lock retrieval solely to those sources.
+Switch workspaces at the bottom left, drag and drop multiple PDFs or text files, and check specific textbooks (`Bilgisayar-Ağ-Sistemleri.pdf` and `network_dersnotu.pdf`) to lock retrieval solely to those two networking sources.
 
 <div align="center">
-  <img src="docs/images/ui-workspace-upload.png" alt="AskDocs — 6-PDF Isolated rag-research Workspace &amp; Scoping" width="96%" />
+  <img src="docs/images/ui-workspace-upload.png" alt="AskDocs — 10-PDF duran Workspace &amp; 2-PDF Networking Scope" width="96%" />
 </div>
 
 ### `#2` / Stream Grounded Markdown & Inline Citations
 
-Ask a cross-paper comparison question (English or Turkish—here queried in Turkish across English arXiv papers) and watch structured Markdown stream word-by-word with clickable citation pills, a clean copy button that strips citation markers, contextual follow-up actions (`Evet, öğrenmek isterim →`), and per-page relevance badges underneath.
+Ask a detailed technical question across the two scoped networking textbooks and watch structured Markdown stream word-by-word with clickable `[1]`, `[2]`, `[3]`, `[4]` citation pills, a clean copy button that strips citation markers, contextual follow-up actions (`Evet, inceleyelim →`), and per-page relevance badges (`%82`, `%75`, `%68`, `%65`) across both PDFs.
 
 <div align="center">
-  <img src="docs/images/ui-chat-citations.png" alt="AskDocs — Grounded Streaming Answer &amp; Citations" width="96%" />
+  <img src="docs/images/ui-chat-citations.png" alt="AskDocs — Grounded Streaming Answer &amp; Cross-PDF Citations" width="96%" />
 </div>
 
 ### `#3` / Verify Claims in the Source Inspector
 
-Click citation `[1]` to slide out the Cupertino Source Inspector right to page 2 of `crag_2401_15884.pdf`, displaying the `78%` similarity match and highlighted terms (`CRAG`, `Self-RAG`) so every claim can be verified in seconds.
+Click citation `[1, 3]` to slide out the Cupertino Source Inspector right to **page 14 of `Bilgisayar-Ağ-Sistemleri.pdf`** (`2` quotes, **`82%`** & **`73%`** similarity match) with yellow-highlighted key terms (`LLC`, `MAC`, `veri`, `bağlantısı`, `alt`) so every claim can be verified in seconds.
 
 <div align="center">
   <img src="docs/images/ui-source-inspector.png" alt="AskDocs — Slide-out Source Inspector Drawer" width="96%" />
@@ -93,12 +93,12 @@ Click citation `[1]` to slide out the Cupertino Source Inspector right to page 2
 AskDocs strictly separates heavy document ingestion (**Write Path**) from low-latency conversational streaming (**Read Path**):
 
 * **1. Upload & Index (Write Path):**
-  `PDF Upload` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Chunking` → `Qdrant Vectors`
-  Large PDF uploads never stall the API: FastAPI validates the request and hands off work immediately. Workers stream pages incrementally, clean and split text (`1200` chars / `150` overlap) via the **Rust (`PyO3`)** engine, and index deduplicated vectors into Qdrant.
+  `PDF Upload` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Chunking` → `Local TEI GPU (BAAI/bge-m3)` → `Qdrant (1024-dim)`
+  Large PDF uploads never stall the API: FastAPI validates the request and hands off work immediately. Workers stream pages incrementally, clean and split text (`1200` chars / `150` overlap) via the **Rust (`PyO3`)** engine, generate quota-free `1024`-dim vectors on the local GPU **HuggingFace TEI** server (`98.8 chunks/s` across all `1,357` chunks), and index deduplicated points into Qdrant.
 
 * **2. Ask & Verify (Read Path):**
-  `Question` → `Qdrant Similarity Search` → `Security & Context Filter` → `SSE Stream + Citation Cards`
-  Short follow-ups resolve against prior conversation context, and Qdrant retrieves the top 5 matching chunks (`0.70` cutoff) from the active workspace. Missing facts trigger honest abstention; grounded answers stream word-by-word with clickable `[1]`, `[2]` source badges.
+  `Question` → `Local TEI Embedding` → `Qdrant Similarity Search` → `Security & Context Filter` → `SSE Stream + Citation Cards`
+  Short follow-ups and document-title continuity resolve against prior conversation context, TEI embeds queries locally (`p50 = 17.9 ms`), and Qdrant retrieves the top 5 matching chunks (`0.60` primary / `0.48` fallback cutoff) from the active workspace. Missing evidence and prompt-extraction attempts trigger honest abstention with zero leaked citations; grounded answers stream word-by-word from the Chat LLM with clickable `[1]`, `[2]` source badges.
 
 ### Stack Breakdown
 
@@ -107,8 +107,9 @@ AskDocs strictly separates heavy document ingestion (**Write Path**) from low-la
 | **API & Web UI** | FastAPI + Vanilla JS | Async REST/SSE delivery, SHA-256 API-Key auth, and a zero-framework Cupertino UI |
 | **Queue & Workers** | Celery + Redis | Isolates CPU/network indexing bursts from FastAPI and tracks sliding-window rate limits |
 | **PDF & Text Core** | PyMuPDF + Rust (`PyO3`) | Incremental page streaming plus a native, GIL-free Rust text cleaner and chunker |
-| **Vector Store** | Qdrant | Tenant-isolated HNSW search, document scoping, and duplicate-free vector upserts |
-| **LLM & Embeddings** | Gemini (OpenAI-Compat) | Connection-pooled `gemini-3.5-flash-lite` generation and `3072`-dim embeddings |
+| **Vector Store** | Qdrant | Tenant-isolated HNSW search, document scoping, auto dimension sync, and idempotent upserts |
+| **Embeddings (Local GPU)** | HuggingFace TEI (`BAAI/bge-m3`) | Zero-quota `float16` CUDA inference (`1024`-dim, `8192`-token context, `corerag-tei`) |
+| **Chat LLM (Cloud / Compat)** | Gemini (`gemini-3.5-flash-lite`) | Connection-pooled OpenAI-compatible SSE streaming (`LLM_BASE_URL`, swappable via `.env`) |
 | **Telemetry** | Langfuse + PostgreSQL | Fail-open traces for retrieval scores, TTFT latency, and evaluation runs |
 
 ---
@@ -117,77 +118,80 @@ AskDocs strictly separates heavy document ingestion (**Write Path**) from low-la
 
 | Problem | Solution | Practical Impact |
 | :--- | :--- | :--- |
-| **Large PDFs blocking Python & CPU cores** | Rewrote text normalization and chunking in native **Rust (`PyO3`)** | **16.6x** faster cleaning, **9.7x** faster chunking, and **3.7x** lower Python RAM |
-| **API freezing during file uploads** | Kept FastAPI purely async; offloaded indexing to Celery workers | Instant `202 Accepted` uploads; zero impact on concurrent chat latency |
+| **Cloud embedding rate limits throttling PDF ingestion** | Decoupled `EMBEDDING_BASE_URL` to local GPU **HuggingFace TEI (`BAAI/bge-m3`)** while keeping Chat on `LLM_BASE_URL` | **Zero `429` embedding limits**, `p50=17.9 ms` query embeddings, **`13.7 s`** full indexing of all 10 PDFs (`1,357` chunks @ `98.8 chunks/s` on RTX 3050 Ti), and **3x** smaller Qdrant vectors (`1024` vs `3072`) |
+| **Large PDFs blocking Python & CPU cores** | Rewrote text normalization and chunking in native **Rust (`PyO3`)** | **17.2x** faster cleaning, **10.3x** faster chunking, and **3.7x** lower Python RAM |
+| **API freezing during file uploads** | Kept FastAPI purely async; offloaded indexing to Celery workers | Instant `202 Accepted` uploads; zero impact on concurrent chat latency (`p50=14.0 ms`) |
 | **Orphan files or duplicate vectors on retry** | Compensating disk cleanup (`rollback`) and deterministic `UUID5` point IDs | Zero leaked temporary files and zero duplicate chunks across retries |
 | **One tenant or outage stalling everyone** | Three-state **Circuit Breakers** and atomic Redis rate limiting (`fail-open`) | Fast `503` protection on outages; Redis or Langfuse downtime never stops search |
-| **LLM hallucination or prompt injection** | Calibrated `0.70` cutoff, `<context>` sanitization, and `[DONE]` stream checks | **100%** trap-question abstention; truncated streams never pollute chat history |
+| **LLM hallucination or prompt injection** | Calibrated `0.60`/`0.48` cutoffs, `<context>` sanitization, prompt-extraction guards, and `[DONE]` stream checks | **100%** trap-question abstention with **`0` trap noise** at `0.60`; truncated streams never pollute chat history |
 
 ---
 
 ## Benchmarks & Evaluations
 
-All metrics below are measured directly from reproducible evaluation, CPU/memory comparison, and load-test harnesses in this repository.
+All metrics below are measured directly from reproducible evaluation, GPU throughput, CPU/memory comparison, and load-test harnesses in this repository using the **`duran` 10-PDF workspace (`753` indexed pages, `1,357` chunks)**.
 
-### 1. RAG Accuracy & Hallucination Benchmark (`rag-research` · 6 PDFs)
+### 1. RAG Accuracy & Hallucination Benchmark (`duran` · 10 PDFs · 1,357 Chunks)
 
-To test semantic disambiguation across documents with heavy terminology overlap, AskDocs is evaluated inside the `rag-research` workspace across **6 competing arXiv RAG papers (385 total chunks)** using **24 questions** (18 answerable English/Turkish queries + 6 unanswerable trap questions):
+To stress-test multi-document disambiguation across overlapping university textbooks (two networking PDFs, two database PDFs, two Python PDFs, plus Java, OS, Data Structures, and AI Literacy), AskDocs is evaluated inside the **`duran`** workspace using **30 bilingual questions** (`24` answerable Turkish/English queries across all 10 PDFs + `6` unanswerable & near-miss adversarial trap questions):
 
 | Metric | Result | What It Means |
 | :--- | :---: | :--- |
-| **Source Retrieval (`Recall@5`)** | **`1.0000`** (`18 / 18`) | Every answerable query surfaced the exact expected paper & page inside Top-5 |
-| **First-Rank Precision (`MRR`)** | **`0.7824`** | Correct chunks consistently ranked near the top across 6 overlapping papers |
-| **Grounded Faithfulness** | **`0.9729`** | All inline `[1]`, `[2]` citations mapped to real pages with zero fabricated sources |
-| **Keyword Coverage** | **`0.9398`** | Almost 94% of expected technical terms and metrics appeared accurately in EN & TR |
-| **Trap Rejection (`Abstention`)** | **`1.0000`** (`6 / 6`) | All 6 unanswerable and adversarial traps were declined without hallucination |
+| **Source Retrieval (`Recall@5`)** | **`1.0000`** (`24 / 24`) | Every answerable query surfaced the exact expected PDF & page inside Top-5 across 1,357 chunks |
+| **First-Rank Precision (`MRR`)** | **`0.9097`** | Ground-truth passages ranked first (`1.000`) on 20/24 queries despite heavy topic overlap |
+| **Grounded Faithfulness** | **`0.9867`** | Inline `[Source N]` citations mapped cleanly to retrieved pages with zero fabricated references |
+| **Keyword Coverage** | **`0.9722`** | `97.2%` of expected technical terms and figures appeared accurately in TR & EN answers |
+| **Trap Rejection (`Abstention`)** | **`1.0000`** (`6 / 6`) | All 6 out-of-scope and adversarial near-miss traps were cleanly declined without hallucination |
 
 <div align="center">
-  <img src="docs/images/eval-threshold-chart.svg" alt="6-Paper RAG Calibration Sweep" width="100%" />
+  <img src="docs/images/eval-threshold-chart.svg" alt="10-PDF RAG Calibration Sweep on duran Workspace" width="100%" />
 </div>
 
 <details>
-<summary><strong>Open similarity threshold (0.30–0.75) calibration table</strong></summary>
+<summary><strong>Open similarity threshold (0.30–0.70) calibration table (duran · 10 PDFs)</strong></summary>
 
-Run: `eval-20261118-193027` · Workspace: `rag-research` (6 PDFs / 385 chunks) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
+Run: `eval-20261120-203718` · Workspace: `duran` (`10` PDFs / `753` pages / `1,357` chunks) · `gemini-3.5-flash-lite` + `BAAI/bge-m3` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
 
 | Score Threshold | `Recall@5` | `MRR` | Avg Chunks | Trap Noise (`NegNoise`) |
 | :---: | :---: | :---: | :---: | :---: |
-| `0.30` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.40` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.50` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.60` | `1.0000` | `0.7824` | `5.00` | `0.8333` |
-| `0.65` | `1.0000` | `0.7824` | `5.00` | `0.6667` |
-| `0.70` (Default) | `1.0000` | `0.7824` | `5.00` | `0.6667` |
-| **`0.75` (Recommended)** | **`1.0000`** | **`0.7824`** | **`4.44` (-11.2%)** | **`0.1667` (-83.3%)** |
+| `0.30` | `1.0000` | `0.9097` | `5.00` | `1.0000` |
+| `0.40` | `1.0000` | `0.9097` | `5.00` | `0.8333` |
+| `0.48` (Fallback Cutoff) | `1.0000` | `0.9097` | `5.00` | `0.6667` |
+| `0.55` | `1.0000` | `0.9097` | `4.62` (`-7.6%`) | `0.1667` |
+| **`0.60` (Production / Recommended)** | **`1.0000`** | **`0.9097`** | **`3.29` (-34.2%)** | **`0.0000` (-100.0%)** |
+| `0.65` | `0.7917` | `0.7708` | `1.58` | `0.0000` |
+| `0.70` | `0.6250` | `0.6042` | `0.92` | `0.0000` |
 
-Tightening the cutoff to `0.75` eliminates **83.3% of trap-query noise** and reduces LLM context token cost by **11.2%** with zero loss in `Recall@5` (`1.0000`) or `MRR` (`0.7824`).
+`0.60` sits right on the Pareto knee for `BAAI/bge-m3`: it eliminates **100% of trap-query noise (`0.0000`)** and trims LLM context token load by **34.2%** (`5.00` → `3.29` chunks) while keeping `Recall@5` (`1.0000`) and `MRR` (`0.9097`) intact; raising the cutoff to `0.65` drops `Recall@5` sharply to `0.7917`.
 
 </details>
 
-### 2. What Rust (`PyO3`) Unlocked (50 MB Text Microbenchmark)
+### 2. What Rust (`PyO3`) Unlocked (50 MiB Text Microbenchmark)
 
-Comparing pure Python against the compiled Rust engine ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) on an isolated 50 MB (~50 million chars) noisy text corpus with zero network or GPU latency:
+Comparing pure Python against the compiled Rust engine ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) on an isolated 50.00 MiB (`49,585,446` chars) noisy text corpus with zero network or GPU latency:
 
-| Operation | Pure Python | Rust (`PyO3`) | Gain |
+| Operation | Pure Python | Rust (`PyO3` v0.1.0) | Gain |
 | :--- | :---: | :---: | :--- |
-| **Text Cleaning (`clean_text`)** | `4.89 s` (`10.2 MB/s`) | **`0.29 s` (`170.0 MB/s`)** | **16.6x faster** |
-| **Text Chunking (`chunk_text` · 69k chunks)** | `4.93 s` (`10.1 MB/s`) | **`0.51 s` (`98.6 MB/s`)** | **9.7x faster** |
-| **Chunking Memory Peak (Python Heap)** | `749.5 MB` | **`202.1 MB`** | **3.7x less RAM** |
+| **Text Cleaning (`clean_text`)** | `4.40 s` (`11.36 MiB/s`) | **`0.26 s` (`195.83 MiB/s`)** | **17.23x faster** |
+| **Text Chunking (`chunk_text` · 69,349 chunks)** | `4.34 s` (`11.53 MiB/s`) | **`0.42 s` (`118.87 MiB/s`)** | **10.31x faster** |
+| **Chunking Memory Peak (Python Heap)** | `749.51 MiB` | **`202.12 MiB`** | **3.71x less RAM** |
 
 * **Why such a large jump?** Python allocates hundreds of megabytes of transient Unicode copies across chained regex passes while holding the GIL.
 * **Zero Lock Contention, Exact Parity:** Rust scans linearly outside the Python heap without holding the GIL, producing **100% character-identical chunks** to Python.
 * **Zero Runtime Bloat:** Built in multi-stage Docker so no Rust compiler ships to production, with automatic fallback to pure Python if the compiled wheel is absent.
 
-### 3. Load Test & PDF Stream Throughput
+### 3. Load Test, Local TEI GPU & PDF Stream Throughput
 
-30-second Locust concurrency run with 20 virtual users (with mock AI isolating orchestration overhead from external API quotas) and PyMuPDF page-streaming throughput:
+30-second Locust concurrency run with 20 virtual users (with mock AI isolating orchestration overhead), live GPU TEI throughput on the `10`-PDF `duran` corpus, and PyMuPDF page-streaming speed:
 
 | Benchmark | Workload | Result | Takeaway |
 | :--- | :--- | :--- | :--- |
-| **Locust Load Mix** | 8 endpoints, 1,260 requests | **`43.21 RPS` · 0.0% errors** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
-| **Container Memory** | 4 core services (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | 0 OOMs and 0 restarts under mixed load |
-| **PyMuPDF PDF Stream** | 100-page PDF stream | **`172.9 ms` (`578 pages/s`)** | 5-run median throughput |
-| **Smart Chunk Size (`1200/150`)** | 5.33 MB sample text | **6,167 chunks** | **3x fewer** embeddings vs `500/75` (18,500) |
+| **Locust Load Mix** | 8 endpoints, `1,297` requests | **`44.45 RPS` · 0.0% errors** | `p50=14.0 ms`, `p95=130.0 ms`, `p99=170.0 ms` |
+| **Container Memory** | 4 core services (`docker stats`) | **Peak `162.5 MiB` API / `286.5 MiB` Worker** | `0` OOMs and `0` restarts (`782.9 MiB` TEI GPU service) |
+| **Local TEI Query Embed** | 30 `BAAI/bge-m3` single queries | **`p50=17.90 ms` (`p95=21.03 ms`)** | Zero cloud latency or API rate limits |
+| **Local TEI Bulk Embed** | All 10 `duran` PDFs (`1,357` chunks) | **`13.73 s` (`98.8 chunks/s`)** | Full 753-page corpus re-embedded in 13.7 s (`batch=32`) |
+| **PyMuPDF PDF Stream** | 100-page PDF from `duran` text | **`37.04 ms` (`2,700 pages/s`)** | 5-run median throughput via `iter_document_pages` |
+| **Smart Chunk Size (`1200/150`)** | Real `duran` 10-PDF text (`1.14 MB`) | **`1,027` chunks** | **`2.59x` fewer** embeddings vs `500/75` (`2,658`) |
 
 <details>
 <summary><strong>Per-endpoint Locust breakdown &amp; Docker container RAM table</strong></summary>
@@ -196,21 +200,21 @@ Full report: [`evals/load_test_report.json`](evals/load_test_report.json)
 
 | Endpoint | Requests | Failures | RPS | `p50` | `p95` | `p99` |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| `GET /api/v1/health` | `119` | `0.0%` | `4.08` | `13.0 ms` | `52.0 ms` | `110.0 ms` |
-| `POST /api/v1/documents/upload` | `72` | `0.0%` | `2.47` | `34.0 ms` | `77.0 ms` | `130.0 ms` |
-| `GET /api/v1/documents/status/{task_id}` | `145` | `0.0%` | `4.97` | `7.0 ms` | `26.0 ms` | `52.0 ms` |
-| `GET /api/v1/documents` | `239` | `0.0%` | `8.20` | `13.0 ms` | `67.0 ms` | `77.0 ms` |
-| `GET /api/v1/documents/tenants` | `128` | `0.0%` | `4.39` | `10.0 ms` | `30.0 ms` | `90.0 ms` |
-| `POST /api/v1/query` | `291` | `0.0%` | `9.98` | `110.0 ms` | `150.0 ms` | `240.0 ms` |
-| `POST /api/v1/query/stream` | `194` | `0.0%` | `6.65` | `60.0 ms` | `120.0 ms` | `140.0 ms` |
-| `DELETE /api/v1/documents/{document_id}` | `72` | `0.0%` | `2.47` | `11.0 ms` | `25.0 ms` | `60.0 ms` |
+| `GET /api/v1/health` | `130` | `0.0%` | `4.46` | `10.0 ms` | `28.0 ms` | `62.0 ms` |
+| `POST /api/v1/documents/upload` | `77` | `0.0%` | `2.64` | `52.0 ms` | `76.0 ms` | `92.0 ms` |
+| `GET /api/v1/documents/status/{task_id}` | `154` | `0.0%` | `5.28` | `6.0 ms` | `19.0 ms` | `34.0 ms` |
+| `GET /api/v1/documents` | `267` | `0.0%` | `9.15` | `9.0 ms` | `20.0 ms` | `37.0 ms` |
+| `GET /api/v1/documents/tenants` | `131` | `0.0%` | `4.49` | `8.0 ms` | `24.0 ms` | `59.0 ms` |
+| `POST /api/v1/query` | `286` | `0.0%` | `9.80` | `110.0 ms` | `170.0 ms` | `190.0 ms` |
+| `POST /api/v1/query/stream` | `175` | `0.0%` | `6.00` | `64.0 ms` | `120.0 ms` | `140.0 ms` |
+| `DELETE /api/v1/documents/{document_id}` | `77` | `0.0%` | `2.64` | `9.0 ms` | `23.0 ms` | `29.0 ms` |
 
 | Container | Start RAM | Peak RAM | End RAM | Max CPU | OOM / Restarts |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `corerag-api` | `179.6 MiB` | **`182.5 MiB`** | `182.5 MiB` | `58.23%` | `0 / 0` |
-| `corerag-worker` | `244.2 MiB` | **`297.8 MiB`** | `297.8 MiB` | `49.29%` | `0 / 0` |
-| `corerag-qdrant` | `86.30 MiB` | **`97.82 MiB`** | `97.73 MiB` | `11.72%` | `0 / 0` |
-| `corerag-redis` | `6.53 MiB` | **`9.11 MiB`** | `8.95 MiB` | `1.67%` | `0 / 0` |
+| `corerag-api` | `160.70 MiB` | **`162.50 MiB`** | `161.10 MiB` | `37.03%` | `0 / 0` |
+| `corerag-worker` | `226.70 MiB` | **`286.50 MiB`** | `282.00 MiB` | `26.69%` | `0 / 0` |
+| `corerag-qdrant` | `147.90 MiB` | **`150.90 MiB`** | `131.80 MiB` | `7.32%` | `0 / 0` |
+| `corerag-redis` | `10.18 MiB` | **`12.48 MiB`** | `12.36 MiB` | `1.69%` | `0 / 0` |
 
 </details>
 
@@ -226,18 +230,22 @@ cd AskDocs
 cp .env.example .env
 ```
 
-Set a strong `API_KEY` and configure your OpenAI-compatible provider credentials (`QDRANT_VECTOR_SIZE` must match your embedding model's vector dimension—e.g. `3072` for `gemini-embedding-001`):
+Set a strong `API_KEY` and configure your hybrid Chat LLM + local TEI Embedding settings (`QDRANT_VECTOR_SIZE` must match your embedding model's vector dimension—`1024` for `BAAI/bge-m3`):
 
 ```env
 API_KEY=replace-with-a-strong-random-api-key
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 LLM_API_KEY=your-provider-api-key
 LLM_MODEL=gemini-3.5-flash-lite
-EMBEDDING_MODEL=gemini-embedding-001
-QDRANT_VECTOR_SIZE=3072
+EMBEDDING_BASE_URL=http://localhost:8081/v1
+EMBEDDING_API_KEY=local-tei
+EMBEDDING_MODEL=BAAI/bge-m3
+QDRANT_VECTOR_SIZE=1024
+RAG_SCORE_THRESHOLD=0.60
+RAG_FALLBACK_SCORE_THRESHOLD=0.48
 ```
 
-*(Using OpenAI, vLLM, or another OpenAI-compatible host? Update `LLM_BASE_URL`, model names, and `QDRANT_VECTOR_SIZE` in `.env` accordingly.)*
+*(Want to use a single cloud/OpenAI-compatible provider for both chat and embeddings instead of local GPU TEI? Leave `EMBEDDING_BASE_URL=` and `EMBEDDING_API_KEY=` blank to automatically inherit `LLM_BASE_URL` and `LLM_API_KEY`, and set `QDRANT_VECTOR_SIZE` accordingly—e.g. `3072` for `gemini-embedding-001`. Note: running `corerag-tei` in Docker requires an NVIDIA GPU with the NVIDIA Container Toolkit enabled.)*
 
 ### 2. Start the Stack
 
@@ -248,6 +256,7 @@ docker compose up --build
 Services available once containers turn healthy:
 * **AskDocs Web UI:** [http://localhost:8000/](http://localhost:8000/)
 * **OpenAPI / Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Local TEI Embedding Server:** [http://localhost:8081/health](http://localhost:8081/health)
 * **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 * **Langfuse Traces UI:** [http://localhost:3000](http://localhost:3000)
 
@@ -256,7 +265,7 @@ Services available once containers turn healthy:
 
 ```bash
 uv sync --frozen
-docker compose up -d redis qdrant postgres langfuse
+docker compose up -d redis qdrant postgres langfuse tei
 
 # Terminal 1 — FastAPI API & Web UI
 uv run uvicorn src.main:app --reload --port 8000
@@ -330,7 +339,7 @@ data: [DONE]
 
 ## Quality Gates & Project Layout
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) enforces Rust lint/safety checks, Python formatting/linting, strict `mypy` type checking, JS syntax validation, `pytest-cov` (`>= 85%` branch coverage gate across `163` Python + `6` Rust tests), and multi-stage non-root Docker Buildx verification on every push and pull request:
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) enforces Rust lint/safety checks, Python formatting/linting, strict `mypy` type checking, JS syntax validation, `pytest-cov` (`>= 85%` branch coverage gate across `173` Python + `6` Rust tests, currently `87.7%`), and multi-stage non-root Docker Buildx verification on every push and pull request:
 
 ```bash
 # Rust checks (inside text_processor/)
@@ -338,18 +347,18 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 
-# Python & JS formatting, lint, static types, syntax & isolated test suite (163 Py + 6 Rust = 169 passing)
+# Python & JS formatting, lint, static types, syntax & isolated test suite (173 Py + 6 Rust = 179 tests)
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src tests scripts locustfile.py
 node --check src/ui/app.js
 uv run pytest -v --cov=src --cov-report=term-missing
 
-# Live concurrency, 6-PDF RAG quality, Rust vs Python microbenchmark & Locust load scripts
+# Live concurrency, 10-PDF RAG quality, Rust vs Python microbenchmark & Locust load scripts
 uv run python scripts/test_queue_concurrency.py --count 10
-uv run python scripts/evaluate_rag.py --score-threshold 0.70 --thresholds "0.30,0.40,0.50,0.60,0.65,0.70,0.75" --delay-seconds 5.0
-uv run --no-sync python scripts/benchmark_text_processor.py --size-mb 50 --iterations 3
-uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s --with-mock-ai
+uv run python scripts/evaluate_rag.py --dataset evals/golden_dataset.json --output evals/latest_eval_report.json --score-threshold 0.60 --thresholds "0.30,0.40,0.48,0.55,0.60,0.65,0.70" --delay-seconds 4.5
+uv run --no-sync python scripts/benchmark_text_processor.py --size-mb 50 --iterations 3 --output evals/text_processor_benchmark.json
+uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s --with-mock-ai --output evals/load_test_report.json
 ```
 
 <details>
@@ -360,11 +369,11 @@ AskDocs/
 ├── .github/workflows/ci.yml       # Rust, Ruff, Mypy, Pytest-cov (85%+ branch) & Docker CI pipeline
 ├── docs/images/                   # Hero SVG, architecture SVG, eval chart & UI screenshots
 ├── evals/
-│   ├── golden_dataset.json        # 24-question 6-PDF (rag-research) + adversarial trap eval set
+│   ├── golden_dataset.json        # 30-question 10-PDF (duran) + adversarial trap eval set (v4.0)
 │   ├── latest_eval_report.json    # Latest calibration run (Recall@5, MRR, Faithfulness)
 │   ├── load_test_report.json      # 20-user Locust latency & Docker container RAM report
 │   ├── text_processor_benchmark.json # 50 MiB Rust vs. Python CPU & heap microbenchmark report
-│   └── README.md                  # Hyperparameter calibration & Rust benchmark notes
+│   └── README.md                  # Hyperparameter calibration, GPU & Rust benchmark notes
 ├── scripts/
 │   ├── benchmark_text_processor.py # 50 MiB clean/chunk CPU & tracemalloc parity harness
 │   ├── evaluate_rag.py            # Golden Dataset runner + threshold sweep + Langfuse logging
@@ -384,9 +393,9 @@ AskDocs/
 │   ├── src/lib.rs                 # #![forbid(unsafe_code)] PyO3 cleaner & O(chunk_size) chunker
 │   ├── Cargo.toml                 # abi3-py311 release/dev-opt crate manifest
 │   └── pyproject.toml             # Maturin PEP 517 build configuration
-├── tests/                         # 163 isolated Python unit/integration tests + 6 Rust tests
+├── tests/                         # 173 isolated Python unit/integration tests + 6 Rust tests
 ├── Dockerfile                     # 3-stage Rust wheel + Python builder -> non-root UID 10001 runtime
-├── docker-compose.yml             # API, Celery Worker, Redis, Qdrant, Postgres, Langfuse
+├── docker-compose.yml             # API, Celery Worker, TEI (GPU), Redis, Qdrant, Postgres, Langfuse
 ├── locustfile.py                  # Locust traffic mix across upload, poll, query, stream, delete
 └── pyproject.toml                 # Dependencies, uv lock & Ruff/Mypy/Pytest/Coverage config
 ```

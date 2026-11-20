@@ -27,10 +27,10 @@
     <code>FastAPI</code> ·
     <code>Celery &amp; Redis</code> ·
     <code>Qdrant</code> ·
-    <code>Gemini / OpenAI-Compat</code> ·
+    <code>Gemini + Yerel TEI (BAAI/bge-m3)</code> ·
     <code>Langfuse</code> ·
-    <code>169 Tests (163 Py + 6 Rust)</code> ·
-    <code>%88.6 Branch Cov</code>
+    <code>179 Tests (173 Py + 6 Rust)</code> ·
+    <code>%87.7 Branch Cov</code>
   </sub>
 </p>
 
@@ -49,37 +49,37 @@ Belgelerle sohbet eden bir sistem kurmak, yalnızca bir vector DB'nin önüne LL
 * **Tenant Workspace İzolasyonu ve Document Scoping:** Her belge ve sorgu ayrı bir `tenant` workspace'ine izole edilir; dilerseniz sol panelden belirli PDF'leri seçip aramayı yalnızca seçtiğiniz belgelerle daraltabilirsiniz.
 * **Non-Blocking Arka Plan İndeksleme:** Upload isteği dosya doğrulamasını yapıp anında `202 Accepted` döner; PDF parsing, temizleme, chunking ve batch embedding üretimi arka plandaki Celery worker'larına devredilir.
 * **Inline Citation'lar ve Source Inspector:** Yanıtlar SSE ile canlı gelirken her iddia tıklanabilir `[1]`, `[2]` badge'leri taşır. Bir badge'e tıklandığında sağdan açılan Source Inspector sizi doğrudan ilgili sayfaya, similarity score'una ve highlight edilmiş pasaja götürür.
-* **Follow-Up Zekâsı ve Guardrail'ler:** Kısa takip sorularını önceki sohbet bağlamından çözer, belge içindeki `<context>` prompt-injection etiketlerini nötralize eder ve kanıt yoksa bilgi uydurmadan reddeder (`abstention`).
-* **Resilience ve OpenAI-Compatible Esneklik:** Async ve sync Circuit Breaker'lar Qdrant veya LLM kesintilerini izole eder, Redis Rate Limiter ve Langfuse observability'si kesintilerde `fail-open` çalışır; `.env` üzerinden Gemini veya herhangi bir OpenAI-compatible API kolayca bağlanır.
+* **Follow-Up Zekâsı ve Guardrail'ler:** Kısa takip sorularını ve belge başlığı sürekliliğini önceki sohbet bağlamından çözer, prompt-sızdırma girişimlerini ve `<context>` injection etiketlerini yalıtır, ret yanıtlarında alakasız kartları gizler ve kanıt yoksa bilgi uydurmadan reddeder (`abstention`).
+* **Resilience ve Hibrit Model Taşınabilirliği:** Async ve sync Circuit Breaker'lar Qdrant veya LLM kesintilerini izole eder, Redis Rate Limiter ve Langfuse observability'si kesintilerde `fail-open` çalışır; `EMBEDDING_BASE_URL` yerel GPU embedding'ini (`HuggingFace TEI` + `BAAI/bge-m3`) bulut Chat LLM'den (`gemini-3.5-flash-lite`) ayırır ve Qdrant vektör boyutu değiştiğinde koleksiyonu otomatik yeniden kurar.
 
 ---
 
 ## Canlı Arayüz
 
-Aşağıdaki üç adımda arXiv'den alınan altı retrieval makalesinin (`REALM`, `DPR`, `FiD`, `HyDE`, `Self-RAG` ve `CRAG`) diğer workspace'lerden tamamen yalıtılmış **`rag-research`** alanındaki canlı kullanımını görebilirsiniz.
+Aşağıdaki üç adımda Bilgisayar Ağları, Veritabanı Yönetim Sistemleri, İşletim Sistemleri, Python, Java OOP, Veri Yapıları ve Yapay Zekâ Okuryazarlığı derslerinden **10 üniversite PDF'i (`753` indekslenmiş sayfa, `1.357` parça)** barındıran izole **`duran`** çalışma alanındaki canlı kullanımı görebilirsiniz.
 
 ### `#1` / Workspace Seçimi ve Document Scoping
 
-Sol alttan `tenant` workspace'leri arasında geçiş yapın, çoklu PDF veya düz metin yükleyin ve yalnızca `crag_2401_15884.pdf` ile `selfrag_2310_11511.pdf` dosyalarını işaretleyerek aramayı bu iki kaynakla sınırlandırın.
+Sol alttan `tenant` workspace'leri arasında geçiş yapın, çoklu PDF veya düz metin yükleyin ve yalnızca `Bilgisayar-Ağ-Sistemleri.pdf` ile `network_dersnotu.pdf` dosyalarını işaretleyerek aramayı bu iki bilgisayar ağları kaynağıyla sınırlandırın.
 
 <div align="center">
-  <img src="docs/images/ui-workspace-upload.png" alt="AskDocs — 6 PDF'li İzole rag-research Workspace ve Scoping" width="96%" />
+  <img src="docs/images/ui-workspace-upload.png" alt="AskDocs — 10 PDF'li duran Workspace ve 2 PDF Bilgisayar Ağları Kapsamı" width="96%" />
 </div>
 
 ### `#2` / Grounded Streaming ve Inline Citation'lar
 
-Seçili İngilizce makaleleri kıyaslayan Türkçe bir soru sorduğunuzda yanıt yapılandırılmış Markdown formatında stream edilir. Her iddia tıklanabilir citation pill'leri, ham etiketleri temizleyen kopyalama butonu, bağlamsal follow-up önerisi (`Evet, öğrenmek isterim →`) ve sayfa/benzerlik kartlarıyla sunulur.
+Seçili iki ağ ders notunu birlikte tarayan teknik bir soru sorduğunuzda yanıt yapılandırılmış Markdown formatında stream edilir. Her iddia tıklanabilir `[1]`, `[2]`, `[3]`, `[4]` badge'leri, ham etiketleri temizleyen `Kopyala` butonu, bağlamsal follow-up önerisi (`Evet, inceleyelim →`) ve her iki PDF'ten gelen sayfa/benzerlik kartlarıyla (`%82`, `%75`, `%68`, `%65`) sunulur.
 
 <div align="center">
-  <img src="docs/images/ui-chat-citations.png" alt="AskDocs — Citation Destekli SSE Streaming Yanıtı" width="96%" />
+  <img src="docs/images/ui-chat-citations.png" alt="AskDocs — Çoklu PDF Destekli SSE Streaming ve Inline Citation Yanıtı" width="96%" />
 </div>
 
 ### `#3` / Source Inspector ile Doğrulama
 
-İlk citation badge'ine (`[1]`) tıkladığınızda sağdan açılan Cupertino Source Inspector paneli, sizi doğrudan `crag_2401_15884.pdf` belgesinin 2. sayfasına, `%78` match skoruna ve vurgulanmış (`CRAG`, `Self-RAG`) kaynak pasajlara götürür.
+İlk citation kartına (`[1, 3]`) tıkladığınızda sağdan açılan Cupertino Kaynak İnceleyici paneli, sizi doğrudan **`Bilgisayar-Ağ-Sistemleri.pdf` belgesinin 14. sayfasına** (`2` alıntı, **`%82`** ve **`%73`** eşleşme skoru) ve sarı vurgulanmış (`LLC`, `MAC`, `veri`, `bağlantısı`, `alt`) kaynak pasajlara götürür.
 
 <div align="center">
-  <img src="docs/images/ui-source-inspector.png" alt="AskDocs — Sağdan Açılan Source Inspector Paneli" width="96%" />
+  <img src="docs/images/ui-source-inspector.png" alt="AskDocs — Sağdan Açılan Kaynak İnceleyici Paneli" width="96%" />
 </div>
 
 ---
@@ -93,12 +93,12 @@ Seçili İngilizce makaleleri kıyaslayan Türkçe bir soru sorduğunuzda yanıt
 Sistem ağır belge işleme yükünü (**Yazma Akışı**) canlı sohbetten (**Okuma Akışı**) tamamen ayırır:
 
 * **1. Yükleme ve İndeksleme (Write Path):**
-  `PDF Yükleme` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Parçalama` → `Qdrant Vektör Kaydı`
-  Kullanıcı büyük bir PDF yüklediğinde API beklemez; doğrulamayı yapıp işi anında arka plana devreder. Worker sayfaları stream ederek okur, **Rust** motoruyla metni temizleyip anlamlı parçalara böler (`1200` karakter / `150` çakışma) ve vektörleri Qdrant'a kaydeder.
+  `PDF Yükleme` → `FastAPI (202 Accepted)` → `Celery Worker` → `PyMuPDF + Rust Parçalama` → `Yerel TEI GPU (BAAI/bge-m3)` → `Qdrant (1024-dim)`
+  Kullanıcı büyük bir PDF yüklediğinde API beklemez; doğrulamayı yapıp işi anında arka plana devreder. Worker sayfaları stream ederek okur, **Rust (`PyO3`)** motoruyla metni temizleyip anlamlı parçalara böler (`1200` karakter / `150` çakışma), yerel GPU **HuggingFace TEI** sunucusunda kotasız `1024` boyutlu vektörler üretir (`1.357` parça `98.8 parça/sn` hızında) ve Qdrant'a kaydeder.
 
 * **2. Soru Sorma ve Canlı Yanıt (Read Path):**
-  `Soru` → `Qdrant Benzerlik Araması` → `Güvenlik ve Bağlam Filtresi` → `SSE Canlı Yanıt + Kaynak Kartları`
-  Kısa takip soruları önceki sohbet bağlamından çözülür; yalnızca aktif çalışma alanındaki en alakalı 5 parça (`0.70` eşiği) getirilir. Kaynakta kanıt yoksa model uydurmaz; varsa tıklanabilir `[1]`, `[2]` rozetleriyle yanıtı kelime kelime tarayıcıya akıtır.
+  `Soru` → `Yerel TEI Embedding` → `Qdrant Benzerlik Araması` → `Güvenlik ve Bağlam Filtresi` → `SSE Canlı Yanıt + Kaynak Kartları`
+  Kısa takip soruları ve belge başlığı sürekliliği önceki sohbet bağlamından çözülür; TEI sorguyu yerelde (`p50 = 17.9 ms`) vektörleştirir ve aktif çalışma alanındaki en alakalı 5 parça (`0.60` birincil / `0.48` yedek eşik) getirilir. Kaynakta kanıt yoksa veya prompt sızdırma girişimi algılanırsa model uydurmaz ve sıfır kaynakla reddeder; kanıt varsa tıklanabilir `[1]`, `[2]` rozetleriyle yanıtı kelime kelime tarayıcıya akıtır.
 
 ### Tech Stack Özeti
 
@@ -107,8 +107,9 @@ Sistem ağır belge işleme yükünü (**Yazma Akışı**) canlı sohbetten (**O
 | **API & Web Arayüzü** | FastAPI + Vanilla JS | Asenkron REST/SSE akışı, SHA-256 anahtar doğrulama ve çerçevesiz Cupertino arayüzü |
 | **Kuyruk & Worker** | Celery + Redis | Ağır PDF/embedding işlerini API'den ayırır ve hız limitlerini (Rate Limit) takip eder |
 | **PDF & Metin Motoru** | PyMuPDF + Rust (`PyO3`) | Hızlı sayfa okuma ve GIL kilitlemeyen yerel Rust temizleme/parçalama motoru |
-| **Vektör Veritabanı** | Qdrant | Çalışma alanı bazlı izole arama, belge filtreleme ve çift kaydı önleyen indeksleme |
-| **LLM & Embedding** | Gemini (OpenAI-Compat) | Bağlantı havuzlu `gemini-3.5-flash-lite` üretimi ve `3072` boyutlu vektörleştirme |
+| **Vektör Veritabanı** | Qdrant | Çalışma alanı bazlı izole arama, belge filtreleme, otomatik boyut uyumu ve idempotent upsert |
+| **Embedding (Yerel GPU)** | HuggingFace TEI (`BAAI/bge-m3`) | Kotasız `float16` CUDA çıkarımı (`1024` boyut, `8192` token penceresi, `corerag-tei`) |
+| **Chat LLM (Bulut / Compat)** | Gemini (`gemini-3.5-flash-lite`) | Bağlantı havuzlu OpenAI-uyumlu SSE akışı (`LLM_BASE_URL`, `.env` üzerinden değiştirilebilir) |
 | **İzleme (Observability)** | Langfuse + PostgreSQL | Arama skorları, yanıt hızı (TTFT) ve token kullanımının `fail-open` takibi |
 
 ---
@@ -117,77 +118,80 @@ Sistem ağır belge işleme yükünü (**Yazma Akışı**) canlı sohbetten (**O
 
 | Karşılaşılan Sorun | Uygulanan Çözüm | Pratik Kazanç |
 | :--- | :--- | :--- |
-| **Büyük PDF'lerin Python'ı kilitlemesi** | Metin temizleme ve parçalama katmanı **Rust (`PyO3`)** ile yazıldı | **16.6x** daha hızlı temizlik, **9.7x** daha hızlı parçalama ve **3.7x** daha düşük RAM |
-| **Yükleme sırasında API'nin donması** | FastAPI tamamen asenkron tutuldu; indeksleme Celery worker'larına ayrıldı | Yüklemelerde anında `202 Accepted` yanıtı; sohbet trafiği hiç yavaşlamaz |
+| **Bulut embedding kotasının PDF yüklemelerini yavaşlatması** | `EMBEDDING_BASE_URL` ayrılarak embedding yerel GPU **HuggingFace TEI (`BAAI/bge-m3`)**'ye, Chat ise `LLM_BASE_URL`'e yönlendirildi | **Sıfır `429` embedding kotası**, `p50=17.9 ms` sorgu vektörleme, 10 PDF'lik tüm korpusta (`1.357` parça) **`13.7 sn`** toplu vektörleme (`98.8 parça/sn`, RTX 3050 Ti) ve **3x** daha az Qdrant vektör alanı (`1024` vs `3072`) |
+| **Büyük PDF'lerin Python'ı kilitlemesi** | Metin temizleme ve parçalama katmanı **Rust (`PyO3`)** ile yazıldı | **17.2x** daha hızlı temizlik, **10.3x** daha hızlı parçalama ve **3.7x** daha düşük RAM |
+| **Yükleme sırasında API'nin donması** | FastAPI tamamen asenkron tutuldu; indeksleme Celery worker'larına ayrıldı | Yüklemelerde anında `202 Accepted` yanıtı; yüksek eşzamanlılıkta dahi **`p50=14.0 ms`** yanıt |
 | **Ağ kopmalarında çift kayıt veya dosya sızıntısı** | Otomatik disk geri alımı (`rollback`) ve deterministik `UUID5` vektör kimlikleri | Yeniden denemelerde sıfır yetim dosya ve sıfır kopya vektör kaydı |
 | **Tek kullanıcı veya dış servisin sistemi düşürmesi** | 3 durumlu **Circuit Breaker** ve atomik Redis hız sınırlama (`fail-open`) | Dış servis kesintilerinde hızlı koruma; Redis veya Langfuse dursa bile arama sürer |
-| **LLM'in kaynak dışı bilgi uydurması** | Kalibre benzerlik eşiği (`0.70`), injection temizliği ve `[DONE]` akış doğrulaması | Tuzak sorularda **%100** doğru ret; yarım kalan yanıtlar sohbet geçmişini bozmaz |
+| **LLM'in kaynak dışı bilgi uydurması veya sızıntı** | Kalibre `0.60`/`0.48` eşikleri, `<context>` + prompt-extraction koruması ve `[DONE]` doğrulaması | Tuzak sorularda **%100** doğru ret ve `0.60` eşiğinde **`%0` tuzak gürültüsü**; rette alakasız kart yok |
 
 ---
 
 ## Benchmark ve Ölçümler
 
-Aşağıdaki tüm sayılar repodaki tekrarlanabilir değerlendirme, CPU/bellek karşılaştırma ve yük testi script'lerinden doğrudan ölçülmüştür.
+Aşağıdaki tüm sayılar **`duran` çalışma alanındaki 10 PDF (`753` indekslenmiş sayfa, `1.357` parça)** ve repodaki tekrarlanabilir değerlendirme, GPU, CPU/bellek karşılaştırma ve yük testi script'lerinden doğrudan ölçülmüştür.
 
-### 1. RAG Doğruluk ve Halüsinasyon Testi (`rag-research` · 6 PDF)
+### 1. RAG Doğruluk ve Halüsinasyon Testi (`duran` · 10 PDF · 1.357 Parça)
 
-Sistemin aynı alandaki benzer belgeleri birbirine karıştırıp karıştırmadığını ölçmek için, `rag-research` çalışma alanındaki **6 akademik RAG makalesi (toplam 385 metin parçası)** üzerinde **24 soruluk** (18 İngilizce/Türkçe normal soru + 6 belgede cevabı olmayan tuzak soru) bir değerlendirme koşturuldu:
+Sistemin birbiriyle konu bakımından örtüşen çoklu ders dokümanlarını (2 Bilgisayar Ağları, 2 Veritabanı, 2 Python ders notu + Java, İşletim Sistemleri, Veri Yapıları ve Yapay Zekâ) birbirine karıştırıp karıştırmadığını ölçmek için **`duran`** çalışma alanında **30 soruluk** (`24` Türkçe/İngilizce pozitif soru + `6` belgede karşılığı olmayan / şaşırtmacalı near-miss tuzak soru) bir değerlendirme koşturuldu:
 
 | Ölçüt | Sonuç | Ne Anlama Geliyor? |
 | :--- | :---: | :--- |
-| **Doğru Kaynağı Bulma (`Recall@5`)** | **`1.0000`** (`18 / 18`) | 6 rakip makaledeki her soruda doğru sayfa ilk 5 sonuç içinde bulundu |
-| **İlk Sıra İsabeti (`MRR`)** | **`0.7824`** | Yoğun terim örtüşmesine rağmen doğru kaynak yüksek oranda üst sırada geldi |
-| **Kaynağa Sadakat (`Faithfulness`)** | **`0.9729`** | Yanıtlardaki tüm `[1]`, `[2]` atıfları gerçek sayfalara dayandı; uydurma atıf çıkmadı |
-| **İçerik Kapsamı (`Keyword Coverage`)** | **`0.9398`** | Türkçe ve İngilizce sorularda kritik kavram ve sayıların %94'ü yanıtlandı |
-| **Tuzak Soruları Reddetme (`Abstention`)** | **`1.0000`** (`6 / 6`) | Belgede karşılığı olmayan 6 şaşırtmacalı sorunun tamamında model bilgi uydurmadı |
+| **Doğru Kaynağı Bulma (`Recall@5`)** | **`1.0000`** (`24 / 24`) | 10 ders kitabındaki tüm pozitif sorularda beklenen sayfa ilk 5 sonuç içinde bulundu |
+| **İlk Sıra İsabeti (`MRR`)** | **`0.9097`** | Yoğun terim örtüşmesine rağmen soruların 20/24'ünde doğru sayfa tam 1. sırada geldi |
+| **Kaynağa Sadakat (`Faithfulness`)** | **`0.9867`** | Yanıtlardaki tüm `[Source N]` atıfları gerçek sayfalara dayandı; uydurma atıf çıkmadı |
+| **İçerik Kapsamı (`Keyword Coverage`)** | **`0.9722`** | Türkçe ve İngilizce sorularda kritik teknik terim ve sayıların %97.2'si yanıtlandı |
+| **Tuzak Soruları Reddetme (`Abstention`)** | **`1.0000`** (`6 / 6`) | Genel ve adversarial tüm tuzaklarda model bilgi uydurmadan temiz ret verdi |
 
 <div align="center">
-  <img src="docs/images/eval-threshold-chart.svg" alt="6-PDF RAG Threshold Calibration Sweep" width="100%" />
+  <img src="docs/images/eval-threshold-chart.svg" alt="duran 10-PDF RAG Threshold Calibration Sweep" width="100%" />
 </div>
 
 <details>
-<summary><strong>Benzerlik eşiği (0.30–0.75) kalibrasyon tablosunu aç</strong></summary>
+<summary><strong>Benzerlik eşiği (0.30–0.70) kalibrasyon tablosunu aç (duran · 10 PDF)</strong></summary>
 
-Koşum: `eval-20261118-193027` · Çalışma Alanı: `rag-research` (6 PDF / 385 parça) · `gemini-3.5-flash-lite` + `gemini-embedding-001` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
+Koşum: `eval-20261120-203718` · Çalışma Alanı: `duran` (`10` PDF / `753` sayfa / `1.357` parça) · `gemini-3.5-flash-lite` + `BAAI/bge-m3` · [`evals/latest_eval_report.json`](evals/latest_eval_report.json)
 
 | Eşik Değeri | `Recall@5` | `MRR` | Ortalama Parça | Tuzak Gürültüsü (`NegNoise`) |
 | :---: | :---: | :---: | :---: | :---: |
-| `0.30` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.40` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.50` | `1.0000` | `0.7824` | `5.00` | `1.0000` |
-| `0.60` | `1.0000` | `0.7824` | `5.00` | `0.8333` |
-| `0.65` | `1.0000` | `0.7824` | `5.00` | `0.6667` |
-| `0.70` (Varsayılan) | `1.0000` | `0.7824` | `5.00` | `0.6667` |
-| **`0.75` (Önerilen)** | **`1.0000`** | **`0.7824`** | **`4.44` (-%11.2)** | **`0.1667` (-%83.3)** |
+| `0.30` | `1.0000` | `0.9097` | `5.00` | `1.0000` |
+| `0.40` | `1.0000` | `0.9097` | `5.00` | `0.8333` |
+| `0.48` (Yedek Eşik) | `1.0000` | `0.9097` | `5.00` | `0.6667` |
+| `0.55` | `1.0000` | `0.9097` | `4.62` (`-%7.6`) | `0.1667` |
+| **`0.60` (Canlı / Önerilen)** | **`1.0000`** | **`0.9097`** | **`3.29` (-%34.2)** | **`0.0000` (-%100.0)** |
+| `0.65` | `0.7917` | `0.7708` | `1.58` | `0.0000` |
+| `0.70` | `0.6250` | `0.6042` | `0.92` | `0.0000` |
 
-Yoğun akademik korpusta eşik değerini `0.75`'e çekmek doğru sayfa yakalama oranını (`1.0000`) hiç düşürmeden tuzak gürültüsünü **%83.3 azaltır** ve modele gönderilen token yükünü **%11.2** düşürür.
+`BAAI/bge-m3` vektör uzayında `0.60` eşiği tam Pareto optimumundadır: `Recall@5` (`1.0000`) ve `MRR` (`0.9097`) değerlerini hiç düşürmeden **6/6 tuzak sorusunun tamamında gürültüyü sıfırlar (`0.0000`)** ve modele gönderilen parça/token yükünü **%34.2** azaltır (`5.00 -> 3.29`). Eşik `0.65`'e çıkarıldığında ise `Recall@5` değeri `0.7917`'ye düşer.
 
 </details>
 
-### 2. Rust (`PyO3`) Bize Ne Kazandırdı? (50 MB Metin Testi)
+### 2. Rust (`PyO3`) Bize Ne Kazandırdı? (50 MiB Metin Testi)
 
-50 MB büyüklüğündeki (~50 milyon karakter) gürültülü metin bloğu üzerinde ağ ve LLM beklemelerinden bağımsız olarak saf Python ile Rust motoru ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) karşılaştırıldı:
+50.00 MiB büyüklüğündeki (`49,585,446` karakter) gürültülü metin bloğu üzerinde ağ ve LLM beklemelerinden bağımsız olarak saf Python ile Rust motoru ([`evals/text_processor_benchmark.json`](evals/text_processor_benchmark.json)) karşılaştırıldı:
 
-| İşlem | Saf Python | Rust (`PyO3`) | Kazanım |
+| İşlem | Saf Python | Rust (`PyO3` v0.1.0) | Kazanım |
 | :--- | :---: | :---: | :--- |
-| **Metin Temizleme (`clean_text`)** | `4.89 sn` (`10.2 MB/sn`) | **`0.29 sn` (`170.0 MB/sn`)** | **16.6x daha hızlı** |
-| **Metin Parçalama (`chunk_text` · 69 bin parça)** | `4.93 sn` (`10.1 MB/sn`) | **`0.51 sn` (`98.6 MB/sn`)** | **9.7x daha hızlı** |
-| **Parçalama Bellek Zirvesi (Python Heap)** | `749.5 MB` | **`202.1 MB`** | **3.7x daha az RAM** |
+| **Metin Temizleme (`clean_text`)** | `4.40 sn` (`11.36 MiB/sn`) | **`0.26 sn` (`195.83 MiB/sn`)** | **17.23x daha hızlı** |
+| **Metin Parçalama (`chunk_text` · 69.349 parça)** | `4.34 sn` (`11.53 MiB/sn`) | **`0.42 sn` (`118.87 MiB/sn`)** | **10.31x daha hızlı** |
+| **Parçalama Bellek Zirvesi (Python Heap)** | `749.51 MiB` | **`202.12 MiB`** | **3.71x daha az RAM** |
 
 * **Neden bu kadar fark etti?** Saf Python büyük metinleri temizlerken bellekte sürekli ara string kopyaları oluşturur ve diğer işlemleri kilitler (GIL).
 * **Sıfır Kilitlenme, Birebir Çıktı:** Rust çekirdeği metni GIL dışında tek geçişte işleyip Python belleğini şişirmez; üstelik tüm parçalarda Python ile **%100 birebir aynı** çıktıyı üretir.
 * **Temiz Dağıtım:** Çok aşamalı Docker build ile final imajda Rust derleyici yükü bırakmaz; derlenmiş modül yoksa otomatik olarak saf Python'a geçer.
 
-### 3. Yük Testi ve PDF Okuma Hızı
+### 3. Yük Testi, Yerel TEI GPU ve PDF Okuma Hızı
 
-20 eşzamanlı kullanıcıyla yapılan 30 saniyelik Locust yük testi (dış LLM gecikmesini ayırmak için mock AI ile) ve PyMuPDF sayfa okuma ölçümleri:
+20 eşzamanlı kullanıcıyla yapılan 30 saniyelik Locust yük testi (orkestrasyon yükünü ayırmak için mock AI ile), `duran` 10-PDF korpusu üzerinde canlı TEI GPU hızı ve PyMuPDF sayfa okuma ölçümleri:
 
 | Test | Kapsam | Sonuç | Özet |
 | :--- | :--- | :--- | :--- |
-| **Locust Yük Testi** | 8 endpoint, 1.260 istek | **`43.21 RPS` · %0.0 hata** | `p50=21 ms`, `p95=120 ms`, `p99=160 ms` |
-| **Konteyner Bellek Kararlılığı** | 4 ana servis (`docker stats`) | **Peak `182.5 MiB` API / `297.8 MiB` Worker** | Yoğun yükte 0 OOM, 0 yeniden başlatma |
-| **PyMuPDF PDF Okuma** | 100 sayfalık PDF akışı | **`172.9 ms` (`578 sayfa/sn`)** | 5 ölçüm medyan hızı |
-| **Akıllı Parça Boyutu (`1200/150`)** | 5.33 MB örnek doküman | **6.167 parça** | `500/75` ayarına (18.500) göre **3x daha az** embedding maliyeti |
+| **Locust Yük Testi** | 8 endpoint, `1.297` istek | **`44.45 RPS` · %0.0 hata** | `p50=14.0 ms`, `p95=130.0 ms`, `p99=170.0 ms` |
+| **Konteyner Bellek Kararlılığı** | 4 ana servis (`docker stats`) | **Peak `162.5 MiB` API / `286.5 MiB` Worker** | 0 OOM, 0 restart (`782.9 MiB` TEI GPU servisi) |
+| **Yerel TEI Tekil Sorgu Hızı** | 30 `BAAI/bge-m3` sorgusu | **`p50=17.90 ms` (`p95=21.03 ms`)** | Bulut API gecikmesi ve kota limiti olmadan |
+| **Yerel TEI Toplu Vektörleme** | Tüm `duran` 10 PDF (`1.357` parça) | **`13.73 sn` (`98.8 parça/sn`)** | 753 sayfalık korpusun tamamı 13.7 sn (`batch=32`) |
+| **PyMuPDF PDF Okuma** | `duran` metinli 100 sayfalık PDF | **`37.04 ms` (`2.700 sayfa/sn`)** | 5 ölçüm medyan hızı (`iter_document_pages`) |
+| **Akıllı Parça Boyutu (`1200/150`)** | Gerçek `duran` 10 PDF (`1.14 MB`) | **`1.027` parça** | `500/75` ayarına (`2.658`) göre **2.59x daha az** embedding |
 
 <details>
 <summary><strong>Endpoint bazlı Locust latency ve Docker container RAM tablosunu aç</strong></summary>
@@ -196,21 +200,21 @@ Tam rapor: [`evals/load_test_report.json`](evals/load_test_report.json)
 
 | Endpoint | Request | Hata | RPS | `p50` | `p95` | `p99` |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| `GET /api/v1/health` | `119` | `%0.0` | `4.08` | `13.0 ms` | `52.0 ms` | `110.0 ms` |
-| `POST /api/v1/documents/upload` | `72` | `%0.0` | `2.47` | `34.0 ms` | `77.0 ms` | `130.0 ms` |
-| `GET /api/v1/documents/status/{task_id}` | `145` | `%0.0` | `4.97` | `7.0 ms` | `26.0 ms` | `52.0 ms` |
-| `GET /api/v1/documents` | `239` | `%0.0` | `8.20` | `13.0 ms` | `67.0 ms` | `77.0 ms` |
-| `GET /api/v1/documents/tenants` | `128` | `%0.0` | `4.39` | `10.0 ms` | `30.0 ms` | `90.0 ms` |
-| `POST /api/v1/query` | `291` | `%0.0` | `9.98` | `110.0 ms` | `150.0 ms` | `240.0 ms` |
-| `POST /api/v1/query/stream` | `194` | `%0.0` | `6.65` | `60.0 ms` | `120.0 ms` | `140.0 ms` |
-| `DELETE /api/v1/documents/{document_id}` | `72` | `%0.0` | `2.47` | `11.0 ms` | `25.0 ms` | `60.0 ms` |
+| `GET /api/v1/health` | `130` | `%0.0` | `4.46` | `10.0 ms` | `28.0 ms` | `62.0 ms` |
+| `POST /api/v1/documents/upload` | `77` | `%0.0` | `2.64` | `52.0 ms` | `76.0 ms` | `92.0 ms` |
+| `GET /api/v1/documents/status/{task_id}` | `154` | `%0.0` | `5.28` | `6.0 ms` | `19.0 ms` | `34.0 ms` |
+| `GET /api/v1/documents` | `267` | `%0.0` | `9.15` | `9.0 ms` | `20.0 ms` | `37.0 ms` |
+| `GET /api/v1/documents/tenants` | `131` | `%0.0` | `4.49` | `8.0 ms` | `24.0 ms` | `59.0 ms` |
+| `POST /api/v1/query` | `286` | `%0.0` | `9.80` | `110.0 ms` | `170.0 ms` | `190.0 ms` |
+| `POST /api/v1/query/stream` | `175` | `%0.0` | `6.00` | `64.0 ms` | `120.0 ms` | `140.0 ms` |
+| `DELETE /api/v1/documents/{document_id}` | `77` | `%0.0` | `2.64` | `9.0 ms` | `23.0 ms` | `29.0 ms` |
 
 | Container | Başlangıç RAM | Peak RAM | Bitiş RAM | Max CPU | OOM / Restart |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| `corerag-api` | `179.6 MiB` | **`182.5 MiB`** | `182.5 MiB` | `58.23%` | `0 / 0` |
-| `corerag-worker` | `244.2 MiB` | **`297.8 MiB`** | `297.8 MiB` | `49.29%` | `0 / 0` |
-| `corerag-qdrant` | `86.30 MiB` | **`97.82 MiB`** | `97.73 MiB` | `11.72%` | `0 / 0` |
-| `corerag-redis` | `6.53 MiB` | **`9.11 MiB`** | `8.95 MiB` | `1.67%` | `0 / 0` |
+| `corerag-api` | `160.70 MiB` | **`162.50 MiB`** | `161.10 MiB` | `37.03%` | `0 / 0` |
+| `corerag-worker` | `226.70 MiB` | **`286.50 MiB`** | `282.00 MiB` | `26.69%` | `0 / 0` |
+| `corerag-qdrant` | `147.90 MiB` | **`150.90 MiB`** | `131.80 MiB` | `7.32%` | `0 / 0` |
+| `corerag-redis` | `10.18 MiB` | **`12.48 MiB`** | `12.36 MiB` | `1.69%` | `0 / 0` |
 
 </details>
 
@@ -226,18 +230,22 @@ cd AskDocs
 cp .env.example .env
 ```
 
-`.env` içinde güçlü bir `API_KEY` ve OpenAI-compatible provider bilgilerinizi tanımlayın (`QDRANT_VECTOR_SIZE` seçilen embedding modelinin vektör boyutuyla eşleşmelidir; örneğin `gemini-embedding-001` için `3072`):
+`.env` içinde güçlü bir `API_KEY` ile hibrit Chat LLM + yerel TEI Embedding ayarlarınızı tanımlayın (`QDRANT_VECTOR_SIZE` seçilen embedding modelinin vektör boyutuyla eşleşmelidir; `BAAI/bge-m3` için `1024`):
 
 ```env
 API_KEY=guclu-bir-rastgele-api-anahtari
 LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 LLM_API_KEY=saglayici-api-anahtariniz
 LLM_MODEL=gemini-3.5-flash-lite
-EMBEDDING_MODEL=gemini-embedding-001
-QDRANT_VECTOR_SIZE=3072
+EMBEDDING_BASE_URL=http://localhost:8081/v1
+EMBEDDING_API_KEY=local-tei
+EMBEDDING_MODEL=BAAI/bge-m3
+QDRANT_VECTOR_SIZE=1024
+RAG_SCORE_THRESHOLD=0.60
+RAG_FALLBACK_SCORE_THRESHOLD=0.48
 ```
 
-*(OpenAI, vLLM veya başka bir OpenAI-compatible API kullanacaksanız `LLM_BASE_URL`, model adları ve `QDRANT_VECTOR_SIZE` değerlerini kendi sağlayıcınıza göre güncelleyebilirsiniz.)*
+*(Hem chat hem embedding için tek bir bulut/OpenAI-compatible sağlayıcı kullanmak isterseniz `EMBEDDING_BASE_URL=` ve `EMBEDDING_API_KEY=` alanlarını boş bırakın — sistem otomatik `LLM_BASE_URL`/`LLM_API_KEY` ayarlarına döner — ve `QDRANT_VECTOR_SIZE` değerini modelinize göre güncelleyin; örn. `gemini-embedding-001` için `3072`. Not: `corerag-tei` GPU servisini Docker'da çalıştırmak için NVIDIA GPU ve NVIDIA Container Toolkit etkin olmalıdır.)*
 
 ### 2. Docker Compose ile Başlatma
 
@@ -248,6 +256,7 @@ docker compose up --build
 Container'lar ayağa kalktığında açılan servisler:
 * **AskDocs Web UI:** [http://localhost:8000/](http://localhost:8000/)
 * **OpenAPI / Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Yerel TEI Embedding Sunucusu:** [http://localhost:8081/health](http://localhost:8081/health)
 * **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
 * **Langfuse Observability UI:** [http://localhost:3000](http://localhost:3000)
 
@@ -256,7 +265,7 @@ Container'lar ayağa kalktığında açılan servisler:
 
 ```bash
 uv sync --frozen
-docker compose up -d redis qdrant postgres langfuse
+docker compose up -d redis qdrant postgres langfuse tei
 
 # Terminal 1 — FastAPI API & Web UI
 uv run uvicorn src.main:app --reload --port 8000
@@ -330,7 +339,7 @@ data: [DONE]
 
 ## Quality Gates ve Proje Yapısı
 
-CI pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) her push ve PR'da Rust güvenlik/kalite kontrollerini, Python format/lint, strict `mypy` type check, JS syntax kontrolü, `pytest-cov` (`163` Python + `6` Rust testi üzerinden `>= %85` branch coverage kapısı) ve multi-stage non-root Docker Buildx doğrulamasını otomatik çalıştırır:
+CI pipeline ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) her push ve PR'da Rust güvenlik/kalite kontrollerini, Python format/lint, strict `mypy` type check, JS syntax kontrolü, `pytest-cov` (`173` Python + `6` Rust testi üzerinden `>= %85` branch coverage kapısı, güncel `%87.7`) ve multi-stage non-root Docker Buildx doğrulamasını otomatik çalıştırır:
 
 ```bash
 # Rust kontrolleri (text_processor/ içinde)
@@ -338,18 +347,18 @@ cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test
 
-# Python & JS format, lint, static type check, syntax ve izole testler (163 Py + 6 Rust = 169 passing)
+# Python & JS format, lint, static type check, syntax ve izole testler (173 Py + 6 Rust = 179 test)
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src tests scripts locustfile.py
 node --check src/ui/app.js
 uv run pytest -v --cov=src --cov-report=term-missing
 
-# Live concurrency, 6-PDF RAG eval, Rust vs Python benchmark ve Locust load script'leri
+# Live concurrency, 10-PDF RAG eval, Rust vs Python benchmark ve Locust load script'leri
 uv run python scripts/test_queue_concurrency.py --count 10
-uv run python scripts/evaluate_rag.py --score-threshold 0.70 --thresholds "0.30,0.40,0.50,0.60,0.65,0.70,0.75" --delay-seconds 5.0
-uv run --no-sync python scripts/benchmark_text_processor.py --size-mb 50 --iterations 3
-uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s --with-mock-ai
+uv run python scripts/evaluate_rag.py --dataset evals/golden_dataset.json --output evals/latest_eval_report.json --score-threshold 0.60 --thresholds "0.30,0.40,0.48,0.55,0.60,0.65,0.70" --delay-seconds 4.5
+uv run --no-sync python scripts/benchmark_text_processor.py --size-mb 50 --iterations 3 --output evals/text_processor_benchmark.json
+uv run python scripts/run_load_test.py --users 20 --spawn-rate 5 --duration 30s --with-mock-ai --output evals/load_test_report.json
 ```
 
 <details>
@@ -360,11 +369,11 @@ AskDocs/
 ├── .github/workflows/ci.yml       # Rust, Ruff, Mypy, Pytest-cov (%85+ branch) & Docker CI
 ├── docs/images/                   # Hero SVG, mimari SVG, eval chart ve UI ekran görüntüleri
 ├── evals/
-│   ├── golden_dataset.json        # 24 soruluk 6-PDF (rag-research) + adversarial trap eval seti
+│   ├── golden_dataset.json        # 30 soruluk 10-PDF (duran) + adversarial trap eval seti (v4.0)
 │   ├── latest_eval_report.json    # Son calibration raporu (Recall@5, MRR, Faithfulness)
 │   ├── load_test_report.json      # 20 kullanıcılı Locust latency & Docker RAM raporu
 │   ├── text_processor_benchmark.json # 50 MiB Rust vs. Python CPU & heap benchmark raporu
-│   └── README.md                  # Hyperparameter kalibrasyon ve Rust benchmark notları
+│   └── README.md                  # Hyperparameter kalibrasyon, GPU ve Rust benchmark notları
 ├── scripts/
 │   ├── benchmark_text_processor.py # 50 MiB clean/chunk CPU & tracemalloc parite testi
 │   ├── evaluate_rag.py            # Golden Dataset runner + threshold sweep + Langfuse loglama
@@ -384,11 +393,11 @@ AskDocs/
 │   ├── src/lib.rs                 # #![forbid(unsafe_code)] PyO3 cleaner & O(chunk_size) chunker
 │   ├── Cargo.toml                 # abi3-py311 release/dev-opt crate yapılandırması
 │   └── pyproject.toml             # Maturin PEP 517 build yapılandırması
-├── tests/                         # 163 izole Python unit/integration + 6 Rust testi
+├── tests/                         # 173 izole Python unit/integration + 6 Rust testi
 ├── Dockerfile                     # 3-stage Rust wheel + Python builder -> non-root UID 10001 runtime
-├── docker-compose.yml             # API, Celery Worker, Redis, Qdrant, Postgres, Langfuse
+├── docker-compose.yml             # API, Celery Worker, TEI (GPU), Redis, Qdrant, Postgres, Langfuse
 ├── locustfile.py                  # Upload, poll, query, stream, delete Locust load senaryosu
-└── pyproject.toml                 # Dependencies, uv lock ve Ruff/Mypy/Pytest/Coverage ayarları
+└── pyproject.toml                 # Dependencies, uv lock & Ruff/Mypy/Pytest/Coverage ayarları
 ```
 
 </details>

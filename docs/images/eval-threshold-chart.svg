@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 364" width="960" height="364" role="img" aria-label="RAG Threshold Calibration Sweep (eval-20261118-193027)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 364" width="960" height="364" role="img" aria-label="10-PDF RAG Threshold Calibration Sweep (eval-20261120-203718)">
   <rect x="6" y="6" width="948" height="352" rx="18" fill="#F8F6F0" stroke="#E2DCD0" stroke-width="1.5" />
 
   <!-- Title & summary -->
   <text x="34" y="42" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="17" font-weight="700" fill="#1D1D1F">
-    6-Paper RAG Calibration Sweep (rag-research · 385 Chunks · N = 24 Queries)
+    10-PDF RAG Calibration Sweep (duran · 1,357 Chunks · N = 30 Queries)
   </text>
   <text x="34" y="63" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#6E6B64">
-    Run eval-20261118-193027 · gemini-embedding-001 · Top-K = 5 · 1.0000 Recall@5 held up to 0.75 while cutting NegNoise by 83.3%
+    Run eval-20261120-203718 · BAAI/bge-m3 (1024d TEI GPU) · Top-K = 5 · 1.0000 Recall@5 &amp; 0.0000 NegNoise at 0.60
   </text>
 
   <!-- Left Chart -->
@@ -19,15 +19,15 @@
   <line x1="50" y1="126" x2="66" y2="126" stroke="#0071E3" stroke-width="3" />
   <text x="71" y="130" font-family="-apple-system, sans-serif" font-size="10.5" fill="#3A3A3C">Recall@5</text>
   <line x1="138" y1="126" x2="154" y2="126" stroke="#6366F1" stroke-width="2.6" stroke-dasharray="4,3" />
-  <text x="159" y="130" font-family="-apple-system, sans-serif" font-size="10.5" fill="#3A3A3C">MRR (0.782)</text>
+  <text x="159" y="130" font-family="-apple-system, sans-serif" font-size="10.5" fill="#3A3A3C">MRR (0.910)</text>
   <line x1="242" y1="126" x2="258" y2="126" stroke="#DC2626" stroke-width="3" />
   <text x="263" y="130" font-family="-apple-system, sans-serif" font-size="10.5" fill="#3A3A3C">NegNoise (6 Traps)</text>
 
-  <!-- Highlight active default column 0.70 (x=407) and recommended 0.75 (x=468) -->
-  <rect x="381" y="138" width="52" height="162" rx="8" fill="#EFF6FF" />
-  <text x="407" y="151" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#0066CC">DEFAULT</text>
-  <rect x="442" y="138" width="52" height="162" rx="8" fill="#ECFDF5" />
-  <text x="468" y="151" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#15803D">OPTIMAL</text>
+  <!-- Highlight fallback 0.48 (x=224) and optimal production 0.60 (x=346) -->
+  <rect x="198" y="138" width="52" height="162" rx="8" fill="#EFF6FF" />
+  <text x="224" y="151" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#0066CC">FALLBACK</text>
+  <rect x="320" y="138" width="52" height="162" rx="8" fill="#ECFDF5" />
+  <text x="346" y="151" text-anchor="middle" font-family="ui-monospace, monospace" font-size="9" font-weight="700" fill="#15803D">OPTIMAL</text>
 
   <!-- Plot axes & gridlines: 1.00=162, 0.50=226, 0.00=290 -->
   <g stroke="#E5E7EB" stroke-width="1">
@@ -39,64 +39,64 @@
   <text x="74" y="230" text-anchor="end" font-family="ui-monospace, monospace" font-size="10.5" fill="#6E6E73">0.50</text>
   <text x="74" y="294" text-anchor="end" font-family="ui-monospace, monospace" font-size="10.5" fill="#6E6E73">0.00</text>
 
-  <!-- X positions (7 points): 102, 163, 224, 285, 346, 407, 468 -->
-  <!-- NegNoise line: 1.00(166) through 0.50, 0.8333(183) at 0.60, 0.6667(205) at 0.65 & 0.70, 0.1667(269) at 0.75 -->
-  <polyline points="102,166 163,166 224,166 285,183 346,205 407,205 468,269" fill="none" stroke="#DC2626" stroke-width="2.8" />
+  <!-- X positions (7 points): 102 (0.30), 163 (0.40), 224 (0.48), 285 (0.55), 346 (0.60), 407 (0.65), 468 (0.70) -->
+  <!-- NegNoise: 1.0000(165), 0.8333(183), 0.6667(205), 0.1667(269), 0.0000(290), 0.0000(290), 0.0000(290) -->
+  <polyline points="102,165 163,183 224,205 285,269 346,290 407,290 468,290" fill="none" stroke="#DC2626" stroke-width="2.8" />
   <g fill="#DC2626">
-    <circle cx="102" cy="166" r="3.8" /><circle cx="163" cy="166" r="3.8" /><circle cx="224" cy="166" r="3.8" />
-    <circle cx="285" cy="183" r="3.8" /><circle cx="346" cy="205" r="3.8" /><circle cx="407" cy="205" r="4.2" /><circle cx="468" cy="269" r="4.5" />
+    <circle cx="102" cy="165" r="3.8" /><circle cx="163" cy="183" r="3.8" /><circle cx="224" cy="205" r="4" />
+    <circle cx="285" cy="269" r="3.8" /><circle cx="346" cy="290" r="4.5" /><circle cx="407" cy="290" r="3.8" /><circle cx="468" cy="290" r="3.8" />
   </g>
 
-  <!-- MRR line: 0.7824(190) across 0.30..0.75 -->
-  <polyline points="102,190 163,190 224,190 285,190 346,190 407,190 468,190" fill="none" stroke="#6366F1" stroke-width="2.4" stroke-dasharray="4,3" />
+  <!-- MRR: 0.9097(174) up to 0.60, then 0.7708(191) at 0.65, 0.6042(213) at 0.70 -->
+  <polyline points="102,174 163,174 224,174 285,174 346,174 407,191 468,213" fill="none" stroke="#6366F1" stroke-width="2.4" stroke-dasharray="4,3" />
   <g fill="#6366F1">
-    <circle cx="407" cy="190" r="4" /><circle cx="468" cy="190" r="4" />
+    <circle cx="224" cy="174" r="3.8" /><circle cx="346" cy="174" r="4.2" /><circle cx="407" cy="191" r="3.8" /><circle cx="468" cy="213" r="3.8" />
   </g>
 
-  <!-- Recall@5 line: 1.0000(162) across 0.30..0.75 -->
-  <polyline points="102,162 163,162 224,162 285,162 346,162 407,162 468,162" fill="none" stroke="#0071E3" stroke-width="3" />
+  <!-- Recall@5: 1.0000(162) up to 0.60, then 0.7917(189) at 0.65, 0.6250(210) at 0.70 -->
+  <polyline points="102,162 163,162 224,162 285,162 346,162 407,189 468,210" fill="none" stroke="#0071E3" stroke-width="3" />
   <g fill="#0071E3">
-    <circle cx="102" cy="162" r="4" /><circle cx="163" cy="162" r="4" /><circle cx="224" cy="162" r="4" />
-    <circle cx="285" cy="162" r="4" /><circle cx="346" cy="162" r="4" /><circle cx="407" cy="162" r="4.5" /><circle cx="468" cy="162" r="5" />
+    <circle cx="102" cy="162" r="4" /><circle cx="163" cy="162" r="4" /><circle cx="224" cy="162" r="4.3" />
+    <circle cx="285" cy="162" r="4" /><circle cx="346" cy="162" r="5" /><circle cx="407" cy="189" r="4" /><circle cx="468" cy="210" r="4" />
   </g>
 
   <!-- X-axis labels -->
   <g font-family="ui-monospace, monospace" font-size="10.5" fill="#475569" text-anchor="middle">
     <text x="102" y="316">0.30</text>
     <text x="163" y="316">0.40</text>
-    <text x="224" y="316">0.50</text>
-    <text x="285" y="316">0.60</text>
-    <text x="346" y="316">0.65</text>
-    <text x="407" y="316" font-weight="700" fill="#0066CC">0.70</text>
-    <text x="468" y="316" font-weight="700" fill="#15803D">0.75</text>
+    <text x="224" y="316" font-weight="700" fill="#0066CC">0.48</text>
+    <text x="285" y="316">0.55</text>
+    <text x="346" y="316" font-weight="700" fill="#15803D">0.60</text>
+    <text x="407" y="316">0.65</text>
+    <text x="468" y="316">0.70</text>
   </g>
 
   <!-- Right Chart: Avg Retrieved Chunks & Faithfulness Summary Cards -->
   <rect x="540" y="84" width="390" height="250" rx="12" fill="#FFFFFF" stroke="#E2DCD0" stroke-width="1.2" />
   <text x="560" y="108" font-family="-apple-system, sans-serif" font-size="13" font-weight="700" fill="#1D1D1F">
-    Avg. Chunks Passed to LLM (6-Paper Corpus)
+    Avg. Chunks Passed to LLM (10-PDF Corpus)
   </text>
   <text x="560" y="125" font-family="-apple-system, sans-serif" font-size="11" fill="#6E6B64">
-    Token budget &amp; trap noise trade-off across 385 chunks
+    Token budget &amp; trap noise trade-off across 1,357 chunks
   </text>
 
   <!-- Horizontal Bars (max 5.00 = 185px width) -->
   <g font-family="ui-monospace, monospace" font-size="10.5">
-    <text x="560" y="156" fill="#475569">thr 0.30–0.50</text>
+    <text x="560" y="156" fill="#475569">thr 0.30–0.48</text>
     <rect x="664" y="144" width="185" height="15" rx="4" fill="#CBD5E1" />
     <text x="855" y="156" fill="#334155">5.00</text>
 
-    <text x="560" y="182" fill="#475569">thr 0.60</text>
-    <rect x="664" y="170" width="185" height="15" rx="4" fill="#94A3B8" />
-    <text x="855" y="182" fill="#334155">5.00</text>
+    <text x="560" y="182" fill="#475569">thr 0.55</text>
+    <rect x="664" y="170" width="171" height="15" rx="4" fill="#94A3B8" />
+    <text x="841" y="182" fill="#334155">4.62</text>
 
-    <text x="560" y="208" font-weight="700" fill="#0066CC">thr 0.70</text>
-    <rect x="664" y="196" width="185" height="15" rx="4" fill="#0071E3" />
-    <text x="855" y="208" font-weight="700" fill="#0066CC">5.00</text>
+    <text x="560" y="208" font-weight="700" fill="#15803D">thr 0.60</text>
+    <rect x="664" y="196" width="122" height="15" rx="4" fill="#16A34A" />
+    <text x="792" y="208" font-weight="700" fill="#15803D">3.29 (-34%)</text>
 
-    <text x="560" y="234" font-weight="700" fill="#15803D">thr 0.75</text>
-    <rect x="664" y="222" width="164" height="15" rx="4" fill="#16A34A" />
-    <text x="834" y="234" font-weight="700" fill="#15803D">4.44 (-11%)</text>
+    <text x="560" y="234" font-weight="600" fill="#B45309">thr 0.65</text>
+    <rect x="664" y="222" width="58" height="15" rx="4" fill="#F59E0B" />
+    <text x="728" y="234" font-weight="600" fill="#B45309">1.58 (R@5↓)</text>
   </g>
 
   <!-- Bottom KPI Tiles inside right panel -->
@@ -104,12 +104,12 @@
     <rect x="0" y="0" width="110" height="70" rx="10" fill="#F8FAFC" stroke="#E2E8F0" />
     <text x="12" y="22" font-family="-apple-system, sans-serif" font-size="10.5" fill="#64748B">Recall@5</text>
     <text x="12" y="48" font-family="ui-monospace, monospace" font-size="19" font-weight="700" fill="#0071E3">1.000</text>
-    <text x="12" y="62" font-family="-apple-system, sans-serif" font-size="9.5" fill="#475569">MRR 0.782 · 18/18</text>
+    <text x="12" y="62" font-family="-apple-system, sans-serif" font-size="9.5" fill="#475569">MRR 0.910 · 24/24</text>
 
     <rect x="120" y="0" width="110" height="70" rx="10" fill="#F8FAFC" stroke="#E2E8F0" />
     <text x="132" y="22" font-family="-apple-system, sans-serif" font-size="10.5" fill="#64748B">Faithfulness</text>
-    <text x="132" y="48" font-family="ui-monospace, monospace" font-size="19" font-weight="700" fill="#1D1D1F">0.973</text>
-    <text x="132" y="62" font-family="-apple-system, sans-serif" font-size="9.5" fill="#475569">Cov: 0.9398</text>
+    <text x="132" y="48" font-family="ui-monospace, monospace" font-size="19" font-weight="700" fill="#1D1D1F">0.987</text>
+    <text x="132" y="62" font-family="-apple-system, sans-serif" font-size="9.5" fill="#475569">Cov: 0.9722</text>
 
     <rect x="240" y="0" width="110" height="70" rx="10" fill="#ECFDF5" stroke="#BBF7D0" />
     <text x="252" y="22" font-family="-apple-system, sans-serif" font-size="10.5" fill="#166534">Abstention</text>

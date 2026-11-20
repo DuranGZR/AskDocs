@@ -1,361 +1,298 @@
 {
-  "eval_run_id": "eval-20261118-193027",
-  "dataset_version": "3.0",
-  "tenant_id": "rag-research",
+  "eval_run_id": "eval-20261120-203718",
+  "dataset_version": "4.0",
+  "tenant_id": "duran",
   "llm_model": "gemini-3.5-flash-lite",
-  "embedding_model": "gemini-embedding-001",
+  "embedding_model": "BAAI/bge-m3",
   "top_k": 5,
-  "score_threshold": 0.7,
+  "score_threshold": 0.6,
   "judge_mode": "citation_grounded",
-  "total_questions": 24,
-  "answerable_questions": 18,
+  "total_questions": 30,
+  "answerable_questions": 24,
   "unanswerable_questions": 6,
   "mean_recall_at_k": 1.0,
-  "mean_mrr": 0.7824,
-  "mean_faithfulness": 0.9729,
-  "mean_keyword_coverage": 0.9398,
+  "mean_mrr": 0.9097,
+  "mean_faithfulness": 0.9867,
+  "mean_keyword_coverage": 0.9722,
   "abstention_accuracy": 1.0,
-  "recommended_threshold": 0.75,
+  "recommended_threshold": 0.6,
   "threshold_sweep": [
     {
       "score_threshold": 0.3,
       "top_k": 5,
-      "answerable_queries": 18,
+      "answerable_queries": 24,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.7824,
+      "mrr": 0.9097,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 1.0
     },
     {
       "score_threshold": 0.4,
       "top_k": 5,
-      "answerable_queries": 18,
+      "answerable_queries": 24,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.7824,
-      "avg_retrieved_chunks": 5.0,
-      "negative_noise_rate": 1.0
-    },
-    {
-      "score_threshold": 0.5,
-      "top_k": 5,
-      "answerable_queries": 18,
-      "unanswerable_queries": 6,
-      "recall_at_k": 1.0,
-      "mrr": 0.7824,
-      "avg_retrieved_chunks": 5.0,
-      "negative_noise_rate": 1.0
-    },
-    {
-      "score_threshold": 0.6,
-      "top_k": 5,
-      "answerable_queries": 18,
-      "unanswerable_queries": 6,
-      "recall_at_k": 1.0,
-      "mrr": 0.7824,
+      "mrr": 0.9097,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 0.8333
     },
     {
-      "score_threshold": 0.65,
+      "score_threshold": 0.48,
       "top_k": 5,
-      "answerable_queries": 18,
+      "answerable_queries": 24,
       "unanswerable_queries": 6,
       "recall_at_k": 1.0,
-      "mrr": 0.7824,
+      "mrr": 0.9097,
       "avg_retrieved_chunks": 5.0,
       "negative_noise_rate": 0.6667
+    },
+    {
+      "score_threshold": 0.55,
+      "top_k": 5,
+      "answerable_queries": 24,
+      "unanswerable_queries": 6,
+      "recall_at_k": 1.0,
+      "mrr": 0.9097,
+      "avg_retrieved_chunks": 4.62,
+      "negative_noise_rate": 0.1667
+    },
+    {
+      "score_threshold": 0.6,
+      "top_k": 5,
+      "answerable_queries": 24,
+      "unanswerable_queries": 6,
+      "recall_at_k": 1.0,
+      "mrr": 0.9097,
+      "avg_retrieved_chunks": 3.29,
+      "negative_noise_rate": 0.0
+    },
+    {
+      "score_threshold": 0.65,
+      "top_k": 5,
+      "answerable_queries": 24,
+      "unanswerable_queries": 6,
+      "recall_at_k": 0.7917,
+      "mrr": 0.7708,
+      "avg_retrieved_chunks": 1.58,
+      "negative_noise_rate": 0.0
     },
     {
       "score_threshold": 0.7,
       "top_k": 5,
-      "answerable_queries": 18,
+      "answerable_queries": 24,
       "unanswerable_queries": 6,
-      "recall_at_k": 1.0,
-      "mrr": 0.7824,
-      "avg_retrieved_chunks": 5.0,
-      "negative_noise_rate": 0.6667
-    },
-    {
-      "score_threshold": 0.75,
-      "top_k": 5,
-      "answerable_queries": 18,
-      "unanswerable_queries": 6,
-      "recall_at_k": 1.0,
-      "mrr": 0.7824,
-      "avg_retrieved_chunks": 4.44,
-      "negative_noise_rate": 0.1667
+      "recall_at_k": 0.625,
+      "mrr": 0.6042,
+      "avg_retrieved_chunks": 0.92,
+      "negative_noise_rate": 0.0
     }
   ],
   "results": [
     {
       "id": "q01",
-      "category": "realm_paper",
-      "question": "How does REALM avoid recomputing document embeddings on every gradient step during asynchronous MIPS pre-training?",
+      "category": "ai_literacy",
+      "question": "Erzurum Teknik Üniversitesi yapay zekâ okuryazarlığı dokümanına göre yapay zekânın tarihsel gelişim sürecinde 1990'lı, 2000'li, 2010 sonrası ve 2020'li yıllarda öne çıkan dönüm noktaları nelerdir?",
       "answerable": true,
-      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+      "expected_document_id": "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
       "expected_pages": [
         5
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df"
       ],
       "retrieved_pages": [
         5,
-        4,
-        4,
+        32,
         2,
-        2
+        4,
+        21
       ],
-      "top_score": 0.8534,
+      "top_score": 0.7905,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
         1,
         2,
-        4,
-        3
+        5
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "REALM addresses the high computational cost of re-embedding and re-indexing millions of candidate documents on every gradient step by decoupling the training process from index construction through asynchronous MIPS refreshes [Source 1, Source 2, Source 4]. \n\nThe implementation and mechanics of this approach involve the following key components:\n\n* **Parallel Jobs:** The system runs two jobs simultaneously: a primary trainer job that performs gradient updates on the model parameters, and a secondary index builder job that handles document embedding and indexing [Source 3].\n* **Parameter Snapshots and Background Building:** During pre-training, the trainer periodically sends a snapshot of its parameters (`θ′`) to the index builder. While the trainer continues its training steps, the index builder uses these snapshot parameters to construct a new search index in the background [Source 1].\n* **Asynchronous Index Swapping:** Once the index builder completes the new index, it sends it back to the trainer to replace the old one, and the cycle repeats every several hundred training steps [Source 1, Source 2].\n* **Handling Staleness:** Between refreshes, the MIPS index is technically \"stale\" because the trainer's parameters (`θ`) continue to update [Source 2]. However, because the index is used solely to select the approximate top `k` documents, the model handles this by recomputing `p(z | x)` and its gradient using the fresh parameters (`θ`) specifically for those retrieved top `k` documents after selection [Source 2, Source 3].\n* **Fine-Tuning Approach:** For fine-tuning phases, the MIPS index is built only once using pre-trained parameters without updating `Embeddoc`, though `Embedinput` is still fine-tuned so that the query-side retrieval function continues to update [Source 1].\n\nHangi tür sorgular için MIPS indeksinin güncellenme sıklığının artırılması gerekebilir?",
-      "latency_ms": 3611.26
+      "answer": "Erzurum Teknik Üniversitesi yapay zekâ okuryazarlığı dokümanına göre, yapay zekânın tarihsel gelişim sürecindeki dönemler ve öne çıkan dönüm noktaları şu şekildedir:\n\n* **1990'lı Yıllar:** Makine öğrenmesinin yükselişe geçtiği, istatistiksel ve veri odaklı yöntemlerin ön plana çıktığı bir dönemdir [Source 1, Source 2].\n* **2000'li Yıllar:** Büyük veri ve istatistiksel analiz tekniklerinin yapay zekâ çalışmalarını hızlandırdığı, veri miktarındaki artışın önemli bir katalizör rolü oynadığı dönemdir [Source 1].\n* **2010 Sonrası Dönem:** Derin öğrenme ve GPU devrinin yaşandığı, özellikle görüntü, ses ve dil işleme alanlarında büyük ilerlemelerin kaydedildiği dönemdir [Source 1]. GPU destekli hesaplamaya geçiş, yapay zekâ modellerinin gelişimine büyük bir ivme kazandırmıştır [Source 2, Source 5].\n* **2020'li Yıllar:** Büyük dil modelleri (LLM) ve generatif (üretken) yapay zekâ sistemlerinin gündeme geldiği, yapay zekânın hem akademik hem de endüstriyel uygulamalarda önemli bir dönüm noktası oluşturduğu dönemdir [Source 1, Source 2].\n\nYapay zekânın 1950'li yıllardaki başlangıç aşamasında (Alan Turing öncülüğü ve 1956 Dartmouth Konferansı) mantık tabanlı sistemler ve uzman sistemlerle şekillenen ilk döneminden bu dönemsel evrimine kadar uzanan süreç hakkında hangi detayları incelemek istersiniz?",
+      "latency_ms": 2020.24
     },
     {
       "id": "q02",
-      "category": "realm_paper",
-      "question": "In REALM Open-QA experiments (Table 1), what exact match scores does REALM achieve on NaturalQuestions when pre-trained on Wikipedia versus CC-News, and how many parameters does it have?",
+      "category": "ai_literacy",
+      "question": "According to the Erzurum Technical University AI tools timeline table, what are the release dates and training data cutoffs listed for ChatGPT GPT-4o, GPT-4.5 (Orion), and GPT-5?",
       "answerable": true,
-      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+      "expected_document_id": "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
       "expected_pages": [
-        7
+        25
       ],
-      "retrieved_count": 5,
+      "retrieved_count": 2,
       "retrieved_document_ids": [
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df",
+        "bd46d3ea-da89-4a02-b3d0-d559bd8fa8df"
       ],
       "retrieved_pages": [
-        7,
-        7,
-        7,
-        7,
-        6
+        25,
+        26
       ],
-      "top_score": 0.8276,
+      "top_score": 0.7441,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
-        2
+        1
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "In REALM Open-QA experiments (Table 1), the model achieves the following exact match scores on NaturalQuestions (`NQ`):\n\n- When pre-trained on Wikipedia (`X = Wikipedia, Z = Wikipedia`), REALM achieves an exact match score of `39.2` [Source 2].\n- When pre-trained on CC-News (`X = CC-News, Z = Wikipedia`), REALM achieves an exact match score of `40.4` [Source 2].\n\nIn both configurations, the model has `330m` parameters [Source 2].\n\nWould you like to explore the ablation experiment results or the performance of other models compared to REALM on the Open-QA benchmarks?",
-      "latency_ms": 2062.38
+      "answer": "Erzurum Teknik Üniversitesi yapay zekâ araçları tablosunda yer alan ChatGPT modellerinin yayın tarihleri ve eğitim veri kapsamı (cutoff) bilgileri şu şekildedir:\n\n* **ChatGPT – GPT-4o:** Yayın tarihi Mayıs 2024, eğitim veri kapsamı ise Mart 2023 (tahmini) olarak listelenmiştir [Source 1].\n* **ChatGPT – GPT-4.5 (Orion):** Yayın tarihi Şubat 2025, eğitim veri kapsamı ise 2024 ortası (tahmini) olarak belirtilmiştir [Source 1].\n* **ChatGPT – GPT-5:** Yayın tarihi Ağustos 2025, eğitim veri kapsamı ise 2025 ilkbahar (tahmini) şeklindedir [Source 1].\n\nBu modellerin işlem kapasitesi, parametre sayıları veya bağlam penceresi gibi teknik özellikleri hakkında bilgi incelemek ister misiniz?",
+      "latency_ms": 1506.04
     },
     {
       "id": "q03",
-      "category": "realm_paper",
-      "question": "REALM modelinde geri getirici (retriever), denetimsiz ön eğitim sırasında hangi öğrenme sinyaliyle eğitilir ve amaç fonksiyonu nedir?",
+      "category": "computer_networks_book",
+      "question": "Bilgisayar Ağ Sistemleri dokümanına göre Internet'in atası sayılan ARPANET ne zaman, hangi dört üniversite arasında kuruldu ve ağda verilen üç temel servis nelerdir?",
       "answerable": true,
-      "expected_document_id": "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
+      "expected_document_id": "0094eadc-40b7-4998-950b-419ec86ffe2c",
       "expected_pages": [
-        1,
-        2
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea",
-        "f02bfccc-4e9c-5c67-b77b-32bd1bf226ea"
-      ],
-      "retrieved_pages": [
-        2,
-        1,
-        4,
-        3,
         1
       ],
-      "top_score": 0.777,
+      "retrieved_count": 3,
+      "retrieved_document_ids": [
+        "0094eadc-40b7-4998-950b-419ec86ffe2c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c"
+      ],
+      "retrieved_pages": [
+        1,
+        6,
+        7
+      ],
+      "top_score": 0.8183,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
-        1,
-        3
+        1
       ],
-      "keyword_coverage": 0.6667,
+      "keyword_coverage": 1.0,
       "abstained": false,
-      "faithfulness": 0.8,
+      "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.67"
-      ],
-      "answer": "REALM modelinde bilgi geri getiricisi (retriever), denetimsiz ön eğitim sırasında performans tabanlı bir sinyal ile eğitilir. Bu yaklaşımda, dil modelinin perplexity (şaşkınlık) değerini iyileştiren bir bilgi getirme işlemi faydalı olarak değerlendirilir ve ödüllendirilirken, bilgilendirici olmayan bir getirme işlemi cezalandırılır [Source 1]. \n\nÖn eğitim aşamasında görev maskelenmiş dil modellemesidir (`MLM`). Model, bir giriş `x` (ön eğitim derleminden bazı belirteçleri maskelenmiş bir cümle) ve getirilen bir `z` belgesi verildiğinde, maskelenen `yj` belirteçlerini tahmin etmek için `p(yj | z, x)` olasılığını optimize eder. `MLM` kayıp fonksiyonu şu şekilde ifade edilir:\n\n`p(y | z, x) = ∏_{j=1}^{Jx} p(yj | z, x)`\n\nburada `p(yj | z, x) ∝ exp(w⊤_j BERTMASK(j)(joinBERT(x, zbody)))` şeklinde tanımlanır. Bu denklemde `BERTMASK(j)` `j`inci maskelenmiş belirtece karşılık gelen Transformer çıkış vektörünü, `Jx` toplam maskelenmiş belirteç sayısını ve `wj` ise `yj` belirteci için öğrenilmiş bir kelime gömmesini (word embedding) ifade eder [Source 3].\n\nREALM pre-training aşaması ve fine-tuning süreci hakkında daha detaylı bilgi istiyor musunuz?",
-      "latency_ms": 2882.19
+      "reasons": [],
+      "answer": "ARPANET, Aralık 1969 yılında Stanford Üniversitesi, UCLA Üniversitesi, Utah Üniversitesi ve UCSB Üniversiteleri arasında kurulmuştur [Source 1]. \n\nBu ağda sunulan üç temel servis şunlardır:\n* Dosya transferi (FTP) [Source 1]\n* Elektronik posta (e-posta) [Source 1]\n* Uzaktaki bilgisayardaki hesaba giriş yapma (TELNET) [Source 1]\n\nARPANET'in kuruluş amacı ve bilgisayar ağlarının kullanım amaçları arasında yer alan kaynak paylaşımı detayları hakkında bilgi almak ister misiniz?",
+      "latency_ms": 1262.15
     },
     {
       "id": "q04",
-      "category": "dpr_paper",
-      "question": "How does Dense Passage Retriever (DPR) define the similarity function between a question and a passage, and which encoders are used?",
+      "category": "computer_networks_book",
+      "question": "Veri bağlantısı katmanındaki MAC ve LLC alt katmanlarının temel görevleri nelerdir; LLC hangi kontrol mekanizmalarından sorumludur?",
       "answerable": true,
-      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
+      "expected_document_id": "0094eadc-40b7-4998-950b-419ec86ffe2c",
       "expected_pages": [
-        3
+        14
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982"
+        "0094eadc-40b7-4998-950b-419ec86ffe2c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "0094eadc-40b7-4998-950b-419ec86ffe2c",
+        "0094eadc-40b7-4998-950b-419ec86ffe2c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c"
       ],
       "retrieved_pages": [
-        3,
-        3,
-        2,
-        2,
-        2
+        14,
+        36,
+        14,
+        24,
+        36
       ],
-      "top_score": 0.8456,
+      "top_score": 0.8259,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
-        1,
+        5,
+        2,
         3,
-        2
+        1
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Dense Passage Retriever (DPR) defines the similarity between a question `q` and a passage `p` using the dot product of their respective d-dimensional vectors [Source 1]:\n\n`sim(q, p) = EQ(q)⊺EP (p)`\n\nIn this formulation, `EQ(·)` maps the input question to a vector, and `EP(·)` maps any text passage to a real-valued vector [Source 1, Source 3]. \n\nRegarding the encoders, DPR uses two independent BERT (base, uncased) networks—one for the question encoder and one for the passage encoder—and takes the representation at the `[CLS]` token as the output, resulting in `d = 768` [Source 2].\n\nWould you like to explore how these encoders are indexed offline using FAISS during inference time?",
-      "latency_ms": 1841.83
+      "answer": "Veri bağı katmanı (veri bağlantısı katmanı), IEEE standartlarına göre fiziksel katmanın hemen üzerinde yer alan ve OSI başvuru modelinin 2. katmanına karşılık gelen iki alt katmandan oluşur [Source 5]. Bu alt katmanların temel görevleri ve LLC'nin sorumlulukları şu şekildedir:\n\n### 1. MAC (Media Access Control - Ortama Erişim Kontrolü) Alt Katmanının Görevleri\nMAC alt katmanı, aktarım ortamına erişimin düzenlenmesi ve verilerin fiziksel katman ile etkileşimi süreçlerinde görev alır [Source 2, Source 3]. Başlıca işlevleri şunlardır:\n- **Paketleme ve Adresleme:** Veriyi hata kontrol kodu (CRC), alıcı ve gönderenin MAC adresleri ile beraber paketleyerek fiziksel katmana aktarır [Source 1, Source 3].\n- **Ters İşlemler:** Alıcı tarafta fiziksel katmandan gelen verileri tersine işleyerek üst katmanlara aktarılmasını sağlar [Source 1].\n- **Erişim ve Tanımlama:** Ağ üzerindeki diğer bilgisayarları tanımlama ve kablonun o anda kimin tarafından kullanıldığının tespiti gibi görevleri yerine getirir [Source 3]. \n- **Çeşitlilik:** CSMA/CD (Carrier Sense Multiple Access with Collision Detect) ve Jetonlu Halka (Token Ring) gibi birden fazla standart MAC alt katmanı türü bulunur [Source 2].\n\n### 2. LLC (Logical Link Control - Mantıksal Bağlantı Kontrolü) Alt Katmanının Görevleri\nLLC alt katmanı, ağ donanım yapısı ve türünden bağımsız olarak üst katmanların aynı arabirimle çalışmasını sağlar [Source 2]. Temel fonksiyonları şunlardır:\n- **Geçiş Görevi:** Bir üst katman olan ağ katmanı için geçiş görevi görür [Source 1].\n- **Mantıksal Portlar (SAPs):** Protokole özel mantıksal portlar (Service Access Points, SAPs) oluşturur; böylece kaynak makine ve hedef makinede aynı protokollerin iletişime geçmesini sağlar (örneğin TCP/IP) [Source 1].\n- **Bağlantı ve Sıralama:** Bağlantı kurulması ve çerçeve sıralanması gibi işlevleri yerine getirir [Source 2].\n\n### 3. LLC'nin Sorumlu Olduğu Kontrol Mekizmaları\nLLC alt katmanı veri iletiminin güvenilirliğini sağlamak amacıyla şu kritik kontrol mekanizmalarını yönetir:\n- **Hata Düzeltme ve Yeniden Gönderim:** Veri paketlerinden bozuk gidenlerin (veya karşı taraf için alınanların) yeniden gönderilmesinden ve hataların giderilmesinden sorumludur [Source 1, Source 2].\n- **Akış Kontrolü (Flow Control):** Alıcının işleyebileceğinden fazla veri paketi gönderilerek boğulmasının engellenmesini sağlar [Source 1, Source 2].\n\nLAN'larda benzer bir LLC alt katmanının bulunması sayesinde üst katmanlar ağ donanımından soyutlanır [Source 2]. LLC alt katmanı IEEE 802.2 standardı ile tanımlanmıştır [Source 5].\n\nLLC alt katmanının oluşturduğu mantıksal portların (SAPs) çalışma prensipleri veya 802.x ailesindeki diğer protokollerin detayları hakkında bilgi almak ister misiniz?",
+      "latency_ms": 2858.28
     },
     {
       "id": "q05",
-      "category": "dpr_paper",
-      "question": "In DPR's run-time efficiency evaluation (Section 5.4), how many questions per second does DPR with FAISS process compared to BM25/Lucene, and how long does building the FAISS index take?",
+      "category": "computer_networks_book",
+      "question": "Ağ güvenliği bölümünde harici (external) ve dahili (internal) tehditler arasındaki temel fark nedir?",
       "answerable": true,
-      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
+      "expected_document_id": "0094eadc-40b7-4998-950b-419ec86ffe2c",
       "expected_pages": [
-        7
+        57
       ],
-      "retrieved_count": 5,
+      "retrieved_count": 1,
       "retrieved_document_ids": [
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982"
+        "0094eadc-40b7-4998-950b-419ec86ffe2c"
       ],
       "retrieved_pages": [
-        7,
-        7,
-        5,
-        2,
-        5
+        57
       ],
-      "top_score": 0.869,
+      "top_score": 0.6965,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
-        1,
-        2
+        1
       ],
       "keyword_coverage": 1.0,
       "abstained": false,
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "DPR utilizes a FAISS in-memory index for real-valued vectors to achieve high run-time efficiency, processing 995.0 questions per second while returning the top 100 passages per question [Source 1]. In contrast, BM25/Lucene processes 23.7 questions per second per CPU thread [Source 1]. \n\nRegarding the index construction time, building the FAISS index on 21 million vectors on a single server takes 8.5 hours [Source 2].\n\nHangi diğer metin içi arama yöntemleri veya performans metrikleri hakkında bilgi almak istersiniz?",
-      "latency_ms": 5108.93
+      "answer": "Ağ güvenliği bağlamında harici ve dâhili tehditler arasındaki temel farklar şu şekildedir:\n\n* **Erişim Yetkisi ve Konum:** Harici tehditler ağ dışında çalışan ve bilgisayar sistemlerine ya da ağa yetkili erişimi bulunmayan kişilerden gelir. Dâhili tehditler ise bir kullanıcının hesabı üzerinden ağa yetkisiz erişimi olduğunda veya ağ ekipmanına fiziksel erişimi gerçekleştiğinde ortaya çıkar [Source 1].\n* **Saldırı Yolu:** Harici saldırganlar genellikle İnternet, kablosuz ağlar veya çevirmeli erişim sunucuları üzerinden saldırı gerçekleştirir. Dâhili tehditler ise ağ içindeki hesaplar, fiziksel erişim veya bilmeden ağa virüs/güvenlik tehdidi taşıyan güvenilir çalışanlar aracılığıyla oluşur [Source 1].\n* **Bilgi Düzeyi ve Niyet:** Dâhili saldırganlar ilkeleri ve kişileri tanır; hangi bilgilerin savunmasız olduğunu ve bu bilgilere nasıl ulaşabileceğini bilirler. Ayrıca dâhili tehditler her zaman kasıtlı olmayıp, güvenilir bir çalışanın ağ dışındayken bilmeden sistemi tehlikeye atmasıyla da kaynaklanabilir [Source 1].\n\nSosyal mühendislik ve insan davranışlarının bu güvenlik süreçlerini nasıl etkilediği konusunda daha fazla bilgi almak ister misiniz?",
+      "latency_ms": 1747.28
     },
     {
       "id": "q06",
-      "category": "dpr_paper",
-      "question": "In DPR Table 2, what Top-20 passage retrieval accuracy does Multi DPR achieve on Natural Questions (NQ) and TREC compared to BM25 alone?",
+      "category": "vtys_bby309",
+      "question": "BBY 309 Veri Tabanı Yönetimi ders notlarına göre 'veri bağımsızlığı' kavramı ne anlama gelir ve uygulamalar açısından nasıl bir avantaj sağlar?",
       "answerable": true,
-      "expected_document_id": "642b8860-6f3e-5f33-947f-bda82852e982",
+      "expected_document_id": "d0f4c712-66f6-4744-9c49-08d2d706f643",
       "expected_pages": [
-        5
+        27
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982"
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643"
       ],
       "retrieved_pages": [
-        5,
-        8,
-        5,
-        8,
-        5
+        27,
+        26,
+        2,
+        1,
+        6
       ],
-      "top_score": 0.8479,
+      "top_score": 0.7121,
       "recall_at_k": 1.0,
       "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 0.5,
-      "abstained": false,
-      "faithfulness": 0.7,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.50"
-      ],
-      "answer": "Based on Table 2, the Top-20 passage retrieval accuracy for Multi DPR compared to BM25 alone across the specified datasets is as follows:\n\n- **Natural Questions (NQ):** Multi DPR achieves a Top-20 accuracy of 79.4%, whereas BM25 alone achieves 59.1% [Source 1].\n- **TREC:** Multi DPR achieves a Top-20 accuracy of 82.9%, whereas BM25 alone achieves 71.1% [Source 1].\n\nWould you like to explore how Single DPR or combined BM25 + DPR models perform on these specific datasets?",
-      "latency_ms": 2471.94
-    },
-    {
-      "id": "q07",
-      "category": "fid_paper",
-      "question": "How does the Fusion-in-Decoder (FiD) architecture process multiple retrieved passages across its encoder and decoder?",
-      "answerable": true,
-      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
-      "expected_pages": [
-        2
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186"
-      ],
-      "retrieved_pages": [
-        3,
-        2,
-        4,
-        3,
-        4
-      ],
-      "top_score": 0.8261,
-      "recall_at_k": 1.0,
-      "mrr": 0.5,
       "cited_indices": [
         1,
         2
@@ -365,72 +302,30 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The Fusion-in-Decoder (FiD) architecture processes multiple retrieved passages by dividing the computation between its encoder and decoder stages to balance scalability and evidence aggregation [Source 1]. \n\n* **Encoder Stage (Independent Processing):** The encoder processes each retrieved passage independently alongside the question [Source 1, Source 2]. Special tokens such as `question:`, `title:`, and `context:` are added before the question, title, and text of each passage [Source 1]. Because self-attention is performed over only one context at a time, the computation time grows linearly rather than quadratically with the number of passages, allowing the model to scale efficiently to a large number of contexts [Source 1].\n* **Decoder Stage (Joint Aggregation):** The decoder performs attention over the concatenation of the resulting representations from all the retrieved passages simultaneously, executing evidence fusion exclusively in this phase [Source 1]. A sequence-to-sequence model then generates the final answer by taking these retrieved passages and the question as input [Source 2].\n\nWould you like to explore how the performance of Fusion-in-Decoder changes when varying the number of retrieved passages across different datasets?",
-      "latency_ms": 2165.9
+      "answer": "Veri bağımsızlığı kavramı, verinin fiziksel temsili, bulunduğu yer ile verinin kullanımı unsurlarının birbirinden ayrı tutulmasını ifade eder [Source 1]. Bu kavram sayesinde bir uygulamanın, veri tabanının veriyi tam olarak nasıl ve nerede depoladığını bilmesi gerekmez; uygulama yalnızca veri ister [Source 1].\n\nUygulamalar açısından sağladığı avantajlar ve doğurduğu sonuçlar şunlardır:\n\n* **Sistem Geçişlerinde Kolaylık:** Bir veri tabanını bir Veri Tabanı Yönetim Sistemi'nden (VTYS) diğerine aktarmanın, uygulama programı üzerinde hiçbir olumsuz etkisi olmamalıdır [Source 1].\n* **Esneklik ve Değişim Direnci:** Veri tabanına yeni alanlar eklemek veya verileri yeniden kodlamak, mevcut uygulamaları etkilemez [Source 1].\n* **Operasyonel Verimlilik:** Veri bağımsızlığı genel anlamda veri tabanı sistemlerinin yararları arasında yer alır ve program yaşatımının (bakım ve güncelliğini koruma süreçlerinin) azalmasını sağlar [Source 2].\n\nVeri bağımsızlığının yanı sıra VTYS'nin sunduğu diğer yararlar veya dersin kapsamındaki veri tabanı modelleri hakkında bilgi almak ister misiniz?",
+      "latency_ms": 2263.28
     },
     {
-      "id": "q08",
-      "category": "fid_paper",
-      "question": "In Fusion-in-Decoder Table 1, what Exact Match scores do FiD (base) and FiD (large) achieve on Natural Questions (NQ) and TriviaQA open test sets compared to RAG?",
+      "id": "q07",
+      "category": "vtys_bby309",
+      "question": "BBY 309 slaytlarında 'Veri Yönetimi', 'Veri Tabanı Yönetimi' ve 'Veri Hizmetçisi' rolleri birbirinden nasıl ayrılmaktadır?",
       "answerable": true,
-      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
+      "expected_document_id": "d0f4c712-66f6-4744-9c49-08d2d706f643",
       "expected_pages": [
-        3
+        43
       ],
-      "retrieved_count": 5,
+      "retrieved_count": 3,
       "retrieved_document_ids": [
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186"
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643",
+        "d0f4c712-66f6-4744-9c49-08d2d706f643"
       ],
       "retrieved_pages": [
-        3,
-        3,
-        4,
-        4,
-        2
+        1,
+        17,
+        43
       ],
-      "top_score": 0.8393,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "In Table 1, the Exact Match (EM) scores achieved by Fusion-in-Decoder (FiD) compared to RAG on the NaturalQuestions (NQ) and TriviaQA open test sets are as follows:\n\n- **NaturalQuestions (NQ) EM Scores:**\n  - **Fusion-in-Decoder (base):** 48.2 [Source 1]\n  - **Fusion-in-Decoder (large):** 51.4 [Source 1]\n  - **RAG:** 44.5 [Source 1]\n\n- **TriviaQA Open Test Set EM Scores:**\n  - **Fusion-in-Decoder (base):** 65.0 [Source 1]\n  - **Fusion-in-Decoder (large):** 67.6 [Source 1]\n  - **RAG:** 56.1 [Source 1]\n\nHow does scaling the number of retrieved passages impact the exact match performance of Fusion-in-Decoder across these datasets?",
-      "latency_ms": 2270.12
-    },
-    {
-      "id": "q09",
-      "category": "fid_paper",
-      "question": "In Fusion-in-Decoder Section 4, how much do TriviaQA and NaturalQuestions accuracies improve when increasing the number of retrieved passages from 10 to 100?",
-      "answerable": true,
-      "expected_document_id": "89e9b735-709a-574e-963b-2bf83eb15186",
-      "expected_pages": [
-        5
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186"
-      ],
-      "retrieved_pages": [
-        4,
-        4,
-        5,
-        3,
-        2
-      ],
-      "top_score": 0.8708,
+      "top_score": 0.6801,
       "recall_at_k": 1.0,
       "mrr": 0.3333,
       "cited_indices": [
@@ -441,241 +336,37 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "Increasing the number of retrieved passages from 10 to 100 leads to a 6% improvement in accuracy on TriviaQA and a 3.5% improvement on NaturalQuestions [Source 3]. \n\nWould you like to explore how the number of training passages affects the exact match scores on the development sets for these benchmarks [Source 3]?",
-      "latency_ms": 1360.58
+      "answer": "BBY 309 ders slaytlarında bu roller kapsam ve sorumluluk alanlarına göre şu şekilde ayrılmaktadır:\n\n*   **Veri Yönetimi:** Bir örgütteki veri kaynaklarının topyekün yönetim sorumluluğunu üstlenir [Source 3].\n*   **Veri Tabanı Yönetimi:** Fiziksel veri tabanı tasarımı ve veri tabanı yönetimi konularında teknik sorumluluk taşır [Source 3].\n*   **Veri Hizmetçisi:** Bir örgütün verilerinin belirli bir alt setinden ve bu verilerle ilgili tüm etkileşimlerden (uygulamalar, kullanıcı erişimi vb.) sorumludur [Source 3].\n\nBu rollerin dışında, veri tabanı yönetim sistemleri kapsamında ele alınan temel terimler ve kavramlar hakkında bilgi edinmek ister misiniz?",
+      "latency_ms": 1361.23
     },
     {
-      "id": "q10",
-      "category": "hyde_paper",
-      "question": "What two main steps does Hypothetical Document Embeddings (HyDE) decompose zero-shot dense retrieval into?",
+      "id": "q08",
+      "category": "operating_systems",
+      "question": "İşletim Sistemleri ders notlarına göre sistem çağrılarına (system calls) parametre göndermek için hangi üç farklı yöntem kullanılabilir?",
       "answerable": true,
-      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
+      "expected_document_id": "9c07709d-b49a-4a9f-8873-f9f3e867e561",
       "expected_pages": [
-        1,
-        2
+        8
       ],
       "retrieved_count": 5,
       "retrieved_document_ids": [
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
-      ],
-      "retrieved_pages": [
-        3,
-        1,
-        1,
-        2,
-        3
-      ],
-      "top_score": 0.8454,
-      "recall_at_k": 1.0,
-      "mrr": 0.5,
-      "cited_indices": [
-        2,
-        4,
-        3
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "Hypothetical Document Embeddings (HyDE) decomposes zero-shot dense retrieval into two main steps:\n\n1. **Hypothetical Document Generation:** Given a query, an instruction-following language model (such as InstructGPT) is zero-shot instructed to generate a hypothetical document [Source 2]. Although this document is unreal and may contain false or hallucinated details, it successfully captures the underlying relevance patterns of the query [Source 2, Source 4].\n2. **Unsupervised Encoding and Retrieval:** An unsupervised contrastively learned encoder (such as Contriever) encodes the generated hypothetical document into an embedding vector [Source 2]. This vector identifies a neighborhood within the corpus embedding space where similar real documents can be retrieved based on vector similarity [Source 2, Source 3]. During this process, the encoder's dense bottleneck acts as a lossy compressor that filters out incorrect or hallucinated details, grounding the generated text to the actual corpus [Source 3, Source 4]. \n\nWould you like to explore how the similarity measurement is mathematically formulated or learn more about the encoder's dense bottleneck mechanism?",
-      "latency_ms": 1853.04
-    },
-    {
-      "id": "q11",
-      "category": "hyde_paper",
-      "question": "How does HyDE compute the aggregated query representation vector when sampling N hypothetical documents and optionally combining the original query vector?",
-      "answerable": true,
-      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
-      ],
-      "retrieved_pages": [
-        4,
-        1,
-        3,
-        3,
-        2
-      ],
-      "top_score": 0.7894,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        3
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "HyDE computes the aggregated query representation vector (`vqij`) by mapping queries to hypothetical documents using an instruction-following language model and then encoding and averaging them [Source 1, Source 3]. \n\nThe process is structured through the following mathematical formulations and mechanisms:\n\n* **Sampling Hypothetical Documents:** The method samples `N` documents from the generation model `g` for a given query `qij` and instruction `INSTi`, represented as `[` `d̂1`, `d̂2`, ..., `d̂N` `]` [Source 1].\n* **Averaging Encoded Vectors:** The aggregated query vector `vqij` is estimated by taking the average of the encoder function `f` applied to each sampled hypothetical document `d̂k`:\n  `vqij = (1 / N) * sum_{k=1}^{N} f(d̂k)` [Source 1]\n* **Incorporating the Query as a Hypothesis:** Alternatively, the system can also consider the query itself as an additional possible hypothesis. In this variation, the query `qij` is included alongside the sampled documents, and the formulation is adjusted as:\n  `vqij = (1 / (N + 1)) * [sum_{k=1}^{N} f(d̂k) + f(qij)]` [Source 1]\n\nOnce this aggregated hypothetical vector is computed, an inner product is calculated between `vqij` and the set of all document vectors in the corpus to retrieve the most similar real documents [Source 1]. \n\nWould you like to explore how the encoder function `f` acts as a lossy compressor to filter out hallucinated details during this retrieval process?",
-      "latency_ms": 2144.63
-    },
-    {
-      "id": "q12",
-      "category": "hyde_paper",
-      "question": "HyDE yaklaşımında dil modelinin ürettiği hayali belgenin olgusal açıdan yanlış detaylar içermesi neden gerçek belgelerin getirilmesini bozmaz?",
-      "answerable": true,
-      "expected_document_id": "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-      "expected_pages": [
-        1,
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
-      ],
-      "retrieved_pages": [
-        1,
-        2,
-        7,
-        7,
-        2
-      ],
-      "top_score": 0.7677,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2,
-        5
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "HyDE yaklaşımında dil modelinin ürettiği hayali belge olgusal açıdan yanlış veya hayali (hallucinated) detaylar içerse bile, bu durum gerçek belgelerin getirilmesini engellemez; çünkü süreç şu mekanizmalarla çalışır:\n\n* **Kodlayıcının Dar Boğazı (Dense Bottleneck):** İkinci aşamada, üretilen hayali belge denetimsiz bir kontrastif kodlayıcı (contrastive encoder) aracılığıyla bir gömme vektörüne (`vector`) dönüştürülür. Kodlayıcının sahip olduğu yoğun dar boğaz, bir kayıplı sıkıştırıcı (lossy compressor) görevi görür ve fazladan eklenen hayali detayları gömme vektöründen filtreleyerek ayıklar [Source 1, Source 2, Source 5].\n* **Kürsüleme ve Benzerlik Eşleşmesi:** Elde edilen bu vektör, derlem (corpus) gömmeleriyle karşılaştırılarak aranır. Bu sayede benzer gerçek belgeler corpus içerisinden başarılı bir şekilde geri getirilir [Source 1, Source 2].\n* **Görevlerin Ayrıştırılması:** Bu faktörizasyon sayesinde sorgu-belge benzerliği puanı açık bir şekilde modellenmez veya hesaplanmaz; bunun yerine retrieval görevi bir NLU (Doğal Dil Anlama) ve NLG (Doğal Dil Üretimi) görevine dönüştürülerek, üretilen belgenin biçimsel ve içeriksel ipuçlarından yararlanılır [Source 2].\n\nHyDE modelinin bu mekanizması hakkında merak ettiğiniz başka bir detay var mı?",
-      "latency_ms": 2851.16
-    },
-    {
-      "id": "q13",
-      "category": "selfrag_paper",
-      "question": "What are the four reflection token types used in Self-RAG (Table 1) and what does each evaluate?",
-      "answerable": true,
-      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-      "expected_pages": [
-        4
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
-      ],
-      "retrieved_pages": [
-        4,
-        17,
-        5,
-        4,
-        3
-      ],
-      "top_score": 0.8224,
-      "recall_at_k": 1.0,
-      "mrr": 1.0,
-      "cited_indices": [
-        1,
-        2
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "SELF-RAG framework utilizes four primary types of reflection tokens, divided into a retrieval decision type and three types of critique tokens. Each type evaluates specific aspects of the generation and retrieval process as follows:\n\n- **Retrieve**: Decides when the model needs to perform retrieval given an input `x` and previous-step generation. Its output values include `{yes, no, continue}` [Source 1]. A value of `no` indicates retrieval is unnecessary, `yes` indicates retrieval is necessary, and `continue` allows the model to continue using evidence retrieved previously [Source 2].\n- **ISREL (Relevant)**: Evaluated as `{relevant, irrelevant}`, this token assesses whether a retrieved passage `d` provides useful information to solve the input `x` [Source 1].\n- **ISSUP (Support)**: Evaluated as `{fully supported, partially supported, no support}`, this token checks whether all verification-worthy statements in the generated output segment `y` are supported by the retrieved passage `d` [Source 1].\n- **ISUSE (Utility)**: Evaluated on a scale from 1 to 5 (`{5, 4, 3, 2, 1}`), this token evaluates overall whether the output `y` is a useful response to the input `x` [Source 1].\n\nWould you like to explore how these reflection tokens are trained or used during inference to control generation quality?",
-      "latency_ms": 2171.07
-    },
-    {
-      "id": "q14",
-      "category": "selfrag_paper",
-      "question": "Why does Self-RAG generate and insert offline GPT-4 critique reflection tokens directly into the training corpus instead of using PPO with separate reward models?",
-      "answerable": true,
-      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-      "expected_pages": [
-        5,
-        6
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
-      ],
-      "retrieved_pages": [
-        2,
-        6,
-        3,
-        4,
-        2
-      ],
-      "top_score": 0.831,
-      "recall_at_k": 1.0,
-      "mrr": 0.5,
-      "cited_indices": [
-        1,
-        2,
-        3
-      ],
-      "keyword_coverage": 0.75,
-      "abstained": false,
-      "faithfulness": 0.85,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [
-        "Keyword coverage=0.75"
-      ],
-      "answer": "SELF-RAG generates and inserts critique reflection tokens offline into the training corpus instead of using Proximal Policy Optimization (PPO) with separate reward models for several key reasons:\n\n- **Reduced Overhead and Cost:** Computing critiques offline and inserting them directly into the corpus allows the generator language model to be trained using a standard language modeling objective. This approach eliminates the need to host and maintain a separate critic model during training [Source 1] and significantly lowers training costs compared to PPO and RLHF [Source 2, Source 3].\n- **Controllability at Inference:** While reinforcement learning approaches like PPO focus primarily on aligning models with human preferences during training, generating reflection tokens enables SELF-RAG to be controllable during the inference phase [Source 3]. This allows the model to evaluate its own predictions after each generated segment and adapt its behavior to diverse task requirements [Source 2, Source 3].\n\nWould you like to explore how the critic model is supervised or how reflection tokens are used during the inference phase?",
-      "latency_ms": 1859.81
-    },
-    {
-      "id": "q15",
-      "category": "selfrag_paper",
-      "question": "In Self-RAG Section 4.1, how is the PopQA evaluation subset constructed and which metrics evaluate long-form ALCE-ASQA citations?",
-      "answerable": true,
-      "expected_document_id": "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-      "expected_pages": [
-        7
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561",
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561",
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561",
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561",
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561"
       ],
       "retrieved_pages": [
         8,
+        14,
         7,
-        15,
-        17,
+        13,
         9
       ],
-      "top_score": 0.7594,
+      "top_score": 0.7576,
       "recall_at_k": 1.0,
-      "mrr": 0.5,
+      "mrr": 1.0,
       "cited_indices": [
-        2,
         1
       ],
       "keyword_coverage": 1.0,
@@ -683,82 +374,67 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "The PopQA evaluation subset is constructed specifically as a long-tail subset consisting of 1,399 rare entity queries where monthly Wikipedia page views are less than 100 [Source 2]. For evaluating long-form ALCE-ASQA tasks, citation precision and citation recall are used as key metrics to measure whether model-generated claims are fully supported by cited evidence [Source 1, Source 2]. \n\nWould you like to explore how other datasets like TriviaQA or PubHealth are evaluated within this framework?",
-      "latency_ms": 1712.37
+      "answer": "İşletim sistemine sistem çağrıları aracılığıyla parametre göndermek için üç farklı yöntem kullanılabilmektedir:\n\n- **Register'lar (Yazmaçlar) Kullanımı:** Parametreler doğrudan işlemci register'ları içerisine yerleştirilebilir [Source 1].\n- **Hafızada Blok veya Tablo Kullanımı:** Parametreler bellekte özel bir blok veya tabloya kaydedilebilir ve bu bloğun adresi register üzerinden bir parametre olarak aktarılabilir [Source 1].\n- **Stack (Yığın) Kullanımı:** Parametreler programlar tarafından stack yapısına eklenebilir (push) ve işletim sistemi tarafından bu yığın üzerinden okunabilir [Source 1].\n\nSistem çağrılarına parametre aktarıldıktan sonra gerçekleştirilen bu çağrıların hangi gruplar altında sınıflandırıldığını incelemek ister misiniz?",
+      "latency_ms": 2710.84
     },
     {
-      "id": "q16",
-      "category": "crag_paper",
-      "question": "What three confidence states trigger corrective actions in CRAG, and which pretrained model initializes CRAG's retrieval evaluator?",
+      "id": "q09",
+      "category": "operating_systems",
+      "question": "In the Operating Systems lecture notes, how do modern kernels separate core CPU/memory management from support components such as device drivers and file systems?",
       "answerable": true,
-      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
+      "expected_document_id": "9c07709d-b49a-4a9f-8873-f9f3e867e561",
       "expected_pages": [
-        2,
-        4,
-        5
+        24
       ],
-      "retrieved_count": 5,
+      "retrieved_count": 1,
       "retrieved_document_ids": [
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330"
+        "9c07709d-b49a-4a9f-8873-f9f3e867e561"
       ],
       "retrieved_pages": [
-        3,
-        5,
-        5,
-        1,
-        4
+        24
       ],
-      "top_score": 0.7987,
+      "top_score": 0.611,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Modern operating system kernels separate core components from support features by utilizing loadable kernel modules [Source 1]. While essential functions like CPU management and memory management reside directly within the core kernel, various support components—such as different file systems and device drivers—are implemented as loadable kernel modules that can be loaded either at boot time or dynamically while the system is running [Source 1]. Furthermore, these modules have the ability to communicate with or call other modules after they have been loaded [Source 1]. \n\nWould you like to explore how specific operating systems like Linux utilize these loadable modules for device drivers and file systems?",
+      "latency_ms": 4200.92
+    },
+    {
+      "id": "q10",
+      "category": "vtys_notes",
+      "question": "Veritabanı Yönetim Sistemleri ders notlarına göre İlişkisel Veritabanı modelini oluşturan beş temel kavram nelerdir ve neyi ifade eder?",
+      "answerable": true,
+      "expected_document_id": "5a6730c2-e11a-43b4-a481-dc5085738864",
+      "expected_pages": [
+        6
+      ],
+      "retrieved_count": 4,
+      "retrieved_document_ids": [
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864"
+      ],
+      "retrieved_pages": [
+        12,
+        6,
+        17,
+        5
+      ],
+      "top_score": 0.7366,
       "recall_at_k": 1.0,
       "mrr": 0.5,
       "cited_indices": [
         1,
         2,
-        5
-      ],
-      "keyword_coverage": 1.0,
-      "abstained": false,
-      "faithfulness": 1.0,
-      "faithfulness_source": "citation_grounded",
-      "reasons": [],
-      "answer": "CRAG (Corrective Retrieval-Augmented Generation) sisteminde düzeltici eylemleri tetikleyen üç güven derecesi (confidence states) **Correct** (Doğru), **Incorrect** (Yanlış) ve **Ambiguous** (Belirsiz) olarak belirlenmiştir [Source 1, Source 2]. \n\nSistemin model çıkarımı aşamasında, giriş sorusu ile alınan belgelerin ilgisini değerlendirmek üzere kurulan retrieval evaluator (erişim değerlendiricisi) bileşeni **T5-large** modeli ile başlatılmakta ve ince ayardan (fine-tuned) geçirilmektedir [Source 1, Source 5].\n\nCRAG modelinin mimarisinde kullanılan bilgi arıtma (knowledge refinement) adımları veya web araması entegrasyonu hakkında daha fazla detay öğrenmek ister misiniz?",
-      "latency_ms": 1838.72
-    },
-    {
-      "id": "q17",
-      "category": "crag_paper",
-      "question": "How does CRAG's decompose-then-recompose knowledge refinement algorithm refine a retrieved document?",
-      "answerable": true,
-      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
-      "expected_pages": [
-        4,
-        6
-      ],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330"
-      ],
-      "retrieved_pages": [
-        2,
-        1,
-        3,
-        6,
-        5
-      ],
-      "top_score": 0.8282,
-      "recall_at_k": 1.0,
-      "mrr": 0.25,
-      "cited_indices": [
-        1,
-        4,
         3
       ],
       "keyword_coverage": 1.0,
@@ -766,38 +442,174 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "CRAG's decompose-then-recompose knowledge refinement algorithm processes retrieved documents through a structured series of steps designed to extract the most critical information and eliminate irrelevant elements [Source 1, Source 4]:\n\n* **Segmentation into Strips:** Retrieved documents are split into smaller internal units to achieve fine-grained results [Source 4]. If a document is only one or two sentences long, it is treated as an individual strip; otherwise, longer documents are divided into smaller segments consisting of a few sentences based on their total length, with each scale designed to contain an independent piece of information [Source 4].\n* **Relevance Scoring:** The fine-tuned retrieval evaluator is used to calculate the relevance score for each individual knowledge strip [Source 4].\n* **Filtering and Recomposition:** The algorithm selectively focuses on key information and filters out non-essential or irrelevant elements from the segments, refining the data into more precise knowledge strips to optimize utilization [Source 1, Source 3].\n\nWould you like to explore how CRAG triggers different actions based on confidence degrees during model inference?",
-      "latency_ms": 1789.35
+      "answer": "İlişkisel veritabanı modelini oluşturan beş temel kavram ve bunların ifade ettiği anlamlar şunlardır:\n\n* **Tablo (Table):** Verilerin tutulduğu temel yapıdır (örneğin *Ogrenciler* tablosu). Satır ve sütunlardan oluşur [Source 1, Source 2].\n* **Satır (Row / Record):** Her bir satır bir veri kaydını temsil eder (örneğin bir öğrencinin bilgileri) [Source 1, Source 2].\n* **Sütun (Column / Field):** Veri alanının adını, veri türünü ve verinin niteliğini belirler (örneğin *Ad*, *Soyad*, *Numara*) [Source 1, Source 2].\n* **Birincil Anahtar (Primary Key):** Tablodaki her satırı benzersiz şekilde tanımlayan sütundur (örneğin *OgrenciNo* veya `OgrID`) [Source 1, Source 2, Source 3].\n* **Yabancı Anahtar (Foreign Key):** Başka bir tablodaki birincil anahtara referans vererek tablolar arası bağlantı kurmayı sağlar [Source 1, Source 2].\n\nİlişkisel veritabanlarında ayrıca bu yapıların ve aralarındaki ilişkilerin tanımlandığı, veri türleri ile alanların önceden belirlendiği katı bir **şema** (schema) yapısı bulunur [Source 1].\n\nİlişkisel veritabanı işlemlerinin güvenilirliğini ve bütünlüğünü sağlayan ACID ilkeleri hakkında bilgi almak ister misiniz?",
+      "latency_ms": 1697.18
     },
     {
-      "id": "q18",
-      "category": "crag_paper",
-      "question": "In CRAG Table 1, what PopQA accuracy and Biography FactScore does Self-CRAG achieve on SelfRAG-LLaMA2-7b compared to Self-RAG?",
+      "id": "q11",
+      "category": "vtys_notes",
+      "question": "SQL'de Veri İşleme (DML) işlemleri kapsamındaki dört temel komut hangileridir ve SELECT komutu genellikle nasıl ayrılır?",
       "answerable": true,
-      "expected_document_id": "c72b0489-8932-5667-96ae-61e198987330",
+      "expected_document_id": "5a6730c2-e11a-43b4-a481-dc5085738864",
       "expected_pages": [
-        7,
-        8
+        10
       ],
-      "retrieved_count": 5,
+      "retrieved_count": 4,
       "retrieved_document_ids": [
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330"
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864",
+        "5a6730c2-e11a-43b4-a481-dc5085738864"
       ],
       "retrieved_pages": [
+        10,
         8,
-        9,
-        7,
-        8,
-        8
+        2,
+        2
       ],
-      "top_score": 0.8561,
+      "top_score": 0.7255,
       "recall_at_k": 1.0,
       "mrr": 1.0,
       "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "SQL'de Veri İşleme (DML - Data Manipulation Language) komutları, veritabanındaki veriler üzerinde işlem yapmak amacıyla kullanılır [Source 1]. Bu kapsamdaki dört temel işlem şunlardır:\n\n* **Veri Ekleme (INSERT):** Tablolara yeni kayıtlar eklemek için kullanılır [Source 1]. Alan sırası ile değerlerin sıralarının aynı olması gerekir ve birden fazla kayıt eklenecekse değerler art arda girilebilir [Source 1].\n* **Veri Güncelleme (UPDATE):** Tablodaki mevcut kayıtların değerlerini değiştirmek için kullanılır [Source 1]. Bu işlem sırasında `WHERE` koşulu belirtilmezse tablodaki tüm kayıtlar güncellenir ve tek seferde çoklu sütun değeri değiştirilebilir [Source 1].\n* **Veri Silme (DELETE):** Veritabanındaki mevcut kayıtları silmek için kullanılan temel DML işlemlerinden biridir [Source 1].\n* **Okuma / Listeleme (SELECT):** Veritabanındaki verileri sorgulamak ve okumak için kullanılır [Source 1, Source 2]. \n\nDML terimi genel olarak veri ekleme, silme ve güncelleme işlemleri için kullanılırken, `SELECT` komutu sorgulama amacıyla bunlardan genellikle ayrı olarak incelenir [Source 1]. \n\n`UPDATE` komutunda `WHERE` koşulunun unutulmasının veritabanı bütünlüğü üzerindeki riskleri hakkında bilgi almak ister misiniz?",
+      "latency_ms": 1745.65
+    },
+    {
+      "id": "q12",
+      "category": "python_intro",
+      "question": "Python programlama dili kim tarafından ve ne zaman geliştirilmeye başlandı; isminin gerçek kaynağı nedir?",
+      "answerable": true,
+      "expected_document_id": "dc131601-e709-4192-b5a5-e90bb87c938c",
+      "expected_pages": [
+        2
+      ],
+      "retrieved_count": 1,
+      "retrieved_document_ids": [
+        "dc131601-e709-4192-b5a5-e90bb87c938c"
+      ],
+      "retrieved_pages": [
+        2
+      ],
+      "top_score": 0.6902,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Python programlama dili, 90'lı yılların başında Hollandalı bir programcı olan Guido Van Rossum tarafından geliştirilmeye başlanmıştır [Source 1]. \n\nZannedilenin aksine dilin adı piton yılanından gelmemektedir [Source 1]. Guido Van Rossum, bu ismi “The Monty Python” adlı bir İngiliz komedi grubunun “Monty Python’s Flying Circus” adlı gösterisinden esinlenerek vermiştir [Source 1].\n\nPython dilinin nesne yönelimli, yorumlanabilen, birimsel (modüler) ve etkileşimli özellikleri hakkında bilgi almak ister misiniz? [Source 1]",
+      "latency_ms": 1142.12
+    },
+    {
+      "id": "q13",
+      "category": "python_intro",
+      "question": "Hafta 1 Python notlarına göre `id()` fonksiyonu neyi gösterir; değer tabanlı ve adres tabanlı atama arasındaki temel fark nedir?",
+      "answerable": true,
+      "expected_document_id": "dc131601-e709-4192-b5a5-e90bb87c938c",
+      "expected_pages": [
+        21
+      ],
+      "retrieved_count": 4,
+      "retrieved_document_ids": [
+        "dc131601-e709-4192-b5a5-e90bb87c938c",
+        "dc131601-e709-4192-b5a5-e90bb87c938c",
+        "dc131601-e709-4192-b5a5-e90bb87c938c",
+        "dc131601-e709-4192-b5a5-e90bb87c938c"
+      ],
+      "retrieved_pages": [
+        21,
+        21,
+        17,
+        16
+      ],
+      "top_score": 0.7414,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        3,
+        4
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Python programlama dilinde değişkenlerin nesne adreslerini öğrenmek için `id(değişken adı)` fonksiyonu kullanılır. Bu fonksiyonun çıktıları incelendiğinde, bazı değişkenlerin (örneğin a, b ve c değişkenlerinin) aynı bellek adresini paylaştığı görülebilir [Source 1].\n\nDeğişken konusunun en önemli kısımlarından biri olan nesneye yönelik dillerdeki atama türleri şu şekildedir:\n\n* **Değer Tabanlı Atama:** Değerlerin kopyalanması esasına dayanır.\n* **Adres Tabanlı Atama:** İki değişkenin aynı adresi paylaşmasını sağlar. Bu tür bir atama yapıldığında, değişkenlerden biri değiştiğinde diğer değişken de bundan etkilenir; çünkü aslında üzerinde değişiklik yapılan bellek adresi aynıdır [Source 1].\n\nDeğer atama işlemlerinde eşittir (`=`) işaretinin kullanıldığı ve veri tiplerinin programlama dili yorumlaması sırasında atanan ilk değere göre otomatik olarak belirlendiği bilinmektedir [Source 3, Source 4].\n\nAdres tabanlı atamalarda bellek paylaşımının değişkenler üzerindeki ortak etkileri hakkında daha fazla bilgi incelemek ister misiniz?",
+      "latency_ms": 1725.7
+    },
+    {
+      "id": "q14",
+      "category": "java_oop",
+      "question": "Java ders notlarında kaynak kodu dosyası ile kodun başındaki sınıf adı arasındaki zorunlu adlandırma kuralı nedir?",
+      "answerable": true,
+      "expected_document_id": "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+      "expected_pages": [
+        56
+      ],
+      "retrieved_count": 2,
+      "retrieved_document_ids": [
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87"
+      ],
+      "retrieved_pages": [
+        100,
+        56
+      ],
+      "top_score": 0.6141,
+      "recall_at_k": 1.0,
+      "mrr": 0.5,
+      "cited_indices": [
+        2,
+        1
+      ],
+      "keyword_coverage": 0.3333,
+      "abstained": false,
+      "faithfulness": 0.6,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [
+        "Keyword coverage=0.33"
+      ],
+      "answer": "Java kaynak kodu dosyası ile kodun başındaki sınıf adı büyük-küçük harf duyarlı olacak şekilde tamamen aynı olmak zorundadır [Source 2]. Ayrıca dosya, içinde `public` olarak tanımlanan sınıfın adı ile kaydedilmek zorundadır [Source 1].\n\nBu adlandırma kuralının istisnai durumları veya paket içi erişim kuralları hakkında bilgi edinmek ister misiniz?",
+      "latency_ms": 3946.14
+    },
+    {
+      "id": "q15",
+      "category": "java_oop",
+      "question": "Java'da `java.lang.Math` sınıfındaki yöntemler neden `static` olarak tanımlanmıştır ve `25`'in karekökü bu sınıfla nasıl ekrana yazdırılır?",
+      "answerable": true,
+      "expected_document_id": "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+      "expected_pages": [
+        110
+      ],
+      "retrieved_count": 3,
+      "retrieved_document_ids": [
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87"
+      ],
+      "retrieved_pages": [
+        110,
+        105,
+        109
+      ],
+      "top_score": 0.7245,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
         3
       ],
       "keyword_coverage": 1.0,
@@ -805,13 +617,334 @@
       "faithfulness": 1.0,
       "faithfulness_source": "citation_grounded",
       "reasons": [],
-      "answer": "On the SelfRAG-LLaMA2-7b model configuration within Table 1, the performance metrics for Self-CRAG compared to Self-RAG are as follows:\n\n* **PopQA Accuracy:** Self-CRAG achieves an accuracy of `61.8`, whereas Self-RAG achieves `54.9`. [Source 3]\n* **Biography FactScore:** Self-CRAG achieves a FactScore of `86.2`, whereas Self-RAG achieves `81.2`. [Source 3]\n\nWould you like to explore how these methods perform on other datasets like PubHealth or Arc-Challenge from the evaluation results?",
-      "latency_ms": 2243.81
+      "answer": "Java API belgelerinde yer alan `java.lang` paketindeki `Math` sınıfının bütün yöntemleri `static` olarak tanımlanmıştır. Bunun temel nedeni, bu yöntemlerin yapacakları hesaplamalar için herhangi bir durum bilgisine (state) gereksinim duymamasıdır [Source 1, Source 3]. \n\nÖrneğin bir karekök hesaplama işleminde, ortada bir nesne olmasa bile gereken tek bilgi hangi sayının karekökünün bulunacağıdır ve bu bilgi yönteme parametre olarak verilir [Source 3]. Nesnelerin bir durumu olduğu için, çağrılacak yöntem bu durum bilgisinden faydalanmayacaksa ortada bir nesne bulunması anlamlı değildir [Source 3]. Nesne oluşturulmasına gerek duyulmayan bu gibi durumlarda, yöntemler sınıf yöntemi (`static`) olarak tanımlanır ve böylece nesne oluşturulmadan doğrudan sınıf adı üzerinden çağrılabilirler [Source 1, Source 3].\n\n`25` sayısının karekökünü `Math` sınıfı üzerinden hesaplayıp ekrana yazdırmak için yapılması gereken tek şey `sqrt` yöntemini çağırmaktır [Source 1]:\n\n`System.out.println(Math.sqrt(25));`\n\nJava programlarının çalışmaya başladığı `main` yönteminin de `static` tanımlanması ve sınıf dışından erişilebilir olması hangi mantıksal kurallarla açıklanmaktadır?",
+      "latency_ms": 5130.16
+    },
+    {
+      "id": "q16",
+      "category": "java_oop",
+      "question": "In the Java OOP lecture notes (Section 1.4), what fundamental principle defines object-oriented programming, and what three objects illustrate it in the driving scenario?",
+      "answerable": true,
+      "expected_document_id": "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+      "expected_pages": [
+        13
+      ],
+      "retrieved_count": 2,
+      "retrieved_document_ids": [
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87"
+      ],
+      "retrieved_pages": [
+        2,
+        13
+      ],
+      "top_score": 0.6206,
+      "recall_at_k": 1.0,
+      "mrr": 0.5,
+      "cited_indices": [
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Nesneye yönelik programlama, nesnelerin birbirlerine ileti göndermeleri ilkesine dayanmaktadır [Source 2]. Bu prensibe göre bir nesne, başka bir nesneye ileti göndererek ondan bir davranış sergilemesini ister; iletiyi alan nesne ise bu doğrultuda davranarak kendi durum bilgisini değiştirir [Source 2].\n\nBölüm 1.4 kapsamındaki sürüş senaryosunda bu ilkeyi açıklamak için kullanılan üç nesne şunlardır:\n- Otomobil [Source 2]\n- Sürücü [Source 2]\n- Yaya [Source 2]\n\nBu senaryodaki otomobil nesnesinin “gazaBasıldı” davranışı ile “hiz” ve “motorHacmi” özellikleri bulunurken; sürücü ve yaya nesnelerinin o anki özellik ve davranışlarıyla ilgilenilmemektedir [Source 2].\n\nOtomobil nesnesinin sahip olduğu “hiziniYaz” davranışının detaylarını incelemek ister misiniz?",
+      "latency_ms": 1589.29
+    },
+    {
+      "id": "q17",
+      "category": "network_notes",
+      "question": "Network ders notuna göre bir Ethernet çerçevesi toplam kaç byte büyüklüğündedir; başlangıç (preamble) ve başlık (header) alanlarının boyutları nedir?",
+      "answerable": true,
+      "expected_document_id": "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+      "expected_pages": [
+        18
+      ],
+      "retrieved_count": 4,
+      "retrieved_document_ids": [
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c"
+      ],
+      "retrieved_pages": [
+        18,
+        3,
+        18,
+        18
+      ],
+      "top_score": 0.7724,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        3
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Bir Ethernet çerçevesi toplamda 64 ile 1518 byte arası büyüklükteki sayısal darbelerden meydana gelir [Source 1, Source 3]. Çerçeveyi oluşturan alanlardan sorunuzda geçenlerin boyutları şu şekildedir:\n\n* **Başlangıç (Preamble):** Her istasyonun hazır olduğunu gösteren, 7 byte büyüklüğünde haberleşme darbelerini içeren kısımdır [Source 1]. Ayrıca bu bölümde 1 byte'lık Başlangıç Çerçevesi Sınırlayıcı (Başl. Çer. Sınırlayıcı) da yer alır [Source 1].\n* **Başlık (Header):** Veriyi kimin gönderdiğini, kime gideceğini ve çerçevenin büyüklüğünü tutan bu alanın büyüklüğü her zaman 14 byte'dır [Source 1].\n\nEthernet çerçeve yapısı içindeki veri alanı, çerçeve kontrol dizisi ve diğer bölümlerin detayları hakkında bilgi almak ister misiniz?",
+      "latency_ms": 1591.08
+    },
+    {
+      "id": "q18",
+      "category": "network_notes",
+      "question": "Hiyerarşik ağ topolojisinin ağ yönetimi ve trafik izolasyonu bakımından sunduğu temel avantajlar nelerdir?",
+      "answerable": true,
+      "expected_document_id": "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+      "expected_pages": [
+        48
+      ],
+      "retrieved_count": 4,
+      "retrieved_document_ids": [
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "0094eadc-40b7-4998-950b-419ec86ffe2c"
+      ],
+      "retrieved_pages": [
+        48,
+        47,
+        21,
+        5
+      ],
+      "top_score": 0.6655,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Hiyerarşik ağ topolojisi, ağ yönetimi ve trafik izolasyonu açısından ağlara çeşitli temel avantajlar sunmaktadır [Source 1]:\n\n* **Ağ Yönetiminin Kolaylaşması:** Bu topoloji yapısı sayesinde ağ yönetimi daha kolay bir hale gelmektedir [Source 1].\n* **Cihaz Kullanımının Öngörülebilmesi:** Ağ cihazlarının en verimli şekilde nasıl kullanılabileceği önceden öngörülebilir [Source 1]. Her hiyerarşinin gereksinimi daha net belirlenebildiği için, ilgili hiyerarşide kullanılacak olan cihazın özellikleri de daha iyi tahmin edilebilir [Source 2].\n* **Kaynakların Verimli Kullanımı:** Kaynaklar (bant genişlikleri, anahtarlama kapasiteleri vb.) daha verimli bir şekilde kullanılabilir [Source 2].\n* **Port Bant Genişliklerinin Paylaşımı:** Cihazların port bant genişlikleri etkin bir şekilde paylaşılabilir [Source 1].\n* **Trafik İzolasyonu ve Üst Kademenin Korunması:** Aynı ara düğüme bağlı olan yaprak düğümler arasındaki trafik, hiyerarşinin üst kademesini meşgul etmez [Source 1]. Yapraklarda bulunan uç cihazlar (örneğin Erzurum, Konya, Gaziantep gibi illerdeki cihazlar) o şehirde var olan tüm trafiği toplar ve üst düzeye aktarırken; ara düğümler bir alt ve bir üst hiyerarşiden gelen trafikleri toplar ve yönlendirir [Source 1].\n\nHiyerarşik yapıda birbirine bağlı iki düğüm arasına yedek amacıyla ikinci bir bağlantının yapılması hiyerarşik yapıyı bozmaz; ancak zaman içinde farklı noktalara (örneğin Ankara ile İzmir veya Konya ile Antalya arasında olduğu gibi) yapılan eklemeler hiyerarşik yapıyı bozarak örgü topolojisine dönüştürebilir [Source 1].\n\nHiyerarşik topolojide kaynakların daha verimli kullanımına kıyasla, örgü topolojisinin sunduğu düğüm ekleme kolaylığı veya bu topolojilerde karşılaşılan tıkanma olasılıkları hakkında bilgi edinmek ister misiniz?",
+      "latency_ms": 2818.48
     },
     {
       "id": "q19",
+      "category": "network_notes",
+      "question": "According to the network lecture notes, which three layers does X.25 define, and how does its packet layer go beyond the OSI network layer?",
+      "answerable": true,
+      "expected_document_id": "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+      "expected_pages": [
+        72
+      ],
+      "retrieved_count": 2,
+      "retrieved_document_ids": [
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c",
+        "dc9c089c-7fbb-441a-9d9f-f95362b9b92c"
+      ],
+      "retrieved_pages": [
+        72,
+        71
+      ],
+      "top_score": 0.7114,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "X.25 tanımı, fiziksel, bağ (link) ve paket (packet) olmak üzere üç katmanı kapsar [Source 1]. Bu katmanlar OSI başvuru modelinin alttan ilk üç katmanına karşılık düşer; ilk iki katman doğrudan fiziksel ve veri bağı katmanlarına denk gelir [Source 1].\n\nX.25'in üçüncü katmanı olan paket katmanı, OSI'nin ağ katmanına doğrudan karşılık düşmez ve daha fazla işlev barındırır [Source 1]. Örneğin, OSI modelinde dördüncü katmanda (ulaşım katmanı) gerçekleştirilen akış kontrolü ve paket alındı bilgilendirilmesi gibi işlemler, X.25'in paket katmanında yerine getirilir [Source 1].\n\nX.25 protokolünün DTE ve DCE birimleri arasındaki bağlantı arayüzünü nasıl yapılandırdığı ve bant genişliği sınırları hakkında bilgi edinmek ister misiniz?",
+      "latency_ms": 1413.06
+    },
+    {
+      "id": "q20",
+      "category": "python_oop",
+      "question": "Python 3. Ünite modülüne göre dilin kurallarına uygun bir nesne ve sınıf tanımlamasında girinti, adlandırma ve kodlama açısından nelere dikkat edilmelidir?",
+      "answerable": true,
+      "expected_document_id": "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+      "expected_pages": [
+        26
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+        "fc34a681-3f75-4891-8e0c-0f8ae30f0c87",
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179"
+      ],
+      "retrieved_pages": [
+        26,
+        24,
+        21,
+        61,
+        3
+      ],
+      "top_score": 0.7341,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2,
+        3
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Dilin kurallarına uygun bir nesne ve sınıf tanımlamasında dikkat edilmesi gereken temel hususlar şunlardır:\n\n* **Anlamlı İsimlendirme:** Sınıf, nitelik ve metot adları anlamlı ve tanımlayıcı olmalıdır [Source 1]. Python yazım kuralları gereği örneğin `snake_case` kullanımına ve PEP 8 kodlama standartlarına uyulmalıdır [Source 2].\n* **Yapılandırılmış Kodlama:** Kod, okunabilir ve düzenli bir şekilde yazılmalı ve gereksiz tekrarlardan (`redundancy`) kaçınılmalıdır [Source 1]. Ayrıca gerektiğinde nitelik ve metotlar için erişim düzenleri uygulanabilir; özel nitelikler/metotlar `__isim` şeklinde, korumalı nitelikler/metotlar ise `_isim` şeklinde tanımlanabilir [Source 2].\n* **Yazım ve Biçim Kuralları:** Python’un girinti (`indentation`) kurallarına tam olarak uyulmalı, her blok için 4 boşluk kullanılmalıdır [Source 1].\n* **Yorumlar:** Kod içinde yer alan yorumlar açıklayıcı olmalı ve kodla kesinlikle çelişmemelidir [Source 1].\n* **Yapıcı Metot (Constructor) Kullanımı:** Sınıfın bir nesnesi oluşturulduğunda otomatik olarak çağrılan ve nesneye ait niteliklerin başlangıç değerlerini belirleyen yapıcı metot (`__init__`) kullanılmalı ve bu metodun ilk parametresi `self` olmalıdır [Source 3].\n\nSınıflarda erişim düzeylerinin (özel ve korumalı niteliklerin) kod güvenliğine ve kapsüllemeye etkileri hakkında daha fazla bilgi almak ister misiniz?",
+      "latency_ms": 1981.34
+    },
+    {
+      "id": "q21",
+      "category": "python_oop",
+      "question": "Python 3. Ünite ileri düzey OOP örnek projesinin adı nedir ve bu projede hangi üç temel nesne yönelimli programlama ilkesi birlikte uygulanır?",
+      "answerable": true,
+      "expected_document_id": "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+      "expected_pages": [
+        51
+      ],
+      "retrieved_count": 2,
+      "retrieved_document_ids": [
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179",
+        "73a2e344-6d6c-4a69-bb6c-6b2282665179"
+      ],
+      "retrieved_pages": [
+        51,
+        2
+      ],
+      "top_score": 0.6779,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Python dilinde yazılmış ileri düzey OOP örnek projesinin adı **Bir Hayvanat Bahçesi Yönetim Sistemi**dir [Source 1]. Bu projede birlikte uygulanan üç temel nesne yönelimli programlama ilkesi şunlardır:\n\n* **Kapsülleme (Encapsulation):** Verilerin gizlenmesini sağlar [Source 1].\n* **Kalıtım (Inheritance):** Farklı hayvan türleri arasında kalıtım kurulmasına olanak tanır [Source 1].\n* **Çok Biçimlilik (Polymorphism):** Aynı işlevin farklı türlerdeki nesnelerle gerçekleştirilmesini sağlar [Source 1].\n\nBu projedeki hayvan sınıflarının nasıl yapılandırıldığına ve kapsülleme tekniğinin kod üzerinde nasıl uygulandığına daha yakından bakmak ister misiniz?",
+      "latency_ms": 1345.02
+    },
+    {
+      "id": "q22",
+      "category": "data_structures",
+      "question": "Veri Yapıları ders kitabına göre tek bağlı doğrusal listede `struct node` yapısını oluşturan iki alan nedir ve ne tutarlar?",
+      "answerable": true,
+      "expected_document_id": "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+      "expected_pages": [
+        21
+      ],
+      "retrieved_count": 4,
+      "retrieved_document_ids": [
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc"
+      ],
+      "retrieved_pages": [
+        21,
+        20,
+        21,
+        25
+      ],
+      "top_score": 0.7126,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        3
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Tek bağlı doğrusal listede `struct node` yapısı iki temel öğeden oluşur [Source 1]:\n\n1. **`data` alanı:** Numarası verilen düğümde tutulacak bilgiyi (veriyi) ifade eder. Bu veri telefon numaraları, TC kimlik numaraları veya `int` türünden nesneler gibi her türden içeriği barındırabilir [Source 1].\n2. **`next` alanı:** Bir bağlı listede mutlaka bulunması gereken ikinci öğedir ve `struct node` tipinde bir işaretçidir (`pointer`). Bu alan, bir düğümden sonra hangi düğüm gelecekse o düğümün bellekteki adresini tutar [Source 1, Source 3].\n\nTek bağlı doğrusal listelerin C dilindeki genel yapı tanımı şu şekildedir [Source 1]:\n\n```c\nstruct node {\n    int data;\n    struct node *next;\n};\n```\n\nÇift bağlı listeler ile tek bağlı listeler arasındaki bellek bağlantı farklarını veya listenin kopyalanması sürecindeki işleyişi incelemek ister misiniz?",
+      "latency_ms": 6631.87
+    },
+    {
+      "id": "q23",
+      "category": "data_structures",
+      "question": "Çift bağlı doğrusal (Double Linked) listelerde bir düğüm hangi işaretçileri barındırır ve listenin başını gösteren `head` düğümünün `prev` işaretçisi ne tutar?",
+      "answerable": true,
+      "expected_document_id": "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+      "expected_pages": [
+        30
+      ],
+      "retrieved_count": 5,
+      "retrieved_document_ids": [
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc"
+      ],
+      "retrieved_pages": [
+        30,
+        30,
+        33,
+        32,
+        31
+      ],
+      "top_score": 0.8143,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "Çift bağlı doğrusal (double linked) listelerde her düğüm, verileri tutmak için `data` adında bir değişkenin yanı sıra şu iki işaretçiyi barındırır:\n- Kendinden önceki düğümün adresini tutan `prev` işaretçisi [Source 1]\n- Kendinden sonraki düğümün adresini tutan `next` işaretçisi [Source 1]\n\nListenin başını gösteren `head` yapı değişkeninin `prev` işaretçisi ise herhangi bir yeri göstermediği için `NULL` değer içermektedir [Source 1].\n\nÇift bağlı doğrusal listelerde düğüm silme işlemlerinin mantığı ve adımları hakkında bilgi almak ister misiniz?",
+      "latency_ms": 1537.67
+    },
+    {
+      "id": "q24",
+      "category": "data_structures",
+      "question": "İkili olmayan ağaçlar (örneğin UNIX dosya hiyerarşisi) C yapısında nasıl modellenir ve bu yaklaşımın bellek ile yürütme zamanı üzerindeki etkisi nedir?",
+      "answerable": true,
+      "expected_document_id": "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+      "expected_pages": [
+        55
+      ],
+      "retrieved_count": 3,
+      "retrieved_document_ids": [
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc",
+        "f840a1ee-1f7d-4e8e-816f-eb0baa47aadc"
+      ],
+      "retrieved_pages": [
+        55,
+        55,
+        56
+      ],
+      "top_score": 0.6271,
+      "recall_at_k": 1.0,
+      "mrr": 1.0,
+      "cited_indices": [
+        1,
+        2,
+        3
+      ],
+      "keyword_coverage": 1.0,
+      "abstained": false,
+      "faithfulness": 1.0,
+      "faithfulness_source": "citation_grounded",
+      "reasons": [],
+      "answer": "İkili olmayan ağaçların (non-binary trees) veri yapısı tasarımı, geleneksel ikili (binary) ağaç yapılarından farklı bir yaklaşım gerektirir [Source 1]. Unix dosya hiyerarşisi gibi yapılarda bir kök dizinin dörde varan veya bazı düğümlerin üçten fazla çocuğu bulunabilir; bu nedenle her düğümün sol ve sağ çocuk tutması yetersiz kalır [Source 1].\n\n### İkili Olmayan Ağaçların Veri Modeli ve Yapısı\n\nİkili olmayan ağaçların bellek üzerinde modellenebilmesi için her düğümün yapısında şu temel elemanlar yer alır:\n* `data`: Düğümde saklanan veriyi veya ismi (örneğin dosya/dizin adını) tutar [Source 2].\n* `firstChild`: Düğümün ilk çocuğunu gösteren bir işaretçidir [Source 1, Source 2]. Kökün kardeşi yoktur, sadece çocukları ve torunları olabilir [Source 1].\n* `nextSibling`: Düğümün bir sonraki kardeşini gösteren bir işaretçidir [Source 1, Source 2]. Kardeşler birden fazla olabileceğinden, ilk çocuktan sonra kardeşler bu işaretçi aracılığıyla birbirlerine zincirleme bağlanır [Source 1].\n\nBu mantıksal modelleme sayesinde, ikili olmayan karmaşık ilişkiler ikili mantığa benzer bir işaretçi düzeniyle temsil edilebilir.\n\n### Bellek ve Yürütme Zamanı Üzerindeki Etkileri\n\nBu yaklaşımın performans ve bellek üzerinde belirgin etkileri bulunmaktadır:\n* **Erişim Zamanı ve Yürütme Süresi:** Bir düğümden onun çocuklarına veya alt elemanlarına doğrudan erişim ortadan kalkmıştır [Source 2]. Bağlı listelerde olduğu gibi ardışıl (sequential) bir erişme yöntemi ortaya çıkar [Source 2]. Bu durum, arama ve erişim işlemlerinin yürütme zamanını olumsuz yönde etkileyerek artırabilir [Source 2].\n* **Bellek Organizasyonu:** Düğümler doğrusal olmayan (nonlinear) bir yapıda organize edilir [Source 3]. Her düğüm `firstChild` ve `nextSibling` referansları barındırdığı için, çok sayıda çocuğa sahip geniş ağaçlarda pointer maliyeti ve hiyerarşik bağlama biçimi bellek kullanım şeklini belirler.\n\nİkili ağaçlarda seviye, derinlik hesaplamaları ve `struct node` yapısının (`data`, `left`, `right`) bellek üstündeki doğrusal olmayan dağılımı hakkında daha fazla bilgi incelemek ister misiniz?",
+      "latency_ms": 3090.82
+    },
+    {
+      "id": "q25",
       "category": "negative_control",
-      "question": "Türkiye İş Kanunu'na göre 2026 yılı kıdem tazminatı tavanı kaç TL olarak belirlenmiştir?",
+      "question": "Bu belgelerde Elon Musk'ın Mars kolonisi planı ve SpaceX Starship roketinin 2029 bütçesi hakkında hangi rakamlar yer alıyor?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
@@ -830,12 +963,12 @@
         "Correctly abstained on unanswerable query"
       ],
       "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
-      "latency_ms": 1345.6
+      "latency_ms": 775.58
     },
     {
-      "id": "q20",
+      "id": "q26",
       "category": "negative_control",
-      "question": "What exact quarterly AWS cloud GPU billing expense did Anthropic report in Q3 2025?",
+      "question": "What is the exact number of annual paid vacation days and daily meal allowance specified for full-time employees in 2026?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
@@ -854,31 +987,19 @@
         "Correctly abstained on unanswerable query"
       ],
       "answer": "This specific detail is not mentioned in the available knowledge base.",
-      "latency_ms": 1815.99
+      "latency_ms": 770.94
     },
     {
-      "id": "q21",
+      "id": "q27",
       "category": "adversarial_negative",
-      "question": "According to the CRAG paper, what cosine similarity cutoff and HNSW ef_construct parameter are configured in Qdrant for its retrieval evaluator?",
+      "question": "Bilgisayar Ağ Sistemleri veya network_dersnotu belgelerinde QUIC (HTTP/3) protokolünün 0-RTT el sıkışma gecikmesi kaç milisaniye olarak ölçülmüştür?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330",
-        "c72b0489-8932-5667-96ae-61e198987330"
-      ],
-      "retrieved_pages": [
-        4,
-        15,
-        1,
-        2,
-        3
-      ],
-      "top_score": 0.7272,
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
       "recall_at_k": null,
       "mrr": null,
       "cited_indices": [],
@@ -890,25 +1011,19 @@
         "Correctly abstained on unanswerable query"
       ],
       "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
-      "latency_ms": 2127.41
+      "latency_ms": 789.25
     },
     {
-      "id": "q22",
+      "id": "q28",
       "category": "adversarial_negative",
-      "question": "In Fusion-in-Decoder Table 1, what BLEU-4 score did FiD (large) achieve on the WMT-19 German-to-English machine translation benchmark?",
+      "question": "İşletim Sistemleri ders notlarında Linux 6.12 çekirdeğindeki `io_uring` zero-copy mekanizmasının IOPS karşılaştırma tablosunda kaç IOPS değeri verilmiştir?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
-      "retrieved_count": 2,
-      "retrieved_document_ids": [
-        "89e9b735-709a-574e-963b-2bf83eb15186",
-        "89e9b735-709a-574e-963b-2bf83eb15186"
-      ],
-      "retrieved_pages": [
-        4,
-        3
-      ],
-      "top_score": 0.7221,
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
       "recall_at_k": null,
       "mrr": null,
       "cited_indices": [],
@@ -920,31 +1035,19 @@
         "Correctly abstained on unanswerable query"
       ],
       "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
-      "latency_ms": 1524.11
+      "latency_ms": 849.28
     },
     {
-      "id": "q23",
+      "id": "q29",
       "category": "adversarial_negative",
-      "question": "What exact API price per million reflection tokens does OpenAI charge to run Self-RAG 13B inference according to the Self-RAG paper?",
+      "question": "In `java_notes_by_oa.pdf`, what heap memory reduction percentage does Java 21 Virtual Threads (Project Loom) achieve compared to platform threads?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1",
-        "09341aca-74e5-51ca-91cc-dae292cd9fa1"
-      ],
-      "retrieved_pages": [
-        1,
-        17,
-        2,
-        3,
-        4
-      ],
-      "top_score": 0.7472,
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
       "recall_at_k": null,
       "mrr": null,
       "cited_indices": [],
@@ -955,32 +1058,20 @@
       "reasons": [
         "Correctly abstained on unanswerable query"
       ],
-      "answer": "This specific detail is not mentioned in the available knowledge base. \n\nWould you like to explore how reflection tokens function or how the inference-time algorithm customizes model behavior using segment-level beam search?",
-      "latency_ms": 1842.93
+      "answer": "This specific detail is not mentioned in the available knowledge base.",
+      "latency_ms": 872.77
     },
     {
-      "id": "q24",
+      "id": "q30",
       "category": "adversarial_negative",
-      "question": "DPR makalesindeki Tablo 2'de BM25 + ColBERTv2 hibrit modelinin MS-MARCO üzerindeki MRR@10 skoru nedir?",
+      "question": "Veri Yapıları veya VTYS ders notlarında PostgreSQL B+Tree indeksleri için varsayılan autovacuum scale factor eşiği yüzde kaç olarak belirtilmiştir?",
       "answerable": false,
       "expected_document_id": null,
       "expected_pages": [],
-      "retrieved_count": 5,
-      "retrieved_document_ids": [
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a",
-        "642b8860-6f3e-5f33-947f-bda82852e982",
-        "aa8f41ff-0e26-511b-843a-cb96fd8dc94a"
-      ],
-      "retrieved_pages": [
-        5,
-        8,
-        5,
-        12,
-        4
-      ],
-      "top_score": 0.7733,
+      "retrieved_count": 0,
+      "retrieved_document_ids": [],
+      "retrieved_pages": [],
+      "top_score": null,
       "recall_at_k": null,
       "mrr": null,
       "cited_indices": [],
@@ -992,8 +1083,8 @@
         "Correctly abstained on unanswerable query"
       ],
       "answer": "Bu bilgi mevcut kaynaklarda yer almamaktadır.",
-      "latency_ms": 1335.76
+      "latency_ms": 1303.59
     }
   ],
-  "evaluated_at": "2026-11-18T19:35:18.070055+00:00"
+  "evaluated_at": "2026-11-20T20:41:30.094810+00:00"
 }
